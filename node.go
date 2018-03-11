@@ -12,10 +12,13 @@ import (
 	"image"
 	"./geometry"
 	"./shared"
+	"./prey"
 	_ "image/png"
 	_ "image/jpeg"
 	"time"
 	"log"
+	"github.com/faiface/pixel/text"
+	"golang.org/x/image/font/basicfont"
 )
 
 
@@ -43,9 +46,10 @@ func main() {
 	select {}
 }
 func run() {
+
 	// Window size
-	var winMaxX float64 = 600
-	var winMaxY float64 = 600
+	var winMaxX float64 = 300
+	var winMaxY float64 = 300
 
 	// Sprite size
 	var spriteMin float64 = 20
@@ -78,19 +82,32 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
+	win.Clear(colornames.Skyblue)
 
+	//Enable text
+	basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	basicTxt := text.New(geom.GetVectorFromCoords(1,1), basicAtlas)
+
+	// Create player sprite
 	pic, err := loadPicture("./sprites/bunny.jpeg")
 	if err != nil {
 		panic(err)
 	}
-
 	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
-	win.Clear(colornames.Skyblue)
-
 	spritePos := geom.GetVectorFromCoords(3,3) // starting position of sprite on grid
 	if !geom.IsInBounds(spritePos) {
 		spritePos = geom.GetVectorFromCoords(0, 0 ) // will always be in bounds if given incorrect args
 	}
+
+	// Create prey sprite
+	pic, err = loadPicture("./sprites/prey.jpg")
+	if err != nil {
+		panic(err)
+	}
+	preySprite := pixel.NewSprite(pic, pic.Bounds())
+	preyRunner := prey.CreatePreyRunner(geom)
+	preySprite.Draw(win, pixel.IM.Moved(preyRunner.GetPosition()))
+
 	drawWalls(wallVecs, walls, win) // call this to draw walls every update
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
 
@@ -151,13 +168,31 @@ func run() {
 			}
 			keyStroke = ""
 			mat = mat.Moved(spritePos)
+			preyPos := preyRunner.Move()
+			preySprite.Draw(win, pixel.IM.Moved(preyPos))
 			drawWalls(wallVecs, walls, win)
 			sprite.Draw(win, mat)
+
+			// Check for win condition
+			if checkForWin(spritePos, preyPos) {
+				fmt.Fprintln(basicTxt, "You win!")
+				basicTxt.Draw(win, pixel.IM.Scaled(basicTxt.Orig, 4))
+				win.Update()
+				preyRunner = prey.CreatePreyRunner(geom)
+				time.Sleep(2*time.Second)
+				basicTxt.Clear()
+			}
 			win.Update()
 		}
-
 	}
 
+}
+
+func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
+	if sprite.X == prey.X && sprite.Y == prey.Y {
+		return true
+	}
+	return false
 }
 
 // Creates an array of sprites to be used for the walls

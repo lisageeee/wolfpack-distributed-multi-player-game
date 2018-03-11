@@ -3,8 +3,9 @@ package geometry
 import (
 	"github.com/faiface/pixel"
 	"../shared"
-	)
-
+	"math/rand"
+	"math"
+)
 
 type GeometryManager struct {
 	x float64
@@ -60,6 +61,63 @@ func (gm * GeometryManager) getWallVectors(walls []shared.Coord) {
 		wallVecs[i] = vec
 	}
 	gm.walls = wallVecs
+}
+
+func (gm * GeometryManager) GetRandomValidPosition() (pixel.Vec) {
+	// Generate random numbers 0<1.0
+	X := rand.Float64()
+	Y := rand.Float64()
+
+	// Convert to space on grid
+	X = X*gm.x
+	Y = Y*gm.y
+
+	//Find nearest grid pos
+	var i float64 = 0
+	var nearestX float64 = math.Inf(1)
+	var valX float64 = 0
+	var nearestY float64 = math.Inf(1)
+	var valY float64 = 0
+	for  {
+		xDone := false
+		yDone := false
+		// Check X
+		if i * gm.spriteSize < gm.x {
+			xCur := i * gm.spriteSize + gm.spriteSize / 2
+			if math.Abs(X-xCur) < nearestX {
+				nearestX = math.Abs(X-xCur)
+				valX = xCur
+			}
+		} else {
+			xDone = true
+			if yDone {
+				break
+			}
+		}
+		// Check Y
+		if i * gm.spriteSize < gm.y {
+			yCur := i * gm.spriteSize + + gm.spriteSize / 2
+			if math.Abs(Y-yCur) < nearestY {
+				nearestY = math.Abs(Y-yCur)
+				valY = yCur
+			}
+		} else {
+			yDone = true
+			if xDone {
+				break
+			}
+		}
+		i++
+	}
+
+	vector := pixel.V(valX, valY)
+
+	// Check for collision; if so, do it again
+	if gm.IsInBounds(vector) && !gm.IsCollision(vector) {
+		return vector
+	} else {
+		return gm.GetRandomValidPosition()
+	}
 }
 
 func (gm * GeometryManager) GetWallVectors() ([]pixel.Vec) {
