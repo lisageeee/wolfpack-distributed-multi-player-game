@@ -15,6 +15,7 @@ import (
 	_ "image/png"
 	_ "image/jpeg"
 	"time"
+	"log"
 )
 
 
@@ -56,7 +57,6 @@ func run() {
 		panic(err)
 	}
 
-	win.Clear(colornames.Skyblue)
 	pic, err := loadPicture("bunny.jpeg")
 	if err != nil {
 		panic(err)
@@ -66,26 +66,29 @@ func run() {
 	var spriteMax float64 = 50
 	spriteStep := spriteMax - spriteMin
 	geom := geometry.CreateGeometryManager(winMaxX, winMaxY, spriteStep)
-	// maxX := winMaxX/spriteStep
-	// maxY := winMaxY/spriteStep
 
 	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
 	win.Clear(colornames.Skyblue)
-	center := geom.GetVectorFromCoords(0,1)
-	sprite.Draw(win, pixel.IM.Moved(center))
+
+	spritePos := geom.GetVectorFromCoords(3,3) // starting position of sprite on grid
+	if !geom.IsInBounds(spritePos) {
+		spritePos = geom.GetVectorFromCoords(0, 0 ) // will always be in bounds if given incorrect args
+	}
+	sprite.Draw(win, pixel.IM.Moved(spritePos))
 
 
+	keyStroke := ""
 	ttm := make(chan string, 1)
 
 	for !win.Closed() {
 
-		keyStroke := ""
 
 		go func() {
 			time.Sleep(150*time.Millisecond)
 			ttm <- "ok"
 		}()
 
+		// Listens for keypress
 		go func() {
 			if win.Pressed(pixelgl.KeyLeft) {
 				keyStroke = "left"
@@ -103,34 +106,29 @@ func run() {
 
 		select {
 		case _ = <-ttm:
-
 			win.Clear(colornames.Skyblue)
+			mat := pixel.IM
 			switch keyStroke {
 				case "up":
-					mat := pixel.IM
-					center.Y = center.Y+spriteStep
-					mat = mat.Moved(center)
-					sprite.Draw(win, mat)
+					if geom.IsInBounds(pixel.V(spritePos.X, spritePos.Y + spriteStep)) {
+						spritePos.Y = spritePos.Y + spriteStep
+					}
 				case "down":
-					mat := pixel.IM
-					center.Y = center.Y-spriteStep
-					mat = mat.Moved(center)
-					sprite.Draw(win, mat)
+					if geom.IsInBounds(pixel.V(spritePos.X, spritePos.Y - spriteStep)) {
+						spritePos.Y = spritePos.Y - spriteStep
+					}
 				case "left":
-					mat := pixel.IM
-					center.X = center.X-spriteStep
-					mat = mat.Moved(center)
-					sprite.Draw(win, mat)
+					if geom.IsInBounds(pixel.V(spritePos.X - spriteStep, spritePos.Y)) {
+						spritePos.X = spritePos.X - spriteStep
+					}
 				case "right":
-					mat := pixel.IM
-					center.X = center.X + spriteStep
-					mat = mat.Moved(center)
-					sprite.Draw(win, mat)
-				default:
-					mat := pixel.IM
-					mat = mat.Moved(center)
-					sprite.Draw(win, mat)
+					if geom.IsInBounds(pixel.V(spritePos.X + spriteStep, spritePos.Y)) {
+						spritePos.X = spritePos.X + spriteStep
+					}
 			}
+			keyStroke = ""
+			mat = mat.Moved(spritePos)
+			sprite.Draw(win, mat)
 			win.Update()
 		}
 
@@ -170,7 +168,8 @@ func serverRegister(localIP string) []string {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
-		panic(err)
+		log.Println("Cannot dial server. Please ensure the server is running and try again.")
+		os.Exit(1)
 	}
 	var response []string
 	// Get IP from server
