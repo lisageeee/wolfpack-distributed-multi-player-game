@@ -10,9 +10,11 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
 	"image"
+	"./geometry"
 
 	_ "image/png"
 	_ "image/jpeg"
+	"time"
 )
 
 
@@ -40,12 +42,15 @@ func main() {
 	select {}
 }
 func run() {
+	var winMaxX float64 = 600
+	var winMaxY float64 = 600
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
-		Title:  "Pixel Rocks!",
-		Bounds: pixel.R(0, 0, 1024, 768),
+		Title:  "Wolfpack",
+		Bounds: pixel.R(0, 0, winMaxX, winMaxY),
 		VSync:  true,
 	}
+
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
@@ -56,43 +61,78 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-	sprite := pixel.NewSprite(pic, pixel.R(20,20,50,50))
+
+	var spriteMin float64 = 20
+	var spriteMax float64 = 50
+	spriteStep := spriteMax - spriteMin
+	geom := geometry.CreateGeometryManager(winMaxX, winMaxY, spriteStep)
+	// maxX := winMaxX/spriteStep
+	// maxY := winMaxY/spriteStep
+
+	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
 	win.Clear(colornames.Skyblue)
-	center:= win.Bounds().Center()
+	center := geom.GetVectorFromCoords(0,1)
 	sprite.Draw(win, pixel.IM.Moved(center))
+
+
+	ttm := make(chan string, 1)
 
 	for !win.Closed() {
 
-		if win.Pressed(pixelgl.KeyLeft){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.X = center.X-1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		if win.Pressed(pixelgl.KeyRight){
+		keyStroke := ""
+
+		go func() {
+			time.Sleep(150*time.Millisecond)
+			ttm <- "ok"
+		}()
+
+		go func() {
+			if win.Pressed(pixelgl.KeyLeft) {
+				keyStroke = "left"
+			}
+			if win.Pressed(pixelgl.KeyRight)  {
+				keyStroke = "right"
+			}
+			if win.Pressed(pixelgl.KeyUp) {
+				keyStroke = "up"
+			}
+			if win.Pressed(pixelgl.KeyDown) {
+				keyStroke = "down"
+			}
+		}()
+
+		select {
+		case _ = <-ttm:
 
 			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.X = center.X+1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
+			switch keyStroke {
+				case "up":
+					mat := pixel.IM
+					center.Y = center.Y+spriteStep
+					mat = mat.Moved(center)
+					sprite.Draw(win, mat)
+				case "down":
+					mat := pixel.IM
+					center.Y = center.Y-spriteStep
+					mat = mat.Moved(center)
+					sprite.Draw(win, mat)
+				case "left":
+					mat := pixel.IM
+					center.X = center.X-spriteStep
+					mat = mat.Moved(center)
+					sprite.Draw(win, mat)
+				case "right":
+					mat := pixel.IM
+					center.X = center.X + spriteStep
+					mat = mat.Moved(center)
+					sprite.Draw(win, mat)
+				default:
+					mat := pixel.IM
+					mat = mat.Moved(center)
+					sprite.Draw(win, mat)
+			}
+			win.Update()
 		}
-		if win.Pressed(pixelgl.KeyUp){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.Y = center.Y+1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		if win.Pressed(pixelgl.KeyDown){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.Y = center.Y-1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		win.Update()
 
 	}
 
