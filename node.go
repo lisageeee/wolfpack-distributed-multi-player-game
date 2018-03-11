@@ -11,7 +11,7 @@ import (
 	"golang.org/x/image/colornames"
 	"image"
 	"./geometry"
-
+	"./shared"
 	_ "image/png"
 	_ "image/jpeg"
 	"time"
@@ -43,8 +43,30 @@ func main() {
 	select {}
 }
 func run() {
+	// Window size
 	var winMaxX float64 = 600
 	var winMaxY float64 = 600
+
+	// Sprite size
+	var spriteMin float64 = 20
+	var spriteMax float64 = 50
+	spriteStep := spriteMax - spriteMin // winMaxX % spriteStep and winMaxY % spriteStep should be 0 (spriteStep == spriteSize)
+
+
+	// Init walls
+	wallCoords := []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}}
+	wallPic, err := loadPicture("./sprites/wall.jpg")
+	if err != nil {
+		panic(err)
+	}
+
+	// Create geometry manager
+	geom := geometry.CreateGeometryManager(winMaxX, winMaxY, spriteStep, wallCoords)
+
+	// Create walls sprites for drawing
+	walls := createWallSprites(wallCoords, wallPic)
+	wallVecs := geom.GetWallVectors()
+
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
 		Title:  "Wolfpack",
@@ -57,15 +79,10 @@ func run() {
 		panic(err)
 	}
 
-	pic, err := loadPicture("bunny.jpeg")
+	pic, err := loadPicture("./sprites/bunny.jpeg")
 	if err != nil {
 		panic(err)
 	}
-
-	var spriteMin float64 = 20
-	var spriteMax float64 = 50
-	spriteStep := spriteMax - spriteMin
-	geom := geometry.CreateGeometryManager(winMaxX, winMaxY, spriteStep)
 
 	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
 	win.Clear(colornames.Skyblue)
@@ -74,6 +91,7 @@ func run() {
 	if !geom.IsInBounds(spritePos) {
 		spritePos = geom.GetVectorFromCoords(0, 0 ) // will always be in bounds if given incorrect args
 	}
+	drawWalls(wallVecs, walls, win) // call this to draw walls every update
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
 
 
@@ -108,32 +126,53 @@ func run() {
 		case _ = <-ttm:
 			win.Clear(colornames.Skyblue)
 			mat := pixel.IM
+			newLoc := spritePos
 			switch keyStroke {
 				case "up":
-					if geom.IsInBounds(pixel.V(spritePos.X, spritePos.Y + spriteStep)) {
+					newLoc = pixel.V(spritePos.X, spritePos.Y + spriteStep)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
 						spritePos.Y = spritePos.Y + spriteStep
 					}
 				case "down":
-					if geom.IsInBounds(pixel.V(spritePos.X, spritePos.Y - spriteStep)) {
+					newLoc = pixel.V(spritePos.X, spritePos.Y - spriteStep)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
 						spritePos.Y = spritePos.Y - spriteStep
 					}
 				case "left":
-					if geom.IsInBounds(pixel.V(spritePos.X - spriteStep, spritePos.Y)) {
+					newLoc = pixel.V(spritePos.X - spriteStep, spritePos.Y)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
 						spritePos.X = spritePos.X - spriteStep
 					}
 				case "right":
-					if geom.IsInBounds(pixel.V(spritePos.X + spriteStep, spritePos.Y)) {
+					newLoc = pixel.V(spritePos.X + spriteStep, spritePos.Y)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
 						spritePos.X = spritePos.X + spriteStep
 					}
 			}
 			keyStroke = ""
 			mat = mat.Moved(spritePos)
+			drawWalls(wallVecs, walls, win)
 			sprite.Draw(win, mat)
 			win.Update()
 		}
 
 	}
 
+}
+
+// Creates an array of sprites to be used for the walls
+func createWallSprites(coords []shared.Coord, picture pixel.Picture) ([]pixel.Sprite) {
+	sprites := make([]pixel.Sprite, len(coords))
+	for i, _ := range coords {
+		sprites[i] = *pixel.NewSprite(picture, picture.Bounds())
+	}
+	return sprites
+}
+
+func drawWalls(vectors []pixel.Vec, sprites []pixel.Sprite, window *pixelgl.Window) {
+	for i := range vectors {
+		sprites[i].Draw(window, pixel.IM.Moved(vectors[i]))
+	}
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
