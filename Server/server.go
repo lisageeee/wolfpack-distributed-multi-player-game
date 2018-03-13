@@ -4,6 +4,7 @@ import (
 	"net/rpc"
 	"net"
 	"fmt"
+	"../shared"
 )
 
 type GServer int
@@ -23,13 +24,13 @@ func main() {
 		go s.ServeConn(conn)
 	}
 }
-func (foo *GServer)Register(ip string, response *[]string) error {
+func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) error {
 	fmt.Println("Got connection from: ", ip)
-	*response = conns
 	if !hasIP(conns, ip) {
 		fmt.Println("adding connection")
 		conns = append(conns, ip)
 	}
+	*response = shared.RegistrationDetails{Connections: conns, Identifier: len(conns)}
 	return nil
 }
 

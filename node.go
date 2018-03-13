@@ -38,7 +38,13 @@ func main() {
 
 	go RunListener(client)
 
-	otherNodes := serverRegister(client.LocalAddr().String())
+	registrationDetails := serverRegister(client.LocalAddr().String())
+	otherNodes := registrationDetails.Connections
+	uniqueId := registrationDetails.Identifier
+	fmt.Println("Your identifier is:")
+	fmt.Println(uniqueId)
+	fmt.Println("The connections:")
+	fmt.Println(otherNodes)
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
 	floodNodes(otherNodes, udpAddr)
 
@@ -238,24 +244,20 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 	}
 }
 
-func serverRegister(localIP string) []string {
+func serverRegister(localIP string) shared.RegistrationDetails {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
 		log.Println("Cannot dial server. Please ensure the server is running and try again.")
 		os.Exit(1)
 	}
-	var response []string
+	var response shared.RegistrationDetails
 	// Get IP from server
 	err = serverConn.Call("GServer.Register", localIP, &response)
 	if err != nil {
 		panic(err)
 	}
-	if len(response) > 0 {
-		for ind, val := range response {
-			fmt.Println(strconv.Itoa(ind) + ": " + val)
-		}
-	}
+
 	return response
 }
 
