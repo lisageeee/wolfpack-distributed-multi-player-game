@@ -10,9 +10,15 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
 	"image"
-
+	"./geometry"
+	"./shared"
+	"./prey"
 	_ "image/png"
 	_ "image/jpeg"
+	"time"
+	"log"
+	"github.com/faiface/pixel/text"
+	"golang.org/x/image/font/basicfont"
 )
 
 
@@ -40,62 +46,168 @@ func main() {
 	select {}
 }
 func run() {
+
+	// Window size
+	var winMaxX float64 = 300
+	var winMaxY float64 = 300
+
+	// Sprite size
+	var spriteMin float64 = 20
+	var spriteMax float64 = 50
+	spriteStep := spriteMax - spriteMin // winMaxX % spriteStep and winMaxY % spriteStep should be 0 (spriteStep == spriteSize)
+
+
+	// Init walls
+	wallCoords := []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}}
+	wallPic, err := loadPicture("./sprites/wall.jpg")
+	if err != nil {
+		panic(err)
+	}
+
+	// Create geometry manager
+	geom := geometry.CreateGeometryManager(winMaxX, winMaxY, spriteStep, wallCoords)
+
+	// Create walls sprites for drawing
+	walls := createWallSprites(wallCoords, wallPic)
+	wallVecs := geom.GetWallVectors()
+
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
-		Title:  "Pixel Rocks!",
-		Bounds: pixel.R(0, 0, 1024, 768),
+		Title:  "Wolfpack",
+		Bounds: pixel.R(0, 0, winMaxX, winMaxY),
 		VSync:  true,
 	}
+
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
 	}
-
 	win.Clear(colornames.Skyblue)
-	pic, err := loadPicture("bunny.jpeg")
+
+	//Enable text
+	basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	basicTxt := text.New(geom.GetVectorFromCoords(1,1), basicAtlas)
+
+	// Create player sprite
+	pic, err := loadPicture("./sprites/bunny.jpeg")
 	if err != nil {
 		panic(err)
 	}
-	sprite := pixel.NewSprite(pic, pixel.R(20,20,50,50))
-	win.Clear(colornames.Skyblue)
-	center:= win.Bounds().Center()
-	sprite.Draw(win, pixel.IM.Moved(center))
+	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
+	spritePos := geom.GetVectorFromCoords(3,3) // starting position of sprite on grid
+	if !geom.IsInBounds(spritePos) {
+		spritePos = geom.GetVectorFromCoords(0, 0 ) // will always be in bounds if given incorrect args
+	}
+
+	// Create prey sprite
+	pic, err = loadPicture("./sprites/prey.jpg")
+	if err != nil {
+		panic(err)
+	}
+	preySprite := pixel.NewSprite(pic, pic.Bounds())
+	preyRunner := prey.CreatePreyRunner(geom)
+	preySprite.Draw(win, pixel.IM.Moved(preyRunner.GetPosition()))
+
+	drawWalls(wallVecs, walls, win) // call this to draw walls every update
+	sprite.Draw(win, pixel.IM.Moved(spritePos))
+
+
+	keyStroke := ""
+	ttm := make(chan string, 1)
 
 	for !win.Closed() {
 
-		if win.Pressed(pixelgl.KeyLeft){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.X = center.X-1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		if win.Pressed(pixelgl.KeyRight){
 
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.X = center.X+1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		if win.Pressed(pixelgl.KeyUp){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.Y = center.Y+1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		if win.Pressed(pixelgl.KeyDown){
-			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			center.Y = center.Y-1
-			mat = mat.Moved(center)
-			sprite.Draw(win, mat)
-		}
-		win.Update()
+		go func() {
+			time.Sleep(150*time.Millisecond)
+			ttm <- "ok"
+		}()
 
+		// Listens for keypress
+		go func() {
+			if win.Pressed(pixelgl.KeyLeft) {
+				keyStroke = "left"
+			}
+			if win.Pressed(pixelgl.KeyRight)  {
+				keyStroke = "right"
+			}
+			if win.Pressed(pixelgl.KeyUp) {
+				keyStroke = "up"
+			}
+			if win.Pressed(pixelgl.KeyDown) {
+				keyStroke = "down"
+			}
+		}()
+
+		select {
+		case _ = <-ttm:
+			win.Clear(colornames.Skyblue)
+			mat := pixel.IM
+			newLoc := spritePos
+			switch keyStroke {
+				case "up":
+					newLoc = pixel.V(spritePos.X, spritePos.Y + spriteStep)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
+						spritePos.Y = spritePos.Y + spriteStep
+					}
+				case "down":
+					newLoc = pixel.V(spritePos.X, spritePos.Y - spriteStep)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
+						spritePos.Y = spritePos.Y - spriteStep
+					}
+				case "left":
+					newLoc = pixel.V(spritePos.X - spriteStep, spritePos.Y)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
+						spritePos.X = spritePos.X - spriteStep
+					}
+				case "right":
+					newLoc = pixel.V(spritePos.X + spriteStep, spritePos.Y)
+					if geom.IsInBounds(newLoc) && !geom.IsCollision(newLoc) {
+						spritePos.X = spritePos.X + spriteStep
+					}
+			}
+			keyStroke = ""
+			mat = mat.Moved(spritePos)
+			preyPos := preyRunner.Move()
+			preySprite.Draw(win, pixel.IM.Moved(preyPos))
+			drawWalls(wallVecs, walls, win)
+			sprite.Draw(win, mat)
+
+			// Check for win condition
+			if checkForWin(spritePos, preyPos) {
+				fmt.Fprintln(basicTxt, "You win!")
+				basicTxt.Draw(win, pixel.IM.Scaled(basicTxt.Orig, 4))
+				win.Update()
+				preyRunner = prey.CreatePreyRunner(geom)
+				time.Sleep(2*time.Second)
+				basicTxt.Clear()
+			}
+			win.Update()
+		}
 	}
 
+}
+
+func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
+	if sprite.X == prey.X && sprite.Y == prey.Y {
+		return true
+	}
+	return false
+}
+
+// Creates an array of sprites to be used for the walls
+func createWallSprites(coords []shared.Coord, picture pixel.Picture) ([]pixel.Sprite) {
+	sprites := make([]pixel.Sprite, len(coords))
+	for i, _ := range coords {
+		sprites[i] = *pixel.NewSprite(picture, picture.Bounds())
+	}
+	return sprites
+}
+
+func drawWalls(vectors []pixel.Vec, sprites []pixel.Sprite, window *pixelgl.Window) {
+	for i := range vectors {
+		sprites[i].Draw(window, pixel.IM.Moved(vectors[i]))
+	}
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
@@ -130,7 +242,8 @@ func serverRegister(localIP string) []string {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
-		panic(err)
+		log.Println("Cannot dial server. Please ensure the server is running and try again.")
+		os.Exit(1)
 	}
 	var response []string
 	// Get IP from server
