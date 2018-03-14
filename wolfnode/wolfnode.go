@@ -12,7 +12,7 @@ type Coordinates struct {
 	Y float64
 }
 
-// Initial game state sent out by global server to start the game
+// Initial game settings sent out by global server to start the game
 type InitialGameSettings struct {
 	// TODO: Work with Lisa's implementation of it from GlobalServer
 	// TODO: Should we also sent the images too for the sprites / wall?
