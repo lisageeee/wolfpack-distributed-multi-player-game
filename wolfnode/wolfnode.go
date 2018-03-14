@@ -13,7 +13,7 @@ type Coordinates struct {
 }
 
 // Initial game state sent out by global server to start the game
-type InitialGameState struct {
+type InitialGameSettings struct {
 	// TODO: Work with Lisa's implementation of it from GlobalServer
 	// TODO: Should we also sent the images too for the sprites / wall?
 
@@ -51,13 +51,13 @@ type GameState struct {
 
 // A player information object
 type playerInfo struct {
-	ServerAddr			string
-	ServerConn			*rpc.Client
-	PubKey				ecdsa.PublicKey
-	PrivKey				ecdsa.PrivateKey
-	PlayerIP			net.Addr
-	InitGameSettings	InitialGameState
-	CurrGameState		GameState
+	ServerAddr       string
+	ServerConn       *rpc.Client
+	PubKey           ecdsa.PublicKey
+	PrivKey          ecdsa.PrivateKey
+	PlayerIP         net.Addr
+	InitGameSettings InitialGameSettings
+	CurrGameState    GameState
 	// do we need this if we're using keys?
 	PlayerId			uint32
 	OtherPlayersConn	map[string]*rpc.Client
