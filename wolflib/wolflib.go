@@ -16,24 +16,31 @@ type Coordinates struct {
 }
 
 // Initial game state sent out by global server to start the game
-type InitialGameState struct {
+type InitialGameSettings struct {
 	// TODO: Work with Lisa's implementation of it from GlobalServer
 	// TODO: Should we also sent the images too for the sprites / wall?
 
 	// Size of game screen
-	WindowsX		float64
-	WindowsY		float64
+	WindowsX			float64
+	WindowsY			float64
 
 	// Size of player sprites
-	SpriteMin		float64
-	SpriteMax		float64
-	SpriteStep		float64
+	SpriteMin			float64
+	SpriteMax			float64
+	SpriteStep			float64
+	SpriteCoordinates 	Coordinates
 
 	// Walls
-	WallCoordinates	[]Coordinates
+	WallCoordinates		[]Coordinates
 
 	// Reward for catching prey
-	Points			uint32
+	Points				uint32
+
+	// Hearbeat settings
+	GlobalServerHB		uint32
+
+	// Number of times we ping another player before we drop them
+	Ping				uint32
 }
 
 // Game state sent by other player, or from this player
