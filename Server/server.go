@@ -30,7 +30,20 @@ func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) err
 		fmt.Println("adding connection")
 		conns = append(conns, ip)
 	}
-	*response = shared.RegistrationDetails{Connections: conns, Identifier: len(conns)}
+
+	// TODO: let the user specify these
+	settings := shared.EnvironmentSettings{
+		WinMaxX: 300,
+		WinMaxY: 300,
+		WallCoords: []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}},
+	}
+
+	initState := shared.InitialState{
+		Settings: settings,
+		CatchWorth: 1,
+	}
+
+	*response = shared.RegistrationDetails{Connections: conns, Identifier: len(conns), InitState: initState}
 	return nil
 }
 

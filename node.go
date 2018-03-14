@@ -21,6 +21,7 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+var initialState shared.InitialState
 
 func main() {
 	fmt.Println("hello world")
@@ -45,6 +46,7 @@ func main() {
 	fmt.Println(uniqueId)
 	fmt.Println("The connections:")
 	fmt.Println(otherNodes)
+	initialState = registrationDetails.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
 	floodNodes(otherNodes, udpAddr)
 
@@ -54,8 +56,8 @@ func main() {
 func run() {
 
 	// Window size
-	var winMaxX float64 = 300
-	var winMaxY float64 = 300
+	var winMaxX float64 = initialState.Settings.WinMaxX
+	var winMaxY float64 = initialState.Settings.WinMaxY
 
 	// Sprite size
 	var spriteMin float64 = 20
@@ -64,7 +66,7 @@ func run() {
 
 
 	// Init walls
-	wallCoords := []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}}
+	wallCoords := initialState.Settings.WallCoords
 	wallPic, err := loadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)

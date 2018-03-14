@@ -8,9 +8,16 @@ type Coord struct {
 type RegistrationDetails struct {
 	Connections []string
 	Identifier int
+	InitState	InitialState
 }
 
 type InitialState struct {
-	NumPoints	int
+	Settings EnvironmentSettings
 	CatchWorth	int
+}
+
+type EnvironmentSettings struct {
+	WinMaxX float64
+	WinMaxY float64
+	WallCoords []Coord
 }
