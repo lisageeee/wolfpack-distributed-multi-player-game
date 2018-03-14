@@ -32,11 +32,18 @@ func (e OutOfBoundsError) Error() string {
 	return fmt.Sprintf("WolfPack: move is out of bounds [%s]", string(e))
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> interface for wolfnode and added an error def
 
 type InvalidNonceError string
 
 func (e InvalidNonceError) Error() string {
 	return fmt.Sprintf("WolfPack: Cannot create move commit hash, nonce [%d] invalid PoW", e)
+<<<<<<< HEAD
 }
 =======
 >>>>>>> app interface with wolflib and errors
+=======
+}
+>>>>>>> interface for wolfnode and added an error def
