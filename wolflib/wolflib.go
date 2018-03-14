@@ -15,7 +15,7 @@ type Coordinates struct {
 	Y float64
 }
 
-// Initial game state sent out by global server to start the game
+// Initial game settings sent out by global server to start the game
 type InitialGameSettings struct {
 	// TODO: Work with Lisa's implementation of it from GlobalServer
 	// TODO: Should we also sent the images too for the sprites / wall?
@@ -79,7 +79,7 @@ type WolfGame interface {
 
 // Can return the following errors:
 // - DisconnectedError
-func startGame(commNodeAddr string, privKey ecdsa.PrivateKey) (wolfGame WolfGame, initGameState InitialGameState, err error) {
+func startGame(commNodeAddr string, privKey ecdsa.PrivateKey) (wolfGame WolfGame, initGame InitialGameSettings, err error) {
 	// TODO
 	return
 }
