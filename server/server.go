@@ -26,9 +26,18 @@ func main() {
 }
 func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) error {
 	fmt.Println("Got connection from: ", ip)
+
+	var identifier int
 	if !hasIP(conns, ip) {
 		fmt.Println("adding connection")
 		conns = append(conns, ip)
+		identifier = len(conns)
+	} else {
+		for i, conn := range conns {
+			if conn == ip {
+				identifier = i
+			}
+		}
 	}
 
 	// TODO: let the user specify these
@@ -43,7 +52,7 @@ func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) err
 		CatchWorth: 1,
 	}
 
-	*response = shared.RegistrationDetails{Connections: conns, Identifier: len(conns), InitState: initState}
+	*response = shared.RegistrationDetails{Connections: conns, Identifier: identifier, InitState: initState}
 	return nil
 }
 
