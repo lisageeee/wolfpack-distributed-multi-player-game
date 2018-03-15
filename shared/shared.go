@@ -37,15 +37,6 @@ type InitialGameSettings struct {
 
 	// Walls
 	WallCoordinates		[]Coord
-
-	// Reward for catching prey
-	Points				uint32
-
-	// Hearbeat settings
-	GlobalServerHB		uint32
-
-	// Number of times we ping another player before we drop them
-	Ping				uint32
 }
 
 // Game state sent by other player, or from this player
