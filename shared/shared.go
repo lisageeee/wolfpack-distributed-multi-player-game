@@ -2,6 +2,10 @@ package shared
 
 import (
 	"crypto/ecdsa"
+<<<<<<< HEAD
+=======
+	"net/rpc"
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
 	"math/big"
 )
 
@@ -11,6 +15,7 @@ type Coord struct {
 	Y float64
 }
 
+<<<<<<< HEAD
 type GameConfig struct {
 	Connections 		[]PlayerConn
 	Identifier 			int
@@ -23,6 +28,8 @@ type GameConfig struct {
 	Ping				uint32
 }
 
+=======
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
 // Initial game settings sent out by global server to start the game
 type InitialGameSettings struct {
 	// Size of game screen
@@ -37,6 +44,18 @@ type InitialGameSettings struct {
 
 	// Walls
 	WallCoordinates		[]Coord
+<<<<<<< HEAD
+=======
+
+	// Reward for catching prey
+	Points				uint32
+
+	// Hearbeat settings
+	GlobalServerHB		uint32
+
+	// Number of times we ping another player before we drop them
+	Ping				uint32
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
 }
 
 // Game state sent by other player, or from this player
@@ -66,5 +85,10 @@ type Sig struct {
 // Player connection details
 type PlayerConn struct {
 	PubKey				ecdsa.PublicKey
+<<<<<<< HEAD
 	playerIP			string
 }
+=======
+	playerIP			*rpc.Client
+}
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961

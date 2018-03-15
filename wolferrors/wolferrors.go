@@ -33,12 +33,16 @@ func (e OutOfBoundsError) Error() string {
 }
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> interface for wolfnode and added an error def
+=======
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
 
 type InvalidNonceError string
 
 func (e InvalidNonceError) Error() string {
+<<<<<<< HEAD
 <<<<<<< HEAD
 	return fmt.Sprintf("WolfPack: Cannot create move commit hash, nonce [%d] invalid PoW", e)
 <<<<<<< HEAD
@@ -49,6 +53,8 @@ func (e InvalidNonceError) Error() string {
 }
 >>>>>>> interface for wolfnode and added an error def
 =======
+=======
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
 	return fmt.Sprintf("WolfPack: cannot create move commit hash, nonce [%d] invalid PoW", e)
 }
 
@@ -56,5 +62,9 @@ type InvalidScoreUpdateError string
 
 func (e InvalidScoreUpdateError) Error() string {
 	return fmt.Sprintf("WolfPack: score update [%d] is incorrect", e)
+<<<<<<< HEAD
 }
 >>>>>>> additional stubs to interfaces
+=======
+}
+>>>>>>> 1f25255c84b9e6c59d57414335b5fa9c7d93c961
