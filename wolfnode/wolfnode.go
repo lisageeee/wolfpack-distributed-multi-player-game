@@ -48,6 +48,13 @@ type WolfNode interface {
 	// - DisconnectedError
 	GetNodes() (otherPlayers []shared.PlayerConn, err error)
 
+	// Listens to UDP packets coming in from other players
+	// https://stackoverflow.com/questions/28400340/how-support-concurrent-connections-with-a-udp-server-using-go
+	Listen(conn *net.UDPConn, quit chan struct{})
+
+	// Handle request from UDP connection, can be a move commit, a move, or an updated score
+	HandleRequest(dontknowwhatformatyet string) (err error)
+
 	// Connect to other player nodes given by GetNodes() method using UDP conn.
 	// Will be stored in the player object's OtherPlayersConn attribute
 	// Can return the following errors:
