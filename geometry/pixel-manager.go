@@ -57,7 +57,7 @@ func (gm * GeometryManager) IsCollision(loc pixel.Vec) (bool) {
 func (gm * GeometryManager) getWallVectors(walls []shared.Coord) {
 	wallVecs := make([]pixel.Vec, len(walls))
 	for i, wall := range walls {
-		vec := gm.GetVectorFromCoords(wall.X, wall.Y)
+		vec := gm.GetVectorFromCoords(float64(wall.X), float64(wall.Y))
 		wallVecs[i] = vec
 	}
 	gm.walls = wallVecs

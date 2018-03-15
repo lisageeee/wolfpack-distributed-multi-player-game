@@ -7,8 +7,8 @@ import (
 
 // Coordinates of an element in game
 type Coord struct {
-	X float64
-	Y float64
+	X int
+	Y int
 }
 
 type GameConfig struct {
@@ -62,6 +62,7 @@ type Sig struct {
 
 // Player connection details
 type PlayerConn struct {
-	PubKey				ecdsa.PublicKey
-	playerIP			string
+	PubKey   ecdsa.PublicKey
+	playerIP string
 }
+

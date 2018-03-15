@@ -1,0 +1,164 @@
+package test
+
+import "testing"
+import "../geometry"
+import "../shared"
+
+
+func setup() (geometry.GridManager) {
+	gm := geometry.CreateNewGridManager(100, 100, []shared.Coord{{1,1}, {10, 90}, {23, 99} })
+	return gm
+}
+
+func TestInBoundsMiddle(t *testing.T) {
+	gm := setup()
+	inBoundsCoordMiddle := shared.Coord{50,50}
+	response := gm.IsInBounds(inBoundsCoordMiddle)
+	if !response {
+		t.Fail()
+	}
+}
+
+func TestInBoundsEdgeX(t *testing.T) {
+	gm := setup()
+	inBoundsCoordEdge := shared.Coord{0,50}
+	response := gm.IsInBounds(inBoundsCoordEdge)
+	if !response {
+		t.Fail()
+	}
+	inBoundsCoordEdge = shared.Coord{99,25}
+	response = gm.IsInBounds(inBoundsCoordEdge)
+	if !response {
+		t.Fail()
+	}
+}
+
+func TestInBoundsEdgeY(t *testing.T) {
+	gm := setup()
+	inBoundsCoordEdge := shared.Coord{23,0}
+	response := gm.IsInBounds(inBoundsCoordEdge)
+	if !response {
+		t.Fail()
+	}
+	inBoundsCoordEdge = shared.Coord{34,99}
+	response = gm.IsInBounds(inBoundsCoordEdge)
+	if !response {
+		t.Fail()
+	}
+}
+
+func TestOutOfBoundsX(t *testing.T) {
+	gm := setup()
+	outOfBoundsCoordEdge := shared.Coord{-1,45}
+	response := gm.IsInBounds(outOfBoundsCoordEdge)
+	if response {
+		t.Fail()
+	}
+	outOfBoundsCoordEdge = shared.Coord{100,93}
+	response = gm.IsInBounds(outOfBoundsCoordEdge)
+	if response {
+		t.Fail()
+	}
+}
+func TestOutOfBoundsY(t *testing.T) {
+	gm := setup()
+	outOfBoundsCoordEdge := shared.Coord{68,-1}
+	response := gm.IsInBounds(outOfBoundsCoordEdge)
+	if response {
+		t.Fail()
+	}
+	outOfBoundsCoordEdge = shared.Coord{34,100}
+	response = gm.IsInBounds(outOfBoundsCoordEdge)
+	if response {
+		t.Fail()
+	}
+}
+
+func TestWayOutOfBounds(t *testing.T) {
+	gm := setup()
+	wayOutOfBoundsCoord := shared.Coord{68, -12}
+	response := gm.IsInBounds(wayOutOfBoundsCoord)
+	if response {
+		t.Fail()
+	}
+	wayOutOfBoundsCoord = shared.Coord{123, 39}
+	response = gm.IsInBounds(wayOutOfBoundsCoord)
+	if response {
+		t.Fail()
+	}
+}
+
+func TestNotWall(t *testing.T) {
+	gm := setup()
+	notWallCoord := shared.Coord{68, 43}
+	response := gm.IsNotWall(notWallCoord)
+	if !response {
+		t.Fail()
+	}
+	notWallCoord = shared.Coord{12, 39}
+	response = gm.IsNotWall(notWallCoord)
+	if !response {
+		t.Fail()
+	}
+	notWallCoord = shared.Coord{0, 11}
+	response = gm.IsNotWall(notWallCoord)
+	if !response {
+		t.Fail()
+	}
+}
+
+func TestIsWall(t *testing.T) {
+	gm := setup()
+	isWallCoord := shared.Coord{1, 1}
+	response := gm.IsNotWall(isWallCoord)
+	if response {
+		t.Fail()
+	}
+	isWallCoord = shared.Coord{23, 99}
+	response = gm.IsNotWall(isWallCoord)
+	if response {
+		t.Fail()
+	}
+}
+
+func TestValidMove(t *testing.T) {
+	gm := setup()
+	validMove := shared.Coord{1, 2}
+	response := gm.IsValidMove(validMove)
+	if !response {
+		t.Fail()
+	}
+	validMove = shared.Coord{25, 99}
+	response = gm.IsValidMove(validMove)
+	if !response {
+		t.Fail()
+	}
+}
+
+func TestInvalidMoveOutOfBounds(t *testing.T) {
+	gm := setup()
+	validMove := shared.Coord{1, -10}
+	response := gm.IsValidMove(validMove)
+	if response {
+		t.Fail()
+	}
+	validMove = shared.Coord{100, 99}
+	response = gm.IsValidMove(validMove)
+	if response {
+		t.Fail()
+	}
+}
+
+func TestInvalidMoveWall(t *testing.T) {
+	gm := setup()
+	validMove := shared.Coord{1, 1}
+	response := gm.IsValidMove(validMove)
+	if response {
+		t.Fail()
+	}
+	validMove = shared.Coord{10, 90}
+	response = gm.IsValidMove(validMove)
+	if response {
+		t.Fail()
+	}
+}
