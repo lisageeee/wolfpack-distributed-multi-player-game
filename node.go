@@ -21,6 +21,7 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+var initialState shared.InitialState
 
 func main() {
 	fmt.Println("hello world")
@@ -38,7 +39,14 @@ func main() {
 
 	go RunListener(client)
 
-	otherNodes := serverRegister(client.LocalAddr().String())
+	gameConfig := serverRegister(client.LocalAddr().String())
+	otherNodes := gameConfig.Connections
+	uniqueId := gameConfig.Identifier
+	fmt.Println("Your identifier is:")
+	fmt.Println(uniqueId)
+	fmt.Println("The connections:")
+	fmt.Println(otherNodes)
+	initialState = gameConfig.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
 	floodNodes(otherNodes, udpAddr)
 
@@ -48,8 +56,8 @@ func main() {
 func run() {
 
 	// Window size
-	var winMaxX float64 = 300
-	var winMaxY float64 = 300
+	var winMaxX float64 = initialState.Settings.WinMaxX
+	var winMaxY float64 = initialState.Settings.WinMaxY
 
 	// Sprite size
 	var spriteMin float64 = 20
@@ -58,7 +66,7 @@ func run() {
 
 
 	// Init walls
-	wallCoords := []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}}
+	wallCoords := initialState.Settings.WallCoords
 	wallPic, err := loadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)
@@ -238,24 +246,20 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 	}
 }
 
-func serverRegister(localIP string) []string {
+func serverRegister(localIP string) shared.GameConfig {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
 		log.Println("Cannot dial server. Please ensure the server is running and try again.")
 		os.Exit(1)
 	}
-	var response []string
+	var response shared.GameConfig
 	// Get IP from server
 	err = serverConn.Call("GServer.Register", localIP, &response)
 	if err != nil {
 		panic(err)
 	}
-	if len(response) > 0 {
-		for ind, val := range response {
-			fmt.Println(strconv.Itoa(ind) + ": " + val)
-		}
-	}
+
 	return response
 }
 
