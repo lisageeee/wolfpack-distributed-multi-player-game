@@ -4,50 +4,8 @@ import (
 	"net/rpc"
 	"crypto/ecdsa"
 	"net"
+	"../shared"
 )
-
-// Represents coordinates for elements in game
-type Coordinates struct {
-	X float64
-	Y float64
-}
-
-// Initial game settings sent out by global server to start the game
-type InitialGameSettings struct {
-	// TODO: Work with Lisa's implementation of it from GlobalServer
-	// TODO: Should we also sent the images too for the sprites / wall?
-
-	// Size of game screen
-	WindowsX			float64
-	WindowsY			float64
-
-	// Size of player sprites
-	SpriteMin			float64
-	SpriteMax			float64
-	SpriteStep			float64
-	SpriteCoordinates 	Coordinates
-
-	// Walls
-	WallCoordinates		[]Coordinates
-
-	// Reward for catching prey
-	Points				uint32
-
-	// Hearbeat settings
-	GlobalServerHB		uint32
-
-	// Number of times we ping another player before we drop them
-	Ping				uint32
-}
-
-// Game state sent by other player, or from this player
-type GameState struct {
-	PlayerId			uint32
-	PlayerLoc			Coordinates
-	Timestamp			uint64
-	LastUpdated			uint64
-	HighestScore 		uint32
-}
 
 // A player information object
 type playerInfo struct {
@@ -56,8 +14,10 @@ type playerInfo struct {
 	PubKey           ecdsa.PublicKey
 	PrivKey          ecdsa.PrivateKey
 	PlayerIP         net.Addr
-	InitGameSettings InitialGameSettings
-	CurrGameState    GameState
+	InitGameSettings shared.InitialGameSettings
+	// game states are really just position coordinates + other info related to time synchro
+	// we would also store this node's game state in here
+	CurrGameState    map[string]shared.GameState
 	// do we need this if we're using keys?
 	PlayerId			uint32
 	OtherPlayersConn	map[string]*rpc.Client
@@ -67,12 +27,7 @@ type playerInfo struct {
 	MoveCommits			map[string]string
 }
 
-// Player connection details
-type playerConn struct {
-	PubKey				ecdsa.PublicKey
-	playerIP			*rpc.Client
-}
-
+// Networking details + local checks
 type WolfNode interface {
 	// Register with server with a one-way node to server RPC connection.
 	// Gets InitGameSettings, and PlayerId (this to be tbd)
@@ -91,11 +46,18 @@ type WolfNode interface {
 	// Updates this node's OtherPlayersConn attribute (add to, or delete from).
 	// Can return the following errors:
 	// - DisconnectedError
-	GetNodes() (otherPlayers []playerConn, err error)
+	GetNodes() (otherPlayers []shared.PlayerConn, err error)
+
+	// Connect to other player nodes given by GetNodes() method using UDP conn.
+	// Will be stored in the player object's OtherPlayersConn attribute
+	// Can return the following errors:
+	// - DisconnectedError
+	ConnectToOtherPlayerNodes() (err error)
 
 	// Sets up a heartbeat protocol with the other player nodes to let them know that this player is alive.
 	// Can return the following errors:
 	// - DisconnectedError
+	// TODO: should we just do this check when you're sending out messages to all nodes instead of this?
 	SendHearbeatsOtherPlayers() (err error)
 
 	// Updates this node's OtherPlayersConn attribute (delete from) iff we do not receive a "I'm alive" message Ping times.
@@ -103,32 +65,45 @@ type WolfNode interface {
 	// - DisconnectedError
 	TrackOtherPlayersNodes() (err error)
 
-	// TODO
+	///////////////////////////////////////////////////// CHECKS ///////////////////////////////////////////////////////
 
-	/////// MOVES ////////
-	// NODE SERVICE: Send a move commit to other players
-	SendMoveCommitment()
+	// Check move to see if it's valid based on this node's game state.
+	// Can return the following errors:
+	// - InvalidMoveError
+	// - OutOfBoundsError
+	CheckMoveCommit(commit shared.MoveCommit) (err error)
 
-	// NODE SERVICE: Send moves to other players
-	SendMove()
+	// Check move to see if it's valid based on this node's game state.
+	// Can return the following errors:
+	// - InvalidMoveError
+	// - OutOfBoundsError
+	CheckMove(move shared.Coord) (err error)
 
-	// NODE SERVICE: Send updated score after capturing prey
-	SendUpdatedScore()
-
-	/////// CHECKS ///////
-	// OTHER PLAYER: Receive move commit hash from another player. Check authenticity of move commit
-	CheckMoveCommitHash()
-
-	// OTHER PLAYER: Receive move from another player. Check authenticity of move commit, and see if they've previously
-	// submitted a valid move commit hash
-	CheckValidMove()
-
-	// LOCAL: Check app's move to see if it's valid based on this node's game state
-	CheckMove()
-
-	// LOCAL: Check app's move to see if they actually got the prey
+	// Check move to see if they actually got the prey based on this node's game state.
+	// Can return the following errors:
+	// - InvalidMoveError
 	CheckCapturedPrey()
 
-	// LOCAL: Check app's update oF high score is valid
+	// Check update of high score is valid based on this node's game state.
+	// Can return the following errors:
+	// - InvalidScoreUpdateError
 	CheckScore()
+}
+
+// Methods that will utilize UDP to send info to other player nodes
+type PlayerService interface {
+	// Send a move commit to other players.
+	// Can return the following errors:
+	// - DisconnectedError
+	SendMoveCommitment(commit shared.MoveCommit) (err error)
+
+	// Send moves to other players.
+	// Can return the following errors:
+	// - DisconnectedError
+	SendMove(move shared.GameState) (err error)
+
+	// Send updated score to other players after capturing prey.
+	// Can return the following errors:
+	// - DisconnectedError
+	SendUpdatedScore(updatedScore uint32) (err error)
 }
