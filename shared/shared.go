@@ -5,7 +5,7 @@ type Coord struct {
 	Y float64
 }
 
-type RegistrationDetails struct {
+type GameConfig struct {
 	Connections []string
 	Identifier int
 	InitState	InitialState

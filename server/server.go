@@ -24,7 +24,7 @@ func main() {
 		go s.ServeConn(conn)
 	}
 }
-func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) error {
+func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 	fmt.Println("Got connection from: ", ip)
 
 	var identifier int
@@ -52,7 +52,7 @@ func (foo *GServer)Register(ip string, response *shared.RegistrationDetails) err
 		CatchWorth: 1,
 	}
 
-	*response = shared.RegistrationDetails{Connections: conns, Identifier: identifier, InitState: initState}
+	*response = shared.GameConfig{Connections: conns, Identifier: identifier, InitState: initState}
 	return nil
 }
 
