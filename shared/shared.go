@@ -7,8 +7,8 @@ import (
 
 // Coordinates of an element in game
 type Coord struct {
-	X float64
-	Y float64
+	X int
+	Y int
 }
 
 type GameConfig struct {
@@ -45,6 +45,13 @@ type GameState struct {
 	HighestScore 		uint32
 }
 
+// Game state sent from logic node to pixel for rendering
+type GameRenderState struct {
+	PlayerLoc Coord
+	OtherPlayers []Coord
+	Prey Coord
+}
+
 // Move commitment sent by player, must be ACK'ed by all other players in game
 // before this player can receive all other players' game states
 type MoveCommit struct {
@@ -62,6 +69,7 @@ type Sig struct {
 
 // Player connection details
 type PlayerConn struct {
-	PubKey				ecdsa.PublicKey
-	playerIP			string
+	PubKey   ecdsa.PublicKey
+	playerIP string
 }
+

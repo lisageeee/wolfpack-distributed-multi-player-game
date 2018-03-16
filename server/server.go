@@ -43,7 +43,7 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 	settings := shared.InitialGameSettings {
 		WindowsX: 300,
 		WindowsY: 300,
-		WallCoordinates: []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}},
+		WallCoordinates: []shared.Coord{{X: 4, Y:3}, },
 	}
 
 	initState := shared.InitialState{
