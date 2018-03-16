@@ -33,7 +33,7 @@ type PixelNode struct {
 	sender *net.UDPConn
 	playerPosition shared.Coord
 	geom geometry.PixelManager
-	newGameStates []shared.Coord
+	newGameStates chan shared.Coord
 }
 
 func run() {
@@ -49,7 +49,7 @@ func run() {
 
 
 	// Init walls
-	wallCoords := []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}}
+	wallCoords := []shared.Coord{{X: 4, Y:3}}
 	wallPic, err := loadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)
@@ -60,7 +60,7 @@ func run() {
 	//
 	_, conn := startListen(myAddr)
 	remote := setupUDP(nodeAddr)
-	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make([]shared.Coord, 0)}
+	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make(chan shared.Coord, 5)}
 	go node.runRemoteNodeListener()
 
 	// Create walls sprites for drawing
@@ -120,17 +120,14 @@ func run() {
 		}
 		if keyStroke != "" {
 			node.sender.Write([]byte(keyStroke))
+			fmt.Println("sending keystroke")
 			keyStroke = ""
 		}
 
 		if len(node.newGameStates) > 0 {
-			curState := node.newGameStates[0]
-			if len(node.newGameStates) > 1 {
-				node.newGameStates = node.newGameStates[1:]
-			} else {
-				node.newGameStates = make([]shared.Coord, 0)
-			}
+			curState := <- node.newGameStates
 			spritePos = node.geom.GetVectorFromCoords(curState)
+			fmt.Println(spritePos.X, spritePos.Y)
 			win.Clear(colornames.Skyblue)
 			mat := pixel.IM
 			mat = mat.Moved(spritePos)
@@ -168,7 +165,7 @@ func (pn * PixelNode) runRemoteNodeListener() {
 			fmt.Println("Error w/new coord")
 		} else {
 			fmt.Println("Got new coord")
-			pn.newGameStates = append(pn.newGameStates, playerPos)
+			pn.newGameStates <- playerPos
 		}
 	}
 }

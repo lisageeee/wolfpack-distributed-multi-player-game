@@ -20,7 +20,6 @@ type RemotePlayerInterface struct {
 	playerCommChannel chan string
 	otherNodes        *net.UDPConn
 	playerPosition    shared.Coord
-	step              int
 	geo               geometry.GridManager
 }
 
@@ -58,7 +57,7 @@ func main() {
 	floodNodes(otherNodes, udpAddr)
 
 	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client, playerCommChannel: make(chan string),
-	geo: geometry.CreateNewGridManager(20, 20, []shared.Coord{{4, 3}})}
+	geo: geometry.CreateNewGridManager(10, 10, []shared.Coord{{4, 3}}), playerPosition:shared.Coord{0,0}}
 	pi.runGame()
 }
 
@@ -82,15 +81,16 @@ func (pi * RemotePlayerInterface) runGame() {
 
 func (pi * RemotePlayerInterface) movePlayer(move string) {
 	newPosition := shared.Coord{X: pi.playerPosition.X, Y: pi.playerPosition.Y}
+	fmt.Println(move)
 	switch move {
 		case "up":
-			newPosition.Y = newPosition.Y + pi.step
+			newPosition.Y = newPosition.Y + 1
 		case "down":
-			newPosition.Y = newPosition.Y - pi.step
+			newPosition.Y = newPosition.Y - 1
 		case "left":
-			newPosition.X = newPosition.X - pi.step
+			newPosition.X = newPosition.X - 1
 		case "right":
-			newPosition.X = newPosition.X + pi.step
+			newPosition.X = newPosition.X + 1
 	}
 	if pi.geo.IsValidMove(newPosition) {
 		pi.playerPosition = newPosition
@@ -104,6 +104,7 @@ func (pi *RemotePlayerInterface) sendPlayerGameState() {
 		fmt.Println(err)
 	} else {
 		// Send position to player node
+		fmt.Println("sending position", pi.playerPosition.X, pi.playerPosition.Y)
 		pi.pixelWriter.Write([]byte(toSend))
 	}
 }
