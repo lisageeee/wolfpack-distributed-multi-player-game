@@ -40,11 +40,10 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 		}
 	}
 
-	// TODO: let the user specify these
-	settings := shared.EnvironmentSettings{
-		WinMaxX: 300,
-		WinMaxY: 300,
-		WallCoords: []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}},
+	settings := shared.InitialGameSettings {
+		WindowsX: 300,
+		WindowsY: 300,
+		WallCoordinates: []shared.Coord{{X: 1, Y:2}, {X: 1, Y:3}},
 	}
 
 	initState := shared.InitialState{
@@ -52,7 +51,13 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 		CatchWorth: 1,
 	}
 
-	*response = shared.GameConfig{Connections: conns, Identifier: identifier, InitState: initState}
+	*response = shared.GameConfig{
+		Connections: conns,
+		Identifier: identifier,
+		InitState: initState,
+		GlobalServerHB: 1, // TODO; change this when working on heartbeats
+		Ping: 1,
+		}
 	return nil
 }
 
