@@ -19,7 +19,7 @@ type RemotePlayerInterface struct {
 	pixelWriter 	  *net.UDPConn
 	playerCommChannel chan string
 	otherNodes        *net.UDPConn
-	playerPosition    shared.Coord
+	GameRenderState	  shared.GameRenderState
 	geo               geometry.GridManager
 	identifier        int
 	GameConfig		  shared.InitialState
@@ -66,9 +66,12 @@ func main() {
 	pixel := setupUDPToPixel(pixel_ip_address)
 	defer pixel.Close()
 
+	// Make default gameState
+	gameRenderState := shared.GameRenderState{PlayerLoc:shared.Coord{3,3}, OtherPlayers: make([]shared.Coord, 0), Prey: shared.Coord{5,5}}
+
 	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client,
 	playerCommChannel: make(chan string), geo: geometry.CreateNewGridManager(initState.Settings),
-	playerPosition:shared.Coord{3,3}, identifier: uniqueId, GameConfig: initState}
+	GameRenderState: gameRenderState, identifier: uniqueId, GameConfig: initState}
 	pi.runGame()
 }
 
@@ -91,7 +94,11 @@ func (pi * RemotePlayerInterface) runGame() {
 }
 
 func (pi * RemotePlayerInterface) movePlayer(move string) {
-	newPosition := shared.Coord{X: pi.playerPosition.X, Y: pi.playerPosition.Y}
+	// Get current player state
+	playerLoc := pi.GameRenderState.PlayerLoc
+
+	// Calculate new position with move
+	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	fmt.Println(move)
 	switch move {
 		case "up":
@@ -103,19 +110,20 @@ func (pi * RemotePlayerInterface) movePlayer(move string) {
 		case "right":
 			newPosition.X = newPosition.X + 1
 	}
+	// Check new move is valid, if so update player position
 	if pi.geo.IsValidMove(newPosition) {
-		pi.playerPosition = newPosition
+		pi.GameRenderState.PlayerLoc = newPosition
 	}
 }
 
 func (pi *RemotePlayerInterface) sendPlayerGameState() {
 	// TODO: add other nodes
-	toSend, err := json.Marshal(pi.playerPosition)
+	toSend, err := json.Marshal(pi.GameRenderState)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		// Send position to player node
-		fmt.Println("sending position", pi.playerPosition.X, pi.playerPosition.Y)
+		fmt.Println("sending position")
 		pi.pixelWriter.Write([]byte(toSend))
 	}
 }

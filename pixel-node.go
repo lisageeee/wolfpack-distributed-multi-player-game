@@ -33,7 +33,7 @@ type PixelNode struct {
 	sender *net.UDPConn
 	playerPosition shared.Coord
 	geom geometry.PixelManager
-	newGameStates chan shared.Coord
+	newGameStates chan shared.GameRenderState
 }
 
 func run() {
@@ -60,7 +60,7 @@ func run() {
 	//
 	_, conn := startListen(myAddr)
 	remote := setupUDP(nodeAddr)
-	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make(chan shared.Coord, 5)}
+	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make(chan shared.GameRenderState, 5)}
 	go node.runRemoteNodeListener()
 
 	// Create walls sprites for drawing
@@ -126,7 +126,7 @@ func run() {
 
 		if len(node.newGameStates) > 0 {
 			curState := <- node.newGameStates
-			spritePos = node.geom.GetVectorFromCoords(curState)
+			spritePos = node.geom.GetVectorFromCoords(curState.PlayerLoc)
 			fmt.Println(spritePos.X, spritePos.Y)
 			win.Clear(colornames.Skyblue)
 			mat := pixel.IM
@@ -151,7 +151,7 @@ func (pn * PixelNode) runRemoteNodeListener() {
 	node.SetReadBuffer(1048576)
 
 	i := 0
-	var playerPos shared.Coord
+	var playerPos shared.GameRenderState
 	for {
 		i++
 		buf := make([]byte, 1024)

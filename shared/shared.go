@@ -45,6 +45,13 @@ type GameState struct {
 	HighestScore 		uint32
 }
 
+// Game state sent from logic node to pixel for rendering
+type GameRenderState struct {
+	PlayerLoc Coord
+	OtherPlayers []Coord
+	Prey Coord
+}
+
 // Move commitment sent by player, must be ACK'ed by all other players in game
 // before this player can receive all other players' game states
 type MoveCommit struct {
