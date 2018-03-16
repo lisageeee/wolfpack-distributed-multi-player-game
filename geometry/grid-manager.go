@@ -11,16 +11,23 @@ type GridManager struct {
 	walls map[string]shared.Coord
 }
 
-func CreateNewGridManager(x int, y int, walls []shared.Coord) (GridManager) {
+const playerSize int = 30
+
+// x int, y int, walls []shared.Coord
+func CreateNewGridManager(settings shared.InitialGameSettings) (GridManager) {
 	wallMap := make(map[string]shared.Coord)
 
 	// Create the map of walls for fast lookup
-	for _, wall := range(walls) {
+	for _, wall := range(settings.WallCoordinates) {
 		key := strconv.Itoa(wall.X) + " " + strconv.Itoa(wall.Y)
 		wallMap[key] = wall
 	}
 
-	gm := GridManager{x: x, y: y, walls: wallMap}
+	// Figure out how big our grid is
+	gridX := int(settings.WindowsX) / playerSize
+	gridY := int(settings.WindowsY) / playerSize
+
+	gm := GridManager{x: gridX, y: gridY, walls: wallMap}
 	return gm
 }
 

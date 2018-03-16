@@ -21,6 +21,8 @@ type RemotePlayerInterface struct {
 	otherNodes        *net.UDPConn
 	playerPosition    shared.Coord
 	geo               geometry.GridManager
+	identifier        int
+	GameConfig		  shared.InitialState
 }
 
 // Entrypoint, sets up communication channels and creates the RemotePlayerInterface
@@ -56,7 +58,7 @@ func main() {
 	fmt.Println(uniqueId)
 	fmt.Println("The connections:")
 	fmt.Println(otherNodes)
-	//initialState := gameConfig.InitState
+	initState := gameConfig.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
 	floodNodes(otherNodes, udpAddr)
 
@@ -64,8 +66,9 @@ func main() {
 	pixel := setupUDPToPixel(pixel_ip_address)
 	defer pixel.Close()
 
-	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client, playerCommChannel: make(chan string),
-	geo: geometry.CreateNewGridManager(10, 10, []shared.Coord{{4, 3}}), playerPosition:shared.Coord{3,3}}
+	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client,
+	playerCommChannel: make(chan string), geo: geometry.CreateNewGridManager(initState.Settings),
+	playerPosition:shared.Coord{3,3}, identifier: uniqueId, GameConfig: initState}
 	pi.runGame()
 }
 
