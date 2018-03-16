@@ -39,7 +39,7 @@ func main() {
 
 	go RunListener(client)
 
-	registrationDetails := serverRegister(client.LocalAddr().String())
+	registrationDetails := ServerRegister(client.LocalAddr().String())
 	otherNodes := registrationDetails.Connections
 	uniqueId := registrationDetails.Identifier
 	fmt.Println("Your identifier is:")
@@ -246,7 +246,7 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 	}
 }
 
-func serverRegister(localIP string) shared.RegistrationDetails {
+func ServerRegister(localIP string) shared.RegistrationDetails {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
