@@ -39,7 +39,7 @@ func main() {
 
 	go RunListener(client)
 
-	gameConfig := serverRegister(client.LocalAddr().String())
+	gameConfig := ServerRegister(client.LocalAddr().String())
 	otherNodes := gameConfig.Connections
 	uniqueId := gameConfig.Identifier
 	fmt.Println("Your identifier is:")
@@ -246,7 +246,7 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 	}
 }
 
-func serverRegister(localIP string) shared.GameConfig {
+func ServerRegister(localIP string) shared.GameConfig {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
