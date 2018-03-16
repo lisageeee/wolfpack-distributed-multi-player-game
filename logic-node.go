@@ -48,16 +48,24 @@ func main() {
 	_, client := startListener(node_listener_ip_address)
 	defer client.Close()
 
+
+	gameConfig := serverRegister(client.LocalAddr().String())
+	otherNodes := gameConfig.Connections
+	uniqueId := gameConfig.Identifier
+	fmt.Println("Your identifier is:")
+	fmt.Println(uniqueId)
+	fmt.Println("The connections:")
+	fmt.Println(otherNodes)
+	//initialState := gameConfig.InitState
+	udpAddr := client.LocalAddr().(*net.UDPAddr)
+	floodNodes(otherNodes, udpAddr)
+
 	// Start the pixel interface
 	pixel := setupUDPToPixel(pixel_ip_address)
 	defer pixel.Close()
 
-	otherNodes := serverRegister(client.LocalAddr().String())
-	udpAddr := client.LocalAddr().(*net.UDPAddr)
-	floodNodes(otherNodes, udpAddr)
-
 	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client, playerCommChannel: make(chan string),
-	geo: geometry.CreateNewGridManager(10, 10, []shared.Coord{{4, 3}}), playerPosition:shared.Coord{0,0}}
+	geo: geometry.CreateNewGridManager(10, 10, []shared.Coord{{4, 3}}), playerPosition:shared.Coord{3,3}}
 	pi.runGame()
 }
 
@@ -186,24 +194,20 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 	}
 }
 
-func serverRegister(localIP string) []string {
+func serverRegister(localIP string) (shared.GameConfig) {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {
 		log.Println("Cannot dial server. Please ensure the server is running and try again.")
 		os.Exit(1)
 	}
-	var response []string
+	var response shared.GameConfig
 	// Get IP from server
 	err = serverConn.Call("GServer.Register", localIP, &response)
 	if err != nil {
 		panic(err)
 	}
-	if len(response) > 0 {
-		for ind, val := range response {
-			fmt.Println(strconv.Itoa(ind) + ": " + val)
-		}
-	}
+
 	return response
 }
 
