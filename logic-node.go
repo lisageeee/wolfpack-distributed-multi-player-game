@@ -67,7 +67,9 @@ func main() {
 	defer pixel.Close()
 
 	// Make default gameState
-	gameRenderState := shared.GameRenderState{PlayerLoc:shared.Coord{3,3}, OtherPlayers: make([]shared.Coord, 0), Prey: shared.Coord{5,5}}
+	gameRenderState := shared.GameRenderState{PlayerLoc:shared.Coord{3,3},
+	OtherPlayers: []shared.Coord{{6,6}}, Prey: shared.Coord{5,5}} // TODO: change these to dynamic when
+																				// we connect to other players/prey
 
 	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client,
 	playerCommChannel: make(chan string), geo: geometry.CreateNewGridManager(initState.Settings),

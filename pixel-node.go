@@ -36,6 +36,9 @@ type PixelNode struct {
 	GameState shared.GameRenderState
 	newGameStates chan shared.GameRenderState
 	PlayerSprite *pixel.Sprite
+	WallSprite *pixel.Sprite
+	OtherPlayerSprite *pixel.Sprite
+	PreySprite *pixel.Sprite
 }
 
 func run() {
@@ -52,10 +55,6 @@ func run() {
 
 	// Init walls
 	wallCoords := []shared.Coord{{X: 4, Y:3}}
-	wallPic, err := loadPicture("./sprites/wall.jpg")
-	if err != nil {
-		panic(err)
-	}
 
 	// Create geometry manager
 	geom := geometry.CreatePixelManager(winMaxX, winMaxY, spriteStep, wallCoords)
@@ -64,10 +63,6 @@ func run() {
 	remote := setupUDP(nodeAddr)
 	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make(chan shared.GameRenderState, 5)}
 	go node.runRemoteNodeListener()
-
-	// Create walls sprites for drawing
-	walls := createWallSprites(wallCoords, wallPic)
-	wallVecs := geom.GetWallVectors()
 
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
@@ -101,8 +96,26 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
+	preySprite := pixel.NewSprite(pic, pic.Bounds())
+	node.PreySprite = preySprite
 
-	drawWalls(wallVecs, walls, win) // call this to draw walls every update
+	// Create other player sprite
+	pic, err = loadPicture("./sprites/other-player.jpg")
+	if err != nil {
+		panic(err)
+	}
+	otherPlayerSprite := pixel.NewSprite(pic, pic.Bounds())
+	node.OtherPlayerSprite = otherPlayerSprite
+
+	// Create wall sprite
+	pic, err = loadPicture("./sprites/wall.jpg")
+	if err != nil {
+		panic(err)
+	}
+	wallSprite := pixel.NewSprite(pic, pic.Bounds())
+	node.WallSprite = wallSprite
+
+	node.drawWalls(win) // call this to draw walls every update
 
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
 
@@ -129,23 +142,38 @@ func run() {
 		// Update game state
 		if len(node.newGameStates) > 0 {
 			curState := <- node.newGameStates
-			node.GameState = curState
-			win.Clear(colornames.Skyblue)
-
-			drawWalls(wallVecs, walls, win)
+			node.GameState = curState // set current state to the new state
+			// Now, update the rendering
 			node.renderNewState(win)
 		}
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
 }
 
+//
 func (pn * PixelNode) renderNewState(win * pixelgl.Window) {
 	curState := pn.GameState
+
+	// Clear current render
+	win.Clear(colornames.Skyblue)
+
 	// Render walls, first
+	pn.drawWalls(win)
+
+	// Render prey
+	pn.PreySprite.Draw(win, pixel.IM.Moved(pn.geom.GetVectorFromCoords(curState.Prey)))
+
+	// Render other players
+	for _, player := range curState.OtherPlayers {
+		pn.OtherPlayerSprite.Draw(win, pixel.IM.Moved(pn.geom.GetVectorFromCoords(player)))
+	}
+
+	// Render player
 	playerPos := pn.geom.GetVectorFromCoords(curState.PlayerLoc)
 	mat := pixel.IM
 	mat = mat.Moved(playerPos)
 	pn.PlayerSprite.Draw(win, mat)
+
 }
 
 
@@ -183,18 +211,10 @@ func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
 	return false
 }
 
-// Creates an array of sprites to be used for the walls
-func createWallSprites(coords []shared.Coord, picture pixel.Picture) ([]pixel.Sprite) {
-	sprites := make([]pixel.Sprite, len(coords))
-	for i, _ := range coords {
-		sprites[i] = *pixel.NewSprite(picture, picture.Bounds())
-	}
-	return sprites
-}
 
-func drawWalls(vectors []pixel.Vec, sprites []pixel.Sprite, window *pixelgl.Window) {
-	for i := range vectors {
-		sprites[i].Draw(window, pixel.IM.Moved(vectors[i]))
+func (pn * PixelNode )drawWalls(window *pixelgl.Window) {
+	for _, wall := range pn.geom.GetWallVectors() {
+		pn.WallSprite.Draw(window, pixel.IM.Moved(wall))
 	}
 }
 
