@@ -12,11 +12,10 @@ type Coord struct {
 }
 
 type GameConfig struct {
-	Connections 		[]PlayerConn
+	Connections 		[]string
 	Identifier 			int
-	InitState			InitialGameSettings
-	// Reward for catching prey
-	Points				uint32
+	InitState			InitialState
+
 	// Hearbeat settings
 	GlobalServerHB		uint32
 	// Number of times we ping another player before we drop them
@@ -29,16 +28,14 @@ type InitialGameSettings struct {
 	WindowsX			float64
 	WindowsY			float64
 
-	// Size of player sprites
-	SpriteMin			float64
-	SpriteMax			float64
-	SpriteStep			float64
-	SpriteCoordinates 	Coord
-
 	// Walls
 	WallCoordinates		[]Coord
 }
 
+type InitialState struct {
+	Settings 	InitialGameSettings
+	CatchWorth	int
+}
 // Game state sent by other player, or from this player
 type GameState struct {
 	PlayerId			uint32

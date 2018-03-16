@@ -56,8 +56,8 @@ func main() {
 func run() {
 
 	// Window size
-	var winMaxX float64 = initialState.Settings.WinMaxX
-	var winMaxY float64 = initialState.Settings.WinMaxY
+	var winMaxX float64 = initialState.Settings.WindowsX
+	var winMaxY float64 = initialState.Settings.WindowsY
 
 	// Sprite size
 	var spriteMin float64 = 20
@@ -66,7 +66,7 @@ func run() {
 
 
 	// Init walls
-	wallCoords := initialState.Settings.WallCoords
+	wallCoords := initialState.Settings.WallCoordinates
 	wallPic, err := loadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)
