@@ -33,7 +33,9 @@ type PixelNode struct {
 	sender *net.UDPConn
 	playerPosition shared.Coord
 	geom geometry.PixelManager
+	GameState shared.GameRenderState
 	newGameStates chan shared.GameRenderState
+	PlayerSprite *pixel.Sprite
 }
 
 func run() {
@@ -90,6 +92,8 @@ func run() {
 		panic(err)
 	}
 	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
+
+	node.PlayerSprite = sprite
 	spritePos := geom.GetVectorFromCoords(shared.Coord{3,3}) // starting position of sprite on grid
 
 	// Create prey sprite
@@ -98,10 +102,8 @@ func run() {
 		panic(err)
 	}
 
-	// drawWalls(wallVecs, walls, win) // call this to draw walls every update
-	for i := range wallVecs {
-		walls[i].Draw(win, pixel.IM.Moved(wallVecs[i]))
-	}
+	drawWalls(wallVecs, walls, win) // call this to draw walls every update
+
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
 
 	win.Update()
@@ -124,22 +126,26 @@ func run() {
 			keyStroke = ""
 		}
 
+		// Update game state
 		if len(node.newGameStates) > 0 {
 			curState := <- node.newGameStates
-			spritePos = node.geom.GetVectorFromCoords(curState.PlayerLoc)
-			fmt.Println(spritePos.X, spritePos.Y)
+			node.GameState = curState
 			win.Clear(colornames.Skyblue)
-			mat := pixel.IM
-			mat = mat.Moved(spritePos)
-			for i := range wallVecs {
-				walls[i].Draw(win, pixel.IM.Moved(wallVecs[i]))
-			}
-			sprite.Draw(win, mat)
+
+			drawWalls(wallVecs, walls, win)
+			node.renderNewState(win)
 		}
-		win.Update()
+		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
+}
 
-
+func (pn * PixelNode) renderNewState(win * pixelgl.Window) {
+	curState := pn.GameState
+	// Render walls, first
+	playerPos := pn.geom.GetVectorFromCoords(curState.PlayerLoc)
+	mat := pixel.IM
+	mat = mat.Moved(playerPos)
+	pn.PlayerSprite.Draw(win, mat)
 }
 
 
@@ -186,11 +192,11 @@ func createWallSprites(coords []shared.Coord, picture pixel.Picture) ([]pixel.Sp
 	return sprites
 }
 
-//func drawWalls(vectors []pixel.Vec, sprites []pixel.Sprite, window *pixelgl.Window) {
-//	for i := range vectors {
-//		sprites[i].Draw(window, pixel.IM.Moved(vectors[i]))
-//	}
-//}
+func drawWalls(vectors []pixel.Vec, sprites []pixel.Sprite, window *pixelgl.Window) {
+	for i := range vectors {
+		sprites[i].Draw(window, pixel.IM.Moved(vectors[i]))
+	}
+}
 
 func loadPicture(path string) (pixel.Picture, error) {
 	file, err := os.Open(path)
