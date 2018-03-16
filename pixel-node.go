@@ -61,7 +61,7 @@ func run() {
 	_, conn := startListen(myAddr)
 	remote := setupUDP(nodeAddr)
 	node := PixelNode{listener:conn, sender: remote, geom: geom, newGameStates: make([]shared.Coord, 0)}
-	go node.runRemoteNodeListener();
+	go node.runRemoteNodeListener()
 
 	// Create walls sprites for drawing
 	walls := createWallSprites(wallCoords, wallPic)
@@ -138,8 +138,8 @@ func run() {
 				walls[i].Draw(win, pixel.IM.Moved(wallVecs[i]))
 			}
 			sprite.Draw(win, mat)
-			win.Update()
 		}
+		win.Update()
 	}
 
 
@@ -162,7 +162,7 @@ func (pn * PixelNode) runRemoteNodeListener() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		err = json.Unmarshal(buf[0:rlen], playerPos)
+		err = json.Unmarshal(buf[0:rlen], &playerPos)
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("Error w/new coord")
