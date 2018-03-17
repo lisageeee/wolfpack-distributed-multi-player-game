@@ -6,7 +6,8 @@ import "../shared"
 
 
 func setup() (geometry.GridManager) {
-	gm := geometry.CreateNewGridManager(100, 100, []shared.Coord{{1,1}, {10, 90}, {23, 99} })
+	gs := shared.InitialGameSettings{3000, 3000, []shared.Coord{{1,1}, {10, 90}, {23, 99} }}
+	gm := geometry.CreateNewGridManager(gs)
 	return gm
 }
 
