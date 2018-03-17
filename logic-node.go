@@ -99,9 +99,10 @@ func (pi * RemotePlayerInterface) movePlayer(move string) {
 	// Get current player state
 	playerLoc := pi.GameRenderState.PlayerLoc
 
+	originalPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	// Calculate new position with move
 	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
-	fmt.Println(move)
+	//fmt.Println(move)
 	switch move {
 		case "up":
 			newPosition.Y = newPosition.Y + 1
@@ -113,7 +114,7 @@ func (pi * RemotePlayerInterface) movePlayer(move string) {
 			newPosition.X = newPosition.X + 1
 	}
 	// Check new move is valid, if so update player position
-	if pi.geo.IsValidMove(newPosition) {
+	if pi.geo.IsValidMove(newPosition) && pi.geo.IsNotTeleporting(originalPosition, newPosition) {
 		pi.GameRenderState.PlayerLoc = newPosition
 	}
 }

@@ -89,12 +89,12 @@ type WolfNode interface {
 	// Check move to see if they actually got the prey based on this node's game state.
 	// Can return the following errors:
 	// - InvalidMoveError
-	CheckCapturedPrey()
+	CheckCapturedPrey() (err error)
 
 	// Check update of high score is valid based on this node's game state.
 	// Can return the following errors:
 	// - InvalidScoreUpdateError
-	CheckScore()
+	CheckScore() (err error)
 }
 
 // Methods that will utilize UDP to send info to other player nodes
@@ -113,4 +113,30 @@ type PlayerService interface {
 	// Can return the following errors:
 	// - DisconnectedError
 	SendUpdatedScore(updatedScore uint32) (err error)
+}
+
+type WolfNodeImpl struct {
+
+}
+
+func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
+	// Check that it was sent by the correct player
+	return nil
+}
+
+func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
+	// Can't step through a barrier
+	// Can't teleport
+	return nil
+}
+
+func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
+	// Check they occupy the same space as the prey
+	return nil
+}
+
+func (wolfNode WolfNodeImpl) CheckScore() (err error) {
+	// Must report accurate score
+	// Check they actually scored
+	return nil
 }
