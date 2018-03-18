@@ -5,6 +5,10 @@ import (
 	"crypto/ecdsa"
 	"net"
 	"../shared"
+	"../prey"
+	"../key-helpers"
+	"../wolferrors"
+	"../geometry"
 )
 
 // A player information object
@@ -116,25 +120,52 @@ type PlayerService interface {
 }
 
 type WolfNodeImpl struct {
-
+	Info	playerInfo
 }
 
+// Check move to see if it's valid based on this node's game state.
+// Can return the following errors:
+// - InvalidMoveError
+// - OutOfBoundsError
 func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
 	// Check that it was sent by the correct player
 	return nil
 }
 
+// Check move to see if it's valid based on this node's game state.
+// Can return the following errors:
+// - InvalidMoveError
+// - OutOfBoundsError
 func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
-	// Can't step through a barrier
-	// Can't teleport
+	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
+	if !gridManager.IsInBounds(move) {
+		return wolferrors.OutOfBoundsError("")
+	}
+	if !gridManager.IsValidMove(move) {
+		return wolferrors.InvalidMoveError("")
+	}
 	return nil
 }
 
+// Check move to see if they actually got the prey based on this node's game state.
+// Can return the following errors: TODO
+// - InvalidMoveError
 func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
-	// Check they occupy the same space as the prey
-	return nil
+	preyX := prey.PreyRunner{}.GetPosition().X
+	preyY := prey.PreyRunner{}.GetPosition().Y
+	_, publicKeyString := key_helpers.Encode(&wolfNode.Info.PrivKey, &wolfNode.Info.PubKey)
+	coordinates := wolfNode.Info.CurrGameState[publicKeyString].PlayerLoc
+	currX := coordinates.X
+	currY := coordinates.Y
+	if(int(preyX) == currX && int(preyY) == currY) {
+		return nil
+	}
+	return wolferrors.InvalidMoveError("")
 }
 
+// Check update of high score is valid based on this node's game state.
+// Can return the following errors:
+// - InvalidScoreUpdateError
 func (wolfNode WolfNodeImpl) CheckScore() (err error) {
 	// Must report accurate score
 	// Check they actually scored
