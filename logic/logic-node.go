@@ -23,6 +23,7 @@ type RemotePlayerInterface struct {
 	geo               geometry.GridManager
 	identifier        int
 	GameConfig		  shared.InitialState
+	otherNodesIP	  []*net.UDPConn
 }
 
 // Entrypoint, sets up communication channels and creates the RemotePlayerInterface
@@ -60,7 +61,7 @@ func main() {
 	fmt.Println(otherNodes)
 	initState := gameConfig.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
-	floodNodes(otherNodes, udpAddr)
+	udpConns := floodNodes(otherNodes, udpAddr)
 
 	// Start the pixel interface
 	pixel := setupUDPToPixel(pixel_ip_address)
@@ -73,7 +74,8 @@ func main() {
 
 	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client,
 	playerCommChannel: make(chan string), geo: geometry.CreateNewGridManager(initState.Settings),
-	GameRenderState: gameRenderState, identifier: uniqueId, GameConfig: initState}
+	GameRenderState: gameRenderState, identifier: uniqueId, GameConfig: initState,
+	otherNodesIP:udpConns}
 	pi.runGame()
 }
 
@@ -127,9 +129,21 @@ func (pi *RemotePlayerInterface) sendPlayerGameState() {
 		// Send position to player node
 		fmt.Println("sending position")
 		pi.pixelWriter.Write([]byte(toSend))
+		pi.sendMoveToOthers(toSend)
 	}
 }
 
+func (pi *RemotePlayerInterface) sendMoveToOthers(toSend []byte){
+	for _, val := range pi.otherNodesIP{
+		_, err := val.Write(append([]byte("sms"), toSend...))
+		if err != nil{
+			fmt.Println(err)
+		}
+
+
+	}
+
+}
 func startListener(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	// takes an ip address and port to listen on
 	// returns the udp address and listener client
@@ -180,7 +194,14 @@ func (pi * RemotePlayerInterface) runNodeListener() {
 		fmt.Println(string(buf[0:rlen]))
 		fmt.Println(addr)
 		fmt.Println(i)
-		if string(buf[0:rlen]) != "connected" {
+		if string(buf[0:3]) == "sms"{
+			var recState shared.GameRenderState
+			err := json.Unmarshal(buf[3:rlen], &recState)
+			if err != nil {
+				panic(err)
+			}
+			// TODO: Update go render state once other commit is merged
+		}else if string(buf[0:rlen]) != "connected" {
 			remote_client, err := net.Dial("udp", string(buf[0:rlen]))
 			if err != nil {
 				panic(err)
@@ -192,8 +213,9 @@ func (pi * RemotePlayerInterface) runNodeListener() {
 	}
 }
 
-func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
+func floodNodes(otherNodes []string, udp_addr *net.UDPAddr)[]*net.UDPConn {
 	localIP, _ := net.ResolveUDPAddr("udp", udp_generic)
+	var udpConns []*net.UDPConn
 	for _, ip := range otherNodes {
 		node_udp, _ := net.ResolveUDPAddr("udp", ip)
 		// Connect to other node
@@ -201,10 +223,12 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 		if err != nil {
 			panic(err)
 		}
+		udpConns = append(udpConns, node_client)
 		// Exchange messages with other node
 		myListener := udp_addr.IP.String() + ":" +  strconv.Itoa(udp_addr.Port)
 		node_client.Write([]byte(myListener))
 	}
+	return udpConns
 }
 
 func ServerRegister(localIP string) (shared.GameConfig) {
