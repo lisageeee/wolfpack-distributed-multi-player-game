@@ -19,7 +19,6 @@ func CreatePixelInterface(playerCommChannel chan string) PixelInterface {
 }
 
 func (pi *PixelInterface) SendPlayerGameState(state shared.GameRenderState) {
-	// TODO: add other nodes
 	toSend, err := json.Marshal(state)
 	if err != nil {
 		fmt.Println(err)
@@ -43,7 +42,7 @@ func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr s
 	// takes a listener client
 	// runs the listener in a infinite loop
 	player := pi.pixelListener
-	player.SetReadBuffer(1048576)
+	player.SetReadBuffer(1024)
 
 	for {
 		buf := make([]byte, 1024)
@@ -51,9 +50,10 @@ func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr s
 		if err != nil {
 			fmt.Println(err)
 		} else {
+			// Write to comm channel for node to receive
 			pi.playerCommChannel <- string(buf[0:rlen])
 		}
-		// Write to comm channel for node to deal with
+
 
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"../shared"
 	"../geometry"
 	l "./impl"
+	"encoding/json"
 )
 
 type RemotePlayerInterface struct {
