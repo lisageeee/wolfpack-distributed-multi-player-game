@@ -11,12 +11,11 @@ import (
 	"log"
 	"../shared"
 	"../geometry"
-	"encoding/json"
+	l "./impl"
 )
 
 type RemotePlayerInterface struct {
-	pixelListener     *net.UDPConn
-	pixelWriter 	  *net.UDPConn
+	pixelInterface	  l.PixelInterface
 	playerCommChannel chan string
 	otherNodes        *net.UDPConn
 	GameRenderState	  shared.GameRenderState
@@ -47,13 +46,16 @@ func main() {
 		pixel_ip_address = "127.0.0.1:1234"
 	}
 
-	_, player := startListener(player_listener_ip_address)
-	defer player.Close()
+	// Setup the player communcation channel
+	playerCommChannel := make(chan string)
+
+	// Startup Pixel interface + listening
+	pixelInterface := l.CreatePixelInterface(playerCommChannel)
+	go pixelInterface.RunPlayerListener(pixel_ip_address, player_listener_ip_address)
 
 	// Start the node to node interface
-	_, client := startListener(node_listener_ip_address)
+	_, client := StartListener(node_listener_ip_address)
 	defer client.Close()
-
 
 	gameConfig := ServerRegister(client.LocalAddr().String())
 	otherNodes := gameConfig.Connections
@@ -65,10 +67,6 @@ func main() {
 	initState := gameConfig.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
 
-
-	// Start the pixel interface
-	pixel := setupUDPToPixel(pixel_ip_address)
-	defer pixel.Close()
 
 	// Make default gameState
 	gameRenderState := shared.GameRenderState{
@@ -91,7 +89,6 @@ func main() {
 
 func (pi *RemotePlayerInterface) runGame() {
 	go pi.runNodeListener()
-	go pi.runPlayerListener()
 
 	for {
 		message := <-pi.playerCommChannel
@@ -100,7 +97,7 @@ func (pi *RemotePlayerInterface) runGame() {
 			break
 		default:
 			pi.movePlayer(message)
-			pi.sendPlayerGameState()
+			pi.pixelInterface.SendPlayerGameState(pi.GameRenderState)
 			fmt.Println("movin' player", message)
 		}
 	}
@@ -130,19 +127,8 @@ func (pi * RemotePlayerInterface) movePlayer(move string) {
 	}
 }
 
-func (pi *RemotePlayerInterface) sendPlayerGameState() {
-	// TODO: add other nodes
-	toSend, err := json.Marshal(pi.GameRenderState)
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		// Send position to player node
-		fmt.Println("sending position")
-		pi.pixelWriter.Write([]byte(toSend))
-	}
-}
 
-func startListener(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
+func StartListener(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	// takes an ip address and port to listen on
 	// returns the udp address and listener client
 	// starts Listener
@@ -152,24 +138,6 @@ func startListener(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 		panic(err)
 	}
 	return udp_addr, client
-}
-
-func (pi * RemotePlayerInterface) runPlayerListener() {
-	// takes a listener client
-	// runs the listener in a infinite loop
-	player := pi.pixelListener
-	player.SetReadBuffer(1048576)
-
-	i := 0
-	for {
-		i++
-		buf := make([]byte, 1024)
-		rlen, _, err := player.ReadFromUDP(buf)
-		if err != nil {
-			fmt.Println(err)
-		}
-		pi.playerCommChannel <- string(buf[0:rlen])
-	}
 }
 
 const udp_generic = "127.0.0.1:0"
@@ -251,13 +219,4 @@ func ServerRegister(localIP string) shared.GameConfig {
 	}
 
 	return response
-}
-
-func setupUDPToPixel(ip_addr string) (*net.UDPConn) {
-	node_udp, _ := net.ResolveUDPAddr("udp", ip_addr)
-	node_client, err := net.DialUDP("udp", nil, node_udp)
-	if err != nil {
-		panic(err)
-	}
-	return node_client
 }
