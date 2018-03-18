@@ -34,10 +34,14 @@ func main() {
 	var player_listener_ip_address string
 	var pixel_ip_address string
 	// Can start with an IP as param
-	if len(os.Args)>2 {
+	if len(os.Args) > 2 {
 		node_listener_ip_address = os.Args[1]
 		player_listener_ip_address = os.Args[2]
-	}else{
+	} else if len(os.Args)>1{
+		node_listener_ip_address = "127.0.0.1:0"
+		player_listener_ip_address = os.Args[1]
+		pixel_ip_address = "127.0.0.1:1234"
+	} else {
 		node_listener_ip_address = "127.0.0.1:0"
 		player_listener_ip_address = "127.0.0.1:12345"
 		pixel_ip_address = "127.0.0.1:1234"
@@ -60,24 +64,32 @@ func main() {
 	fmt.Println(otherNodes)
 	initState := gameConfig.InitState
 	udpAddr := client.LocalAddr().(*net.UDPAddr)
-	floodNodes(otherNodes, udpAddr)
+
 
 	// Start the pixel interface
 	pixel := setupUDPToPixel(pixel_ip_address)
 	defer pixel.Close()
 
 	// Make default gameState
-	gameRenderState := shared.GameRenderState{PlayerLoc:shared.Coord{3,3},
-	OtherPlayers: []shared.Coord{{6,6}}, Prey: shared.Coord{5,5}} // TODO: change these to dynamic when
-																				// we connect to other players/prey
+	gameRenderState := shared.GameRenderState{
+		PlayerLoc: shared.Coord{3, 3},
+		OtherPlayers: make(map[string]shared.Coord),
+		Prey: shared.Coord{5, 5}} // TODO: change these to dynamic when we connect to other players/prey
 
-	pi := RemotePlayerInterface{pixelListener: player, pixelWriter: pixel, otherNodes: client,
-	playerCommChannel: make(chan string), geo: geometry.CreateNewGridManager(initState.Settings),
-	GameRenderState: gameRenderState, identifier: uniqueId, GameConfig: initState}
+	pi := RemotePlayerInterface{
+		pixelListener: player,
+		pixelWriter: pixel,
+		otherNodes: client,
+		playerCommChannel: make(chan string),
+		geo: geometry.CreateNewGridManager(initState.Settings),
+		GameRenderState: gameRenderState,
+		identifier: uniqueId,
+		GameConfig: initState}
+	floodNodes(otherNodes, udpAddr, pi)
 	pi.runGame()
 }
 
-func (pi * RemotePlayerInterface) runGame() {
+func (pi *RemotePlayerInterface) runGame() {
 	go pi.runNodeListener()
 	go pi.runPlayerListener()
 
@@ -180,19 +192,33 @@ func (pi * RemotePlayerInterface) runNodeListener() {
 		fmt.Println(string(buf[0:rlen]))
 		fmt.Println(addr)
 		fmt.Println(i)
-		if string(buf[0:rlen]) != "connected" {
+		if "sgs" == string(buf[0:3]){
+			id := string(buf[3])
+			if err != nil{
+				panic(err)
+			}
+			var remoteCoord shared.Coord
+			err2 := json.Unmarshal(buf[4:rlen], &remoteCoord)
+			if err2 != nil {
+				panic(err)
+			}
+			pi.GameRenderState.OtherPlayers[id] = remoteCoord
+			fmt.Println(pi.GameRenderState.OtherPlayers)
+		}else if string(buf[0:rlen]) != "connected" {
 			remote_client, err := net.Dial("udp", string(buf[0:rlen]))
 			if err != nil {
 				panic(err)
 			}
-			remote_client.Write([]byte("connected"))
-
+			toSend, err := json.Marshal(pi.GameRenderState.PlayerLoc)
+			// Code sgs sends the connecting node the gamestate
+			remote_client.Write([]byte("sgs" + strconv.Itoa(pi.identifier) + string(toSend)))
 			clients = append(clients, &remote_client)
 		}
+
 	}
 }
 
-func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
+func floodNodes(otherNodes []string, udp_addr *net.UDPAddr, pi RemotePlayerInterface) {
 	localIP, _ := net.ResolveUDPAddr("udp", udp_generic)
 	for _, ip := range otherNodes {
 		node_udp, _ := net.ResolveUDPAddr("udp", ip)
@@ -202,12 +228,15 @@ func floodNodes(otherNodes []string, udp_addr *net.UDPAddr) {
 			panic(err)
 		}
 		// Exchange messages with other node
-		myListener := udp_addr.IP.String() + ":" +  strconv.Itoa(udp_addr.Port)
+		myListener := udp_addr.IP.String() + ":" + strconv.Itoa(udp_addr.Port)
 		node_client.Write([]byte(myListener))
+		initial_game, err := json.Marshal(pi.GameRenderState.PlayerLoc)
+		node_client.Write([]byte("sgs" + strconv.Itoa(pi.identifier) + string(initial_game)))
+
 	}
 }
 
-func ServerRegister(localIP string) (shared.GameConfig) {
+func ServerRegister(localIP string) shared.GameConfig {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
 	if err != nil {

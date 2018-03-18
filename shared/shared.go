@@ -50,6 +50,7 @@ type GameRenderState struct {
 	PlayerLoc Coord
 	OtherPlayers []Coord
 	Prey Coord
+	OtherPlayers map[string]Coord
 }
 
 // Move commitment sent by player, must be ACK'ed by all other players in game
