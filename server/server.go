@@ -53,7 +53,6 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 	}
 
 	*response = shared.GameConfig{
-		Connections: conns,
 		Identifier: identifier,
 		InitState: initState,
 		Connections:    prev_conns,

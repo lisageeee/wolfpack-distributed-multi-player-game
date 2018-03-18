@@ -48,7 +48,6 @@ type GameState struct {
 // Game state sent from logic node to pixel for rendering
 type GameRenderState struct {
 	PlayerLoc Coord
-	OtherPlayers []Coord
 	Prey Coord
 	OtherPlayers map[string]Coord
 }
