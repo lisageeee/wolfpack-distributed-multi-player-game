@@ -3,7 +3,6 @@ package geometry
 import (
 	"../shared"
 	"strconv"
-	"fmt"
 )
 
 type GridManager struct {
