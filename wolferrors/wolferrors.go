@@ -43,3 +43,9 @@ type InvalidScoreUpdateError string
 func (e InvalidScoreUpdateError) Error() string {
 	return fmt.Sprintf("WolfPack: score update [%d] is incorrect", e)
 }
+
+type InvalidPreyCaptureError string
+
+func (e InvalidPreyCaptureError) Error() string {
+	return fmt.Sprintf("WolfPack: prey [%d] was not captured", e)
+}

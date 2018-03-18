@@ -5,18 +5,17 @@ import (
 	"crypto/ecdsa"
 	"net"
 	"../shared"
-	"../prey"
 	"../key-helpers"
 	"../wolferrors"
 	"../geometry"
 )
 
 // A player information object
-type playerInfo struct {
+type PlayerInfo struct {
 	ServerAddr       string
 	ServerConn       *rpc.Client
-	PubKey           ecdsa.PublicKey
-	PrivKey          ecdsa.PrivateKey
+	PubKey           *ecdsa.PublicKey
+	PrivKey          *ecdsa.PrivateKey
 	PlayerIP         net.Addr
 	InitGameSettings shared.InitialGameSettings
 	// game states are really just position coordinates + other info related to time synchro
@@ -92,7 +91,7 @@ type WolfNode interface {
 
 	// Check move to see if they actually got the prey based on this node's game state.
 	// Can return the following errors:
-	// - InvalidMoveError
+	// - InvalidPreyCaptureError
 	CheckCapturedPrey() (err error)
 
 	// Check update of high score is valid based on this node's game state.
@@ -120,7 +119,7 @@ type PlayerService interface {
 }
 
 type WolfNodeImpl struct {
-	Info	playerInfo
+	Info	PlayerInfo
 }
 
 // Check move to see if it's valid based on this node's game state.
@@ -148,19 +147,22 @@ func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
 }
 
 // Check move to see if they actually got the prey based on this node's game state.
-// Can return the following errors: TODO
-// - InvalidMoveError
+// Can return the following errors:
+// - InvalidPreyCaptureError
 func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
-	preyX := prey.PreyRunner{}.GetPosition().X
-	preyY := prey.PreyRunner{}.GetPosition().Y
-	_, publicKeyString := key_helpers.Encode(&wolfNode.Info.PrivKey, &wolfNode.Info.PubKey)
+	//preyX := prey.PreyRunner{}.GetPosition().X
+	//preyY := prey.PreyRunner{}.GetPosition().Y
+	preyX := 5 // TODO: change these once we implement prey
+	preyY := 5 // TODO: change these once we implement prey
+	_, publicKeyString := key_helpers.Encode(wolfNode.Info.PrivKey, wolfNode.Info.PubKey)
 	coordinates := wolfNode.Info.CurrGameState[publicKeyString].PlayerLoc
 	currX := coordinates.X
 	currY := coordinates.Y
-	if(int(preyX) == currX && int(preyY) == currY) {
+	if int(preyX) == currX && int(preyY) == currY {
 		return nil
 	}
-	return wolferrors.InvalidMoveError("")
+	return wolferrors.InvalidPreyCaptureError("")
+	return nil
 }
 
 // Check update of high score is valid based on this node's game state.
