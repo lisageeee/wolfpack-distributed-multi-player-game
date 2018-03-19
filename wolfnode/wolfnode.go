@@ -81,6 +81,7 @@ type WolfNode interface {
 	// Can return the following errors:
 	// - InvalidMoveError
 	// - OutOfBoundsError
+	// - IncorrectPlayerError
 	CheckMoveCommit(commit shared.MoveCommit) (err error)
 
 	// Check move to see if it's valid based on this node's game state.
@@ -126,8 +127,21 @@ type WolfNodeImpl struct {
 // Can return the following errors:
 // - InvalidMoveError
 // - OutOfBoundsError
+// - IncorrectPlayerError
 func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
-	// Check that it was sent by the correct player
+	verify := ecdsa.Verify(commit.PubKey, []byte(commit.MoveCommitHash), commit.Signature.R, commit.Signature.S)
+	if !verify {
+		return wolferrors.IncorrectPlayerError(commit.MoveCommitHash)
+	}
+
+	coords := commit.GameState.PlayerLoc
+	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
+	if !gridManager.IsInBounds(coords) {
+		return wolferrors.OutOfBoundsError("")
+	}
+	if !gridManager.IsValidMove(coords) {
+		return wolferrors.InvalidMoveError("")
+	}
 	return nil
 }
 
@@ -162,7 +176,6 @@ func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
 		return nil
 	}
 	return wolferrors.InvalidPreyCaptureError("")
-	return nil
 }
 
 // Check update of high score is valid based on this node's game state.

@@ -57,7 +57,7 @@ type GameRenderState struct {
 type MoveCommit struct {
 	GameState      		GameState
 	MoveCommitHash 		string
-	PubKey         		ecdsa.PublicKey
+	PubKey         		*ecdsa.PublicKey
 	Signature			Sig
 }
 

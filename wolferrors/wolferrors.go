@@ -49,3 +49,9 @@ type InvalidPreyCaptureError string
 func (e InvalidPreyCaptureError) Error() string {
 	return fmt.Sprintf("WolfPack: prey [%d] was not captured", e)
 }
+
+type IncorrectPlayerError string
+
+func (e IncorrectPlayerError) Error() string {
+	return fmt.Sprintf("WolfPack: Hash [%d] was sent by incorrect player", e)
+}
