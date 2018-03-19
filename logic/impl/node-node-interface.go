@@ -62,7 +62,7 @@ func (n * NodeCommInterface) ServerRegister() (shared.GameConfig) {
 	}
 	var response shared.GameConfig
 	// Get IP from server
-	err = serverConn.Call("GServer.Register", n.Address, &response)
+	err = serverConn.Call("GServer.Register", n.Address.String(), &response)
 	if err != nil {
 		panic(err)
 	}
