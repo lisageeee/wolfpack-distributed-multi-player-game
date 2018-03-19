@@ -28,6 +28,7 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 	fmt.Println("Got connection from: ", ip)
 
 	var identifier int
+	prev_conns := conns
 	if !hasIP(conns, ip) {
 		fmt.Println("adding connection")
 		conns = append(conns, ip)
@@ -52,9 +53,9 @@ func (foo *GServer)Register(ip string, response *shared.GameConfig) error {
 	}
 
 	*response = shared.GameConfig{
-		Connections: conns,
 		Identifier: identifier,
 		InitState: initState,
+		Connections:    prev_conns,
 		GlobalServerHB: 1, // TODO; change this when working on heartbeats
 		Ping: 1,
 		}
