@@ -6,7 +6,6 @@ import (
 	_ "image/png"
 	_ "image/jpeg"
 	l "./impl"
-	"encoding/json"
 )
 
 // Entrypoint, sets up communication channels and creates the RemotePlayerInterface

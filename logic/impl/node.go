@@ -18,8 +18,8 @@ type PlayerNode struct {
 
 
 func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string) (PlayerNode) {
-	// Setup the player communcation channel
-	playerCommChannel := make(chan string)
+	// Setup the player communcation buffered channel
+	playerCommChannel := make(chan string, 5)
 
 	// Startup Pixel interface + listening
 	pixelInterface := CreatePixelInterface(playerCommChannel)
@@ -35,12 +35,25 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	initState := gameConfig.InitState
 
 	// Make a gameState
-	gameRenderState := shared.GameRenderState{PlayerLoc:shared.Coord{3,3},
-		OtherPlayers: []shared.Coord{{6,6}}, Prey: shared.Coord{5,5}}
+	gameRenderState := shared.GameRenderState{
+		PlayerLoc:shared.Coord{3,3},
+		OtherPlayers: make(map[string]shared.Coord),
+		Prey: shared.Coord{5,5},
+	}
 
-	pn := PlayerNode{pixelInterface: pixelInterface, nodeInterface: nodeInterface,
-		playerCommChannel: playerCommChannel, geo: geometry.CreateNewGridManager(initState.Settings),
-		GameRenderState: gameRenderState, identifier: uniqueId, GameConfig: initState}
+	// Create player node
+	pn := PlayerNode{
+		pixelInterface: pixelInterface,
+		nodeInterface: nodeInterface,
+		playerCommChannel: playerCommChannel,
+		geo: geometry.CreateNewGridManager(initState.Settings),
+		GameRenderState: gameRenderState,
+		identifier: uniqueId,
+		GameConfig: initState,
+	}
+
+	// Allow the node-node interface to refer back to this node
+	nodeInterface.PlayerNode = &pn
 
 	return pn
 }

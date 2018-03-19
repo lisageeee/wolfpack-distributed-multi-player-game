@@ -8,17 +8,19 @@ import (
 	"os"
 	"../../shared"
 	"strconv"
+	"encoding/json"
 )
 
 type NodeCommInterface struct {
+	PlayerNode *PlayerNode
 	IncomingMessages *net.UDPConn
 	Address *net.UDPAddr
-	otherNodes []*net.UDPConn
+	otherNodes []*net.Conn
 	connections []string
 }
 
 func CreateNodeCommInterface () (NodeCommInterface) {
-	return NodeCommInterface{}
+	return NodeCommInterface{otherNodes: make([]*net.Conn, 0), connections: make([]string, 0)}
 }
 
 func (n * NodeCommInterface) RunListener(nodeListenerAddr string) {
@@ -39,17 +41,29 @@ func (n * NodeCommInterface) RunListener(nodeListenerAddr string) {
 		fmt.Println(string(buf[0:rlen]))
 		fmt.Println(addr)
 		fmt.Println(i)
-		// TODO: do whatever we do with the other node's messages
-
-		//if string(buf[0:rlen]) != "connected" {
-		//	remote_client, err := net.Dial("udp", string(buf[0:rlen]))
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	remote_client.Write([]byte("connected"))
-		//
-		//	clients = append(clients, &remote_client)
-		//}
+		// Write to the node comm channel
+		if "sgs" == string(buf[0:3]){
+			id := string(buf[3])
+			if err != nil{
+				panic(err)
+			}
+			var remoteCoord shared.Coord
+			err2 := json.Unmarshal(buf[4:rlen], &remoteCoord)
+			if err2 != nil {
+				panic(err)
+			}
+			n.PlayerNode.GameRenderState.OtherPlayers[id] = remoteCoord
+			fmt.Println(n.PlayerNode.GameRenderState.OtherPlayers)
+		} else if string(buf[0:rlen]) != "connected" {
+			remoteClient, err := net.Dial("udp", string(buf[0:rlen]))
+			if err != nil {
+				panic(err)
+			}
+			toSend, err := json.Marshal(n.PlayerNode.GameRenderState.PlayerLoc)
+			// Code sgs sends the connecting node the gamestate
+			remoteClient.Write([]byte("sgs" + strconv.Itoa(n.PlayerNode.identifier) + string(toSend)))
+			n.otherNodes = append(n.otherNodes, &remoteClient)
+		}
 	}
 }
 
