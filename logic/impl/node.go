@@ -18,7 +18,7 @@ type PlayerNode struct {
 
 
 func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string) (PlayerNode) {
-	// Setup the player communcation buffered channel
+	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
 
 	// Startup Pixel interface + listening
