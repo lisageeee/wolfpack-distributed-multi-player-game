@@ -12,7 +12,7 @@ type PlayerNode struct {
 	playerCommChannel chan string
 	GameRenderState	  shared.GameRenderState
 	geo               geometry.GridManager
-	identifier        int
+	identifier        string
 	GameConfig		  shared.InitialState
 }
 
@@ -30,9 +30,9 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	go nodeInterface.RunListener(nodeListenerAddr)
 
 	// Register with server, update info
-	gameConfig := nodeInterface.ServerRegister()
-	uniqueId := gameConfig.Identifier
-	initState := gameConfig.InitState
+	uniqueId := nodeInterface.ServerRegister()
+	go nodeInterface.SendHeartbeat()
+
 
 	// Make a gameState
 	gameRenderState := shared.GameRenderState{
@@ -46,10 +46,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 		pixelInterface: pixelInterface,
 		nodeInterface: nodeInterface,
 		playerCommChannel: playerCommChannel,
-		geo: geometry.CreateNewGridManager(initState.Settings),
+		geo: geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameRenderState: gameRenderState,
 		identifier: uniqueId,
-		GameConfig: initState,
+		GameConfig: nodeInterface.Config.InitState,
 	}
 
 	// Allow the node-node interface to refer back to this node
