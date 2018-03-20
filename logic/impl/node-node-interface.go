@@ -11,8 +11,8 @@ import (
 	"crypto/ecdsa"
 	"time"
 	"encoding/gob"
-	"../../key-helpers"
 	"crypto/elliptic"
+	"strconv"
 )
 
 type NodeCommInterface struct {
@@ -84,12 +84,13 @@ func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 	}
 }
 
-func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
+func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
 	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
+		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
 		// Connect to server with RPC, port is always :8081
 		serverConn, err := rpc.Dial("tcp", ":8081")
 		if err != nil {
@@ -102,7 +103,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 		var response shared.GameConfig
 		// Register with server
 		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-		fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+		// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
 		err = serverConn.Call("GServer.Register", playerInfo, &response)
 		if err != nil {
 			log.Fatal(err)
@@ -112,9 +113,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 
 	n.GetNodes()
 
-	pubKeyStr = key_helpers.EncodePubKey(n.PubKey)
-
-	return pubKeyStr
+	return strconv.Itoa(n.Config.Identifier)
 }
 
 func (n *NodeCommInterface) GetNodes() {
@@ -134,6 +133,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 		var _ignored bool
 		err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 		if err != nil {
+			fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
 			n.ServerRegister()
 		}
 		boop := n.Config.GlobalServerHB
