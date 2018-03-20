@@ -63,13 +63,6 @@ func Encode(privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey) (privateKe
 	return string(pemEncoded), string(pemEncodedPub)
 }
 
-func EncodePubKey(publicKey *ecdsa.PublicKey) (publicKeyString string) {
-	x509EncodedPub, _ := x509.MarshalPKIXPublicKey(publicKey)
-	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
-
-	return string(pemEncodedPub)
-}
-
 func GenerateKeys() (*ecdsa.PublicKey, *ecdsa.PrivateKey){
 	testPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	testPublicKey := &testPrivateKey.PublicKey
