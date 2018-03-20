@@ -10,23 +10,24 @@ import (
 	"encoding/json"
 	"crypto/ecdsa"
 	"time"
+	"encoding/gob"
 )
 
 type NodeCommInterface struct {
-	PlayerNode *PlayerNode
-	PlayerInfo PlayerInfo
-	PubKey ecdsa.PublicKey
-	PrivKey ecdsa.PrivateKey
-	Config shared.GameConfig
-	ServerConn *rpc.Client
-	IncomingMessages *net.UDPConn
-	otherNodes []*net.Conn
-	connections []string
+	PlayerNode			*PlayerNode
+	PlayerInfo 			PlayerInfo
+	PubKey 				ecdsa.PublicKey
+	PrivKey 			ecdsa.PrivateKey
+	Config 				shared.GameConfig
+	ServerConn 			*rpc.Client
+	IncomingMessages 	*net.UDPConn
+	otherNodes 			[]*net.Conn
+	connections 		[]string
 }
 
 type PlayerInfo struct {
-	Address net.Addr
-	PubKey ecdsa.PublicKey // TODO: who should be generating this?
+	Address 			net.Addr
+	PubKey 				ecdsa.PublicKey // TODO: who should be generating this?
 }
 
 func CreateNodeCommInterface() (NodeCommInterface) {
@@ -80,22 +81,26 @@ func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 }
 
 func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
-	// Connect to server with RPC, port is always :8081
-	serverConn, err := rpc.Dial("tcp", ":8081")
-	if err != nil {
-		log.Println("Cannot dial server. Please ensure the server is running and try again.")
-		os.Exit(1)
-	}
-	// Storing in object so that we can do other RPC calls outside of this function
-	n.ServerConn = serverConn
+	gob.Register(&net.UDPAddr{})
 
-	var response shared.GameConfig
-	// Register with server
-	err = serverConn.Call("GServer.Register", n.PlayerInfo, &response)
-	if err != nil {
-		log.Fatal(err)
+	if n.ServerConn == nil {
+		// Connect to server with RPC, port is always :8081
+		serverConn, err := rpc.Dial("tcp", ":8081")
+		if err != nil {
+			log.Println("Cannot dial server. Please ensure the server is running and try again.")
+			os.Exit(1)
+		}
+		// Storing in object so that we can do other RPC calls outside of this function
+		n.ServerConn = serverConn
+
+		var response shared.GameConfig
+		// Register with server
+		err = serverConn.Call("GServer.Register", n.PlayerInfo, &response)
+		if err != nil {
+			log.Fatal(err)
+		}
+		n.Config = response
 	}
-	n.Config = response
 
 	n.GetNodes()
 
@@ -103,7 +108,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 }
 
 func (n *NodeCommInterface) GetNodes() {
-	response := make([]net.Addr, 0)
+	var response []net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", n.PubKey, &response)
 	if err != nil {
 		log.Fatal(err)
@@ -117,7 +122,7 @@ func (n *NodeCommInterface) GetNodes() {
 func (n *NodeCommInterface) SendHeartbeat() {
 	for {
 		var _ignored bool
-		err := n.ServerConn.Call("RServer.Heartbeat", n.PubKey, &_ignored)
+		err := n.ServerConn.Call("GServer.Heartbeat", n.PubKey, &_ignored)
 		if err != nil {
 			n.ServerRegister()
 		}
