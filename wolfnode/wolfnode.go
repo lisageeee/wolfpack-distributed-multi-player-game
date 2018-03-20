@@ -98,7 +98,7 @@ type WolfNode interface {
 	// Check update of high score is valid based on this node's game state.
 	// Can return the following errors:
 	// - InvalidScoreUpdateError
-	CheckScore() (err error)
+	CheckScore(score int) (err error)
 }
 
 // Methods that will utilize UDP to send info to other player nodes
@@ -124,10 +124,6 @@ type WolfNodeImpl struct {
 }
 
 // Check move to see if it's valid based on this node's game state.
-// Can return the following errors:
-// - InvalidMoveError
-// - OutOfBoundsError
-// - IncorrectPlayerError
 func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
 	verify := ecdsa.Verify(commit.PubKey, []byte(commit.MoveCommitHash), commit.Signature.R, commit.Signature.S)
 	if !verify {
@@ -146,9 +142,6 @@ func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err erro
 }
 
 // Check move to see if it's valid based on this node's game state.
-// Can return the following errors:
-// - InvalidMoveError
-// - OutOfBoundsError
 func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(move) {
@@ -161,8 +154,6 @@ func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
 }
 
 // Check move to see if they actually got the prey based on this node's game state.
-// Can return the following errors:
-// - InvalidPreyCaptureError
 func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
 	//preyX := prey.PreyRunner{}.GetPosition().X
 	//preyY := prey.PreyRunner{}.GetPosition().Y
@@ -179,10 +170,17 @@ func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
 }
 
 // Check update of high score is valid based on this node's game state.
-// Can return the following errors:
-// - InvalidScoreUpdateError
-func (wolfNode WolfNodeImpl) CheckScore() (err error) {
-	// Must report accurate score
+func (wolfNode WolfNodeImpl) CheckScore(score int) (err error) {
 	// Check they actually scored
+	captured := wolfNode.CheckCapturedPrey()
+	if captured != nil {
+		return wolferrors.InvalidScoreUpdateError("")
+	}
+
+	// Must report accurate score
+	if score != 1 { //TODO: change this if we want the score to not always be 1?
+		return wolferrors.InvalidScoreUpdateError("")
+	}
+
 	return nil
 }
