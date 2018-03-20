@@ -13,6 +13,7 @@ type Coord struct {
 
 type GameConfig struct {
 	InitState			InitialState
+	Identifier 			int
 	GlobalServerHB		uint32
 	// Number of times we ping another player before we drop them
 	Ping				uint32

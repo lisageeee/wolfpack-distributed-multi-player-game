@@ -12,6 +12,7 @@ import (
 	"time"
 	"encoding/gob"
 	"crypto/elliptic"
+	"strconv"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -88,12 +89,13 @@ func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 
 // Registers the node with the server, receiving the gameconfig (and connections)
 // TODO: maybe move this into node.go?
-func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
+func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
 	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
+		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
 		// Connect to server with RPC, port is always :8081
 		serverConn, err := rpc.Dial("tcp", ":8081")
 		if err != nil {
@@ -106,7 +108,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 		var response shared.GameConfig
 		// Register with server
 		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-		fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+		// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
 		err = serverConn.Call("GServer.Register", playerInfo, &response)
 		if err != nil {
 			log.Fatal(err)
@@ -119,7 +121,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 	// Start communcation with the other nodes
 	go n.FloodNodes()
 
-	return "hah" // TODO: pubkey
+	return strconv.Itoa(n.Config.Identifier)
 }
 
 func (n *NodeCommInterface) GetNodes() {
@@ -139,6 +141,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 		var _ignored bool
 		err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 		if err != nil {
+			fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
 			n.ServerRegister()
 		}
 		boop := n.Config.GlobalServerHB

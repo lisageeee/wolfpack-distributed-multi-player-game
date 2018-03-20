@@ -29,6 +29,7 @@ type AllPlayers struct {
 var (
 	heartBeat = uint32(500)
 	ping = uint32(3)
+	id = 1
 	allPlayers = AllPlayers{all: make(map[string]*Player)}
 )
 
@@ -75,16 +76,21 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
+	fmt.Printf("DEBUG - allPlayers [%v]\n", allPlayers.all)
+
 	pubKeyStr := key_helpers.EncodePubKey(&p.PubKey)
 
-	if player, exists := allPlayers.all[pubKeyStr]; exists {
-		fmt.Println("DEBUG - Key Already Registered Error")
-		return wolferrors.KeyAlreadyRegisteredError(player.Address.String())
-	}
+	// TODO: This needs to be fixed
+	//if player, exists := allPlayers.all[pubKeyStr]; exists {
+	//	fmt.Printf("DEBUG - Key Already Registered Error [%s]\n",
+	//		player.Address.String())
+	//	return wolferrors.KeyAlreadyRegisteredError(player.Address.String())
+	//}
 
 	for _, player := range allPlayers.all {
 		if player.Address.Network() == p.Address.Network() && player.Address.String() == p.Address.String() {
-			fmt.Println("DEBUG - Address Already Registered Error")
+			fmt.Printf("DEBUG - Address Already Registered Error [%s], [%s]\n",
+				player.Address.Network(), player.Address.String())
 			return wolferrors.AddressAlreadyRegisteredError(p.Address.String())
 		}
 	}
@@ -112,10 +118,13 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	}
 
 	*response = shared.GameConfig {
-		InitState: initState,
+		InitState: 	initState,
+		Identifier: id,
 		GlobalServerHB: heartBeat,
-		Ping: ping,
-		}
+		Ping: 		ping,
+	}
+
+	id++
 
 	return nil
 }
