@@ -7,17 +7,21 @@ import (
 	"fmt"
 )
 
+// The interface with the player's Pixel GUI (pixel-node.go) from the logic node
 type PixelInterface struct {
 	pixelListener     *net.UDPConn
 	pixelWriter 	  *net.UDPConn
 	playerCommChannel chan string
 }
 
+// Creates & returns a pixel interface with a channel to send string information to the main node over
+// Called by the main logic node package
 func CreatePixelInterface(playerCommChannel chan string) PixelInterface {
 	pi := PixelInterface{playerCommChannel: playerCommChannel}
 	return pi
 }
 
+// Sends a game state to the player's pixel interface for rendering
 func (pi *PixelInterface) SendPlayerGameState(state shared.GameRenderState) {
 	toSend, err := json.Marshal(state)
 	if err != nil {
@@ -29,6 +33,8 @@ func (pi *PixelInterface) SendPlayerGameState(state shared.GameRenderState) {
 	}
 }
 
+// Given two local UDP addresses, initializes the ports for sending and receiving messages from the
+// pixel-node, respectively. Must be run in a goroutine (infinite loop_
 func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr string) {
 	_, playerInput := StartListenerUDP(receivingAddr)
 	defer playerInput.Close()
@@ -53,7 +59,5 @@ func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr s
 			// Write to comm channel for node to receive
 			pi.playerCommChannel <- string(buf[0:rlen])
 		}
-
-
 	}
 }

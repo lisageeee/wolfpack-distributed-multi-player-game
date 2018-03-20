@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// The "main" node part of the logic node. Deals with computation and checks; not communications
 type PlayerNode struct {
 	pixelInterface	  PixelInterface
 	nodeInterface 	  NodeCommInterface
@@ -16,7 +17,10 @@ type PlayerNode struct {
 	GameConfig		  shared.InitialState
 }
 
-
+// Creates the main logic node and required interfaces with the arguments passed in logic-node.go
+// nodeListenerAddr = where we expect to receive messages from other nodes
+// playerListenerAddr = where we expect to receive messages from the pixel-node
+// pixelSendAddr = where we will be sending new game states to the pixel node
 func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
@@ -58,7 +62,8 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	return pn
 }
 
-
+// Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
+// end of main (or alternatively, in a goroutine)
 func (pn * PlayerNode) RunGame() {
 
 	for {
@@ -75,6 +80,8 @@ func (pn * PlayerNode) RunGame() {
 
 }
 
+// Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
+// (not into a wall, out of bounds)
 func (pn * PlayerNode) movePlayer(move string) {
 	// Get current player state
 	playerLoc := pn.GameRenderState.PlayerLoc

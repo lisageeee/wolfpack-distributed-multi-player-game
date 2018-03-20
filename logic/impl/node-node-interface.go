@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 )
 
+// Node communication interface for communication with other player/logic nodes
 type NodeCommInterface struct {
 	PlayerNode *PlayerNode
 	IncomingMessages *net.UDPConn
@@ -19,10 +20,12 @@ type NodeCommInterface struct {
 	connections []string
 }
 
+// Creates a node comm interface with initial empty arrays
 func CreateNodeCommInterface () (NodeCommInterface) {
 	return NodeCommInterface{otherNodes: make([]*net.Conn, 0), connections: make([]string, 0)}
 }
 
+// Runs listener for messages from other nodes, should be run in a goroutine
 func (n * NodeCommInterface) RunListener(nodeListenerAddr string) {
 	// Start the listener
 	addr, listener := StartListenerUDP(nodeListenerAddr)
@@ -67,6 +70,8 @@ func (n * NodeCommInterface) RunListener(nodeListenerAddr string) {
 	}
 }
 
+// Registers the node with the server, receiving the gameconfig (and connections)
+// TODO: maybe move this into node.go?
 func (n * NodeCommInterface) ServerRegister() (shared.GameConfig) {
 	// Connect to server with RPC, port is always :8081
 	serverConn, err := rpc.Dial("tcp", ":8081")
@@ -81,9 +86,13 @@ func (n * NodeCommInterface) ServerRegister() (shared.GameConfig) {
 		panic(err)
 	}
 	n.connections = response.Connections
+	// Start communcation with the other nodes
+	go n.FloodNodes()
+
 	return response
 }
 
+// Initiates connection with n.connections (provided nodes from server) on game init
 func (n *  NodeCommInterface) FloodNodes() {
 	const udpGeneric = "127.0.0.1:0"
 	localIP, _ := net.ResolveUDPAddr("udp", udpGeneric)
