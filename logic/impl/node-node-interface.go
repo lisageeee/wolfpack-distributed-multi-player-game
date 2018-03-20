@@ -11,29 +11,32 @@ import (
 	"crypto/ecdsa"
 	"time"
 	"encoding/gob"
+	"crypto/elliptic"
 )
 
 // Node communication interface for communication with other player/logic nodes
 type NodeCommInterface struct {
 	PlayerNode			*PlayerNode
-	PlayerInfo 			PlayerInfo
-	PubKey 				ecdsa.PublicKey
-	PrivKey 			ecdsa.PrivateKey
+	PubKey 				*ecdsa.PublicKey
+	PrivKey 			*ecdsa.PrivateKey
 	Config 				shared.GameConfig
 	ServerConn 			*rpc.Client
 	IncomingMessages 	*net.UDPConn
+	LocalAddr			net.Addr
 	otherNodes 			[]*net.Conn
 	connections 		[]string
 }
 
 type PlayerInfo struct {
 	Address 			net.Addr
-	PubKey 				ecdsa.PublicKey // TODO: who should be generating this?
+	PubKey 				ecdsa.PublicKey
 }
 
 // Creates a node comm interface with initial empty arrays
-func CreateNodeCommInterface() (NodeCommInterface) {
+func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey) (NodeCommInterface) {
 	return NodeCommInterface {
+		PubKey: pubKey,
+		PrivKey: privKey,
 		otherNodes: make([]*net.Conn, 0),
 		connections: make([]string, 0)}
 }
@@ -42,8 +45,8 @@ func CreateNodeCommInterface() (NodeCommInterface) {
 func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 	// Start the listener
 	addr, listener := StartListenerUDP(nodeListenerAddr)
+	n.LocalAddr = addr
 	n.IncomingMessages = listener
-	n.PlayerInfo.Address = addr
 	listener.SetReadBuffer(1048576)
 
 	i := 0
@@ -87,6 +90,8 @@ func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 // TODO: maybe move this into node.go?
 func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 	gob.Register(&net.UDPAddr{})
+	gob.Register(&elliptic.CurveParams{})
+	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
 		// Connect to server with RPC, port is always :8081
@@ -100,7 +105,9 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 
 		var response shared.GameConfig
 		// Register with server
-		err = serverConn.Call("GServer.Register", n.PlayerInfo, &response)
+		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
+		fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+		err = serverConn.Call("GServer.Register", playerInfo, &response)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -117,7 +124,7 @@ func (n *NodeCommInterface) ServerRegister() (pubKeyStr string) {
 
 func (n *NodeCommInterface) GetNodes() {
 	var response []net.Addr
-	err := n.ServerConn.Call("GServer.GetNodes", n.PubKey, &response)
+	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,7 +137,7 @@ func (n *NodeCommInterface) GetNodes() {
 func (n *NodeCommInterface) SendHeartbeat() {
 	for {
 		var _ignored bool
-		err := n.ServerConn.Call("GServer.Heartbeat", n.PubKey, &_ignored)
+		err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 		if err != nil {
 			n.ServerRegister()
 		}
@@ -151,7 +158,7 @@ func (n *  NodeCommInterface) FloodNodes() {
 			panic(err)
 		}
 		// Exchange messages with other node
-		myListener := n.PlayerInfo.Address.String()
+		myListener := n.LocalAddr.String()
 		nodeClient.Write([]byte(myListener))
 	}
 }

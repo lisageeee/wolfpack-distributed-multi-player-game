@@ -6,6 +6,7 @@ import (
 	_ "image/png"
 	_ "image/jpeg"
 	logicImpl "./impl"
+	"../key-helpers"
 )
 
 // Entrypoint for the player (logic) node, creates the node and all interfaces by calling the playerNode constructor
@@ -30,6 +31,8 @@ func main() {
 		player_listener_ip_address = "127.0.0.1:12345"
 		pixel_ip_address = "127.0.0.1:1234"
 	}
-	node := logicImpl.CreatePlayerNode(node_listener_ip_address, player_listener_ip_address, pixel_ip_address)
+
+	pubKey, privKey := key_helpers.GenerateKeys()
+	node := logicImpl.CreatePlayerNode(node_listener_ip_address, player_listener_ip_address, pixel_ip_address, *pubKey, *privKey)
 	node.RunGame()
 }

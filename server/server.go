@@ -10,6 +10,8 @@ import (
 	"time"
 	"encoding/gob"
 	"fmt"
+	"../key-helpers"
+	"crypto/elliptic"
 )
 
 type GServer int
@@ -32,11 +34,13 @@ var (
 
 type PlayerInfo struct {
 	Address net.Addr
-	Key ecdsa.PublicKey
+	PubKey ecdsa.PublicKey
 }
 
 func main() {
 	gob.Register(&net.UDPAddr{})
+	gob.Register(&elliptic.CurveParams{})
+	gob.Register(&PlayerInfo{})
 
 	gserver := new(GServer)
 
@@ -71,7 +75,8 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
+	pubKeyStr := key_helpers.EncodePubKey(&p.PubKey)
+
 	if player, exists := allPlayers.all[pubKeyStr]; exists {
 		fmt.Println("DEBUG - Key Already Registered Error")
 		return wolferrors.KeyAlreadyRegisteredError(player.Address.String())
@@ -90,6 +95,8 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 		p.Address,
 		time.Now().UnixNano(),
 	}
+
+	fmt.Printf("DEBUG - [%s] Connected\n", p.Address.String())
 
 	go monitor(pubKeyStr, time.Duration(heartBeat)*time.Millisecond)
 
@@ -117,7 +124,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()
 
-	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
+	pubKeyStr := key_helpers.EncodePubKey(&key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")
@@ -143,7 +150,7 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
+	pubKeyStr := key_helpers.EncodePubKey(&key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")
