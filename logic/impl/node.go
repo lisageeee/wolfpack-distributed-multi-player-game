@@ -4,6 +4,7 @@ import (
 	"../../shared"
 	"../../geometry"
 	"fmt"
+	"crypto/ecdsa"
 )
 
 type PlayerNode struct {
@@ -17,7 +18,7 @@ type PlayerNode struct {
 }
 
 
-func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string) (PlayerNode) {
+func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string, pubKey ecdsa.PublicKey, privKey ecdsa.PrivateKey) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
 
@@ -26,7 +27,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
 
 	// Start the node to node interface
-	nodeInterface := CreateNodeCommInterface()
+	nodeInterface := CreateNodeCommInterface(&pubKey, &privKey)
 	go nodeInterface.RunListener(nodeListenerAddr)
 
 	// Register with server, update info
