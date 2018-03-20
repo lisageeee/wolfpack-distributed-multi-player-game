@@ -8,6 +8,8 @@ import (
 	"crypto/ecdsa"
 	"../wolferrors"
 	"time"
+	"encoding/gob"
+	"fmt"
 )
 
 type GServer int
@@ -25,7 +27,7 @@ type AllPlayers struct {
 var (
 	heartBeat = uint32(500)
 	ping = uint32(3)
-	allPlayers AllPlayers = AllPlayers{all: make(map[string]*Player)}
+	allPlayers = AllPlayers{all: make(map[string]*Player)}
 )
 
 type PlayerInfo struct {
@@ -34,6 +36,8 @@ type PlayerInfo struct {
 }
 
 func main() {
+	gob.Register(&net.UDPAddr{})
+
 	gserver := new(GServer)
 
 	server := rpc.NewServer()
@@ -69,11 +73,13 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 
 	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
 	if player, exists := allPlayers.all[pubKeyStr]; exists {
+		fmt.Println("DEBUG - Key Already Registered Error")
 		return wolferrors.KeyAlreadyRegisteredError(player.Address.String())
 	}
 
 	for _, player := range allPlayers.all {
 		if player.Address.Network() == p.Address.Network() && player.Address.String() == p.Address.String() {
+			fmt.Println("DEBUG - Address Already Registered Error")
 			return wolferrors.AddressAlreadyRegisteredError(p.Address.String())
 		}
 	}
@@ -114,6 +120,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
 	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
+		fmt.Println("DEBUG - Unknown Key Error")
 		return wolferrors.UnknownKeyError(pubKeyStr)
 	}
 
@@ -139,6 +146,7 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	pubKeyStr := "hah" // TODO: replace with key-generators pubKeyToString
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
+		fmt.Println("DEBUG - Unknown Key Error")
 		return wolferrors.UnknownKeyError(pubKeyStr)
 	}
 
