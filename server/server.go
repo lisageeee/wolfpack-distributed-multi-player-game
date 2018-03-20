@@ -10,7 +10,6 @@ import (
 	"time"
 	"encoding/gob"
 	"fmt"
-	"../key-helpers"
 	"crypto/elliptic"
 )
 
@@ -78,7 +77,7 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 
 	fmt.Printf("DEBUG - allPlayers [%v]\n", allPlayers.all)
 
-	pubKeyStr := key_helpers.EncodePubKey(&p.PubKey)
+	pubKeyStr := pubKeyToString(p.PubKey)
 
 	// TODO: This needs to be fixed
 	//if player, exists := allPlayers.all[pubKeyStr]; exists {
@@ -133,7 +132,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()
 
-	pubKeyStr := key_helpers.EncodePubKey(&key)
+	pubKeyStr := pubKeyToString(key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")
@@ -159,7 +158,7 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	pubKeyStr := key_helpers.EncodePubKey(&key)
+	pubKeyStr := pubKeyToString(key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")
@@ -169,4 +168,8 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	allPlayers.all[pubKeyStr].RecentHB = time.Now().UnixNano()
 
 	return nil
+}
+
+func pubKeyToString(key ecdsa.PublicKey) string {
+	return string(elliptic.Marshal(key.Curve, key.X, key.Y))
 }
