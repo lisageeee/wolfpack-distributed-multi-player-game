@@ -43,3 +43,21 @@ type InvalidScoreUpdateError string
 func (e InvalidScoreUpdateError) Error() string {
 	return fmt.Sprintf("WolfPack: score update [%d] is incorrect", e)
 }
+
+type KeyAlreadyRegisteredError string
+
+func (e KeyAlreadyRegisteredError) Error() string {
+	return fmt.Sprintf("WolfPack: player already registered [%s]", string(e))
+}
+
+type AddressAlreadyRegisteredError string
+
+func (e AddressAlreadyRegisteredError) Error() string {
+	return fmt.Sprintf("WolfPack: player already registered [%s]", string(e))
+}
+
+type UnknownKeyError string
+
+func (e UnknownKeyError) Error() string {
+	return fmt.Sprintf("WolfPack: unknown key [%s]", string(e))
+}
