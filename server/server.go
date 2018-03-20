@@ -99,12 +99,11 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	}
 
 	*response = shared.GameConfig {
-		// Identifier: identifier,
 		InitState: initState,
-		// Connections:    prev_conns,
 		GlobalServerHB: heartBeat,
 		Ping: ping,
 		}
+
 	return nil
 }
 
@@ -133,7 +132,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
 	return nil
 }
 
-func (foo *GServer) HeartBeat(key ecdsa.PublicKey, _ignored *bool) error {
+func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
