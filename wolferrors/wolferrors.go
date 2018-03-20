@@ -23,13 +23,13 @@ func (e InvalidMoveHashError) Error() string {
 type InvalidMoveError string
 
 func (e InvalidMoveError) Error() string {
-	return fmt.Sprintf("WolfPack: invalid move [%s]", string(e))
+	return fmt.Sprintf("WolfPack: [%s]", string(e))
 }
 
 type OutOfBoundsError string
 
 func (e OutOfBoundsError) Error() string {
-	return fmt.Sprintf("WolfPack: move is out of bounds [%s]", string(e))
+	return fmt.Sprintf("WolfPack: [%s]", string(e))
 }
 
 type InvalidNonceError string
@@ -47,11 +47,11 @@ func (e InvalidScoreUpdateError) Error() string {
 type InvalidPreyCaptureError string
 
 func (e InvalidPreyCaptureError) Error() string {
-	return fmt.Sprintf("WolfPack: prey [%d] was not captured", e)
+	return fmt.Sprintf("WolfPack: prey was not captured")
 }
 
 type IncorrectPlayerError string
 
 func (e IncorrectPlayerError) Error() string {
-	return fmt.Sprintf("WolfPack: Hash [%d] was sent by incorrect player", e)
+	return fmt.Sprintf("WolfPack: Hash [%s] was sent by incorrect player", e)
 }

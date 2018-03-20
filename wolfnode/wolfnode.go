@@ -133,10 +133,10 @@ func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err erro
 	coords := commit.GameState.PlayerLoc
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(coords) {
-		return wolferrors.OutOfBoundsError("")
+		return wolferrors.OutOfBoundsError("You are out of bounds")
 	}
 	if !gridManager.IsValidMove(coords) {
-		return wolferrors.InvalidMoveError("")
+		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
 	}
 	return nil
 }
@@ -145,10 +145,10 @@ func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err erro
 func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(move) {
-		return wolferrors.OutOfBoundsError("")
+		return wolferrors.OutOfBoundsError("You are out of bounds")
 	}
 	if !gridManager.IsValidMove(move) {
-		return wolferrors.InvalidMoveError("")
+		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
 	if int(preyX) == currX && int(preyY) == currY {
 		return nil
 	}
-	return wolferrors.InvalidPreyCaptureError("")
+	return wolferrors.InvalidPreyCaptureError("Gurl you did NOT get this prey")
 }
 
 // Check update of high score is valid based on this node's game state.
@@ -174,12 +174,12 @@ func (wolfNode WolfNodeImpl) CheckScore(score int) (err error) {
 	// Check they actually scored
 	captured := wolfNode.CheckCapturedPrey()
 	if captured != nil {
-		return wolferrors.InvalidScoreUpdateError("")
+		return wolferrors.InvalidScoreUpdateError(score)
 	}
 
 	// Must report accurate score
 	if score != 1 { //TODO: change this if we want the score to not always be 1?
-		return wolferrors.InvalidScoreUpdateError("")
+		return wolferrors.InvalidScoreUpdateError(score)
 	}
 
 	return nil

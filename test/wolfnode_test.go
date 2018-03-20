@@ -111,7 +111,7 @@ func TestMoveInvalid(t *testing.T) {
 }
 
 func TestMoveCommitValid(t *testing.T) {
-
+	// I am stupid and don't know how to write a test for this xoxo
 }
 
 func TestMoveCommitInvalid(t *testing.T) {
