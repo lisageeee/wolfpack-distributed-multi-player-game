@@ -4,6 +4,7 @@ import (
 	"../../shared"
 	"../../geometry"
 	"fmt"
+	"crypto/ecdsa"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -13,7 +14,7 @@ type PlayerNode struct {
 	playerCommChannel chan string
 	GameRenderState	  shared.GameRenderState
 	geo               geometry.GridManager
-	identifier        int
+	identifier        string
 	GameConfig		  shared.InitialState
 }
 
@@ -21,7 +22,7 @@ type PlayerNode struct {
 // nodeListenerAddr = where we expect to receive messages from other nodes
 // playerListenerAddr = where we expect to receive messages from the pixel-node
 // pixelSendAddr = where we will be sending new game states to the pixel node
-func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string) (PlayerNode) {
+func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string, pubKey ecdsa.PublicKey, privKey ecdsa.PrivateKey) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
 
@@ -30,13 +31,13 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
 
 	// Start the node to node interface
-	nodeInterface := CreateNodeCommInterface()
+	nodeInterface := CreateNodeCommInterface(&pubKey, &privKey)
 	go nodeInterface.RunListener(nodeListenerAddr)
 
 	// Register with server, update info
-	gameConfig := nodeInterface.ServerRegister()
-	uniqueId := gameConfig.Identifier
-	initState := gameConfig.InitState
+	uniqueId := nodeInterface.ServerRegister()
+	go nodeInterface.SendHeartbeat()
+
 
 	// Make a gameState
 	gameRenderState := shared.GameRenderState{
@@ -50,10 +51,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 		pixelInterface: pixelInterface,
 		nodeInterface: nodeInterface,
 		playerCommChannel: playerCommChannel,
-		geo: geometry.CreateNewGridManager(initState.Settings),
+		geo: geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameRenderState: gameRenderState,
 		identifier: uniqueId,
-		GameConfig: initState,
+		GameConfig: nodeInterface.Config.InitState,
 	}
 
 	// Allow the node-node interface to refer back to this node
