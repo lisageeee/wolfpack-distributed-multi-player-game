@@ -24,6 +24,7 @@ func main() {
 		myAddr = "127.0.0.1:1234" // use :1234 for incoming messages
 	} else {
 		nodeAddr = os.Args[1]
+		myAddr = os.Args[2]
 	}
 	pixelgl.Run(run)
 }
@@ -51,7 +52,6 @@ func run() {
 	var spriteMax float64 = 50
 
 	spriteStep := spriteMax - spriteMin // winMaxX % spriteStep and winMaxY % spriteStep should be 0 (spriteStep == spriteSize)
-
 
 	// Init walls
 	wallCoords := []shared.Coord{{X: 4, Y:3}}

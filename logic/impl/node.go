@@ -105,3 +105,13 @@ func (pn * PlayerNode) movePlayer(move string) {
 		pn.GameRenderState.PlayerLoc = newPosition
 	}
 }
+
+// GETTERS
+
+func (pn *PlayerNode) GetPixelInterface() (PixelInterface) {
+	return pn.pixelInterface
+}
+
+func (pn *PlayerNode) GetNodeInterface() (NodeCommInterface) {
+	return pn.nodeInterface
+}
