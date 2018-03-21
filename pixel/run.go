@@ -8,17 +8,11 @@ import (
 	"fmt"
 	"../shared"
 	"golang.org/x/image/colornames"
+	"image"
 )
 
 var nodeAddr string // must store as global to get it into run function
 var myAddr string
-// Window size
-var winMaxX float64 = 300
-var winMaxY float64 = 300
-
-// Sprite size
-var spriteMin float64 = 20
-var spriteMax float64 = 50
 
 func main() {
 	if len(os.Args) < 3 {
@@ -34,11 +28,13 @@ func main() {
 func run() {
 
 	node := impl.CreatePixelNode(nodeAddr, myAddr)
+	winMaxX := node.Geom.GetX()
+	winMaxY := node.Geom.GetY()
 
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
 		Title:  "Wolfpack",
-		Bounds: pixel.R(0, 0, 300, 300),
+		Bounds: pixel.R(0, 0, winMaxX, winMaxY),
 		VSync:  true,
 	}
 
@@ -53,17 +49,17 @@ func run() {
 	//basicTxt := text.New(geom.GetVectorFromCoords(1,1), basicAtlas)
 
 	// Create player sprite
-	pic, err := impl.LoadPicture("./sprites/bunny.jpeg")
+	pic, err := LoadPicture("./sprites/wolf.jpg")
 	if err != nil {
 		panic(err)
 	}
-	sprite := pixel.NewSprite(pic, pixel.R(spriteMin, spriteMin,spriteMax,spriteMax))
+	sprite := pixel.NewSprite(pic, pic.Bounds())
 
 	node.PlayerSprite = sprite
 	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{3,3}) // starting position of sprite on grid
 
 	// Create prey sprite
-	pic, err = impl.LoadPicture("./sprites/prey.jpg")
+	pic, err = LoadPicture("./sprites/prey.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +67,7 @@ func run() {
 	node.PreySprite = preySprite
 
 	// Create other player sprite
-	pic, err = impl.LoadPicture("./sprites/other-player.jpg")
+	pic, err = LoadPicture("./sprites/other-player.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +75,7 @@ func run() {
 	node.OtherPlayerSprite = otherPlayerSprite
 
 	// Create wall sprite
-	pic, err = impl.LoadPicture("./sprites/wall.jpg")
+	pic, err = LoadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +101,7 @@ func run() {
 			keyStroke = "down"
 		}
 		if keyStroke != "" {
-			node.Sender.Write([]byte(keyStroke))
+			node.SendMove(keyStroke)
 			fmt.Println("sending keystroke")
 			keyStroke = ""
 		}
@@ -127,4 +123,17 @@ func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
 		return true
 	}
 	return false
+}
+
+func LoadPicture(path string) (pixel.Picture, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return nil, err
+	}
+	return pixel.PictureDataFromImage(img), nil
 }
