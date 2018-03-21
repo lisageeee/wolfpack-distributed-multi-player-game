@@ -24,8 +24,8 @@ type NodeCommInterface struct {
 	ServerConn 			*rpc.Client
 	IncomingMessages 	*net.UDPConn
 	LocalAddr			net.Addr
-	otherNodes 			[]*net.Conn
-	connections 		[]string
+	OtherNodes 			[]*net.Conn
+	Connections 		[]string
 }
 
 type PlayerInfo struct {
@@ -38,8 +38,8 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey)
 	return NodeCommInterface {
 		PubKey: pubKey,
 		PrivKey: privKey,
-		otherNodes: make([]*net.Conn, 0),
-		connections: make([]string, 0)}
+		OtherNodes: make([]*net.Conn, 0),
+		Connections: make([]string, 0)}
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
@@ -82,7 +82,7 @@ func (n *NodeCommInterface) RunListener(nodeListenerAddr string) {
 			toSend, err := json.Marshal(n.PlayerNode.GameRenderState.PlayerLoc)
 			// Code sgs sends the connecting node the gamestate
 			remoteClient.Write([]byte("sgs" + n.PlayerNode.identifier + string(toSend)))
-			n.otherNodes = append(n.otherNodes, &remoteClient)
+			n.OtherNodes = append(n.OtherNodes, &remoteClient)
 		}
 	}
 }
@@ -130,9 +130,9 @@ func (n *NodeCommInterface) GetNodes() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	n.Connections = nil
 	for _, addr := range response {
-		n.connections = append(n.connections, addr.String())
+		n.Connections = append(n.Connections, addr.String())
 	}
 }
 
@@ -153,7 +153,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 func (n *  NodeCommInterface) FloodNodes() {
 	const udpGeneric = "127.0.0.1:0"
 	localIP, _ := net.ResolveUDPAddr("udp", udpGeneric)
-	for _, ip := range n.connections {
+	for _, ip := range n.Connections {
 		nodeUdp, _ := net.ResolveUDPAddr("udp", ip)
 		// Connect to other node
 		nodeClient, err := net.DialUDP("udp", localIP, nodeUdp)

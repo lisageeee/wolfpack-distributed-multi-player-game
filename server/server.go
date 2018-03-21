@@ -75,8 +75,6 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	fmt.Printf("DEBUG - allPlayers [%v]\n", allPlayers.all)
-
 	pubKeyStr := pubKeyToString(p.PubKey)
 
 	// TODO: This needs to be fixed
