@@ -1,11 +1,9 @@
 package impl
 
 import (
-	"os"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
-	"image"
 	"../../geometry"
 	"../../shared"
 	_ "image/png"
@@ -18,6 +16,7 @@ import (
 var NodeAddr string // must store as global to get it into run function
 var MyAddr string
 // Window size
+
 var WinMaxX float64 = 300
 var WinMaxY float64 = 300
 
@@ -55,8 +54,6 @@ func CreatePixelNode(nodeAddr string, myAddr string) (PixelNode) {
 	return node
 }
 
-
-
 //
 func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
 	curState := pn.GameState
@@ -81,6 +78,10 @@ func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
 	mat = mat.Moved(playerPos)
 	pn.PlayerSprite.Draw(win, mat)
 
+}
+
+func (pn * PixelNode) SendMove (move string) {
+	pn.Sender.Write([]byte(move))
 }
 
 
@@ -116,20 +117,6 @@ func (pn * PixelNode ) DrawWalls(window *pixelgl.Window) {
 		pn.WallSprite.Draw(window, pixel.IM.Moved(wall))
 	}
 }
-
-func LoadPicture(path string) (pixel.Picture, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	return pixel.PictureDataFromImage(img), nil
-}
-
 
 func startListen(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	// takes an ip address and port to listen on
