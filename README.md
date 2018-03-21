@@ -6,7 +6,17 @@
   `cd server ; go run server.go`
   
 ##### Start the logic node
-`go run logic-node.go`
+`cd logic ; go run logic.go`
+
+or, with optional command line args:
+
+`go run logic.go [other-node-listener-addr] [pixel-incoming-addr] [pixel-outgoing-addr]`
 
 ##### Finally, start the Pixel node
-`go run pixel-node.go`
+`cd pixel ; go run pixel.go`
+
+or, with optional command line args:
+
+`go run pixel.go [logic-node-addr] [local-listener-addr]`
+
+*Note: for a logic / pixel node pair, the last two arguments to the command line should be the same*
