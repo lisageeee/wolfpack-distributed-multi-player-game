@@ -125,9 +125,9 @@ type WolfNodeImpl struct {
 
 // Check move to see if it's valid based on this node's game state.
 func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
-	verify := ecdsa.Verify(commit.PubKey, []byte(commit.MoveCommitHash), commit.Signature.R, commit.Signature.S)
-	if !verify {
-		return wolferrors.IncorrectPlayerError(commit.MoveCommitHash)
+
+	if !ecdsa.Verify(commit.PubKey, []byte(commit.MoveCommitHash), commit.Signature.R, commit.Signature.S) {
+		return wolferrors.InvalidMoveHashError(commit.MoveCommitHash)
 	}
 
 	coords := commit.GameState.PlayerLoc
