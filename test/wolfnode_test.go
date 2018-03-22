@@ -121,14 +121,13 @@ func TestMoveCommitInvalid(t *testing.T) {
 		PlayerLoc: shared.Coord{5, 5},
 	}
 	publicKey, _ := key_helpers.GenerateKeys()
-	commit := shared.MoveCommit{
+	op := shared.MoveOp{
 		GameState:      gs,
-		MoveCommitHash: "AHASH",
 		PubKey:         publicKey,
 		Signature:      shared.Sig{R: big.NewInt(184), S: big.NewInt(3)},
 	}
 
-	response := wn.CheckMoveCommit(commit)
+	response := wn.CheckMoveCommit("AHASH", op)
 	fmt.Println(response)
 	if response == nil {
 		t.Fail()

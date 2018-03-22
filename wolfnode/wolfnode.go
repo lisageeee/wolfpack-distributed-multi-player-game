@@ -78,7 +78,7 @@ type WolfNode interface {
 	// - InvalidMoveError
 	// - OutOfBoundsError
 	// - IncorrectPlayerError
-	CheckMoveCommit(commit shared.MoveCommit) (err error)
+	CheckMoveCommit(commitHash string, moveOp shared.MoveOp) (err error)
 
 	// Check move to see if it's valid based on this node's game state.
 	// Can return the following errors:
@@ -102,7 +102,7 @@ type PlayerService interface {
 	// Send a move commit to other players.
 	// Can return the following errors:
 	// - DisconnectedError
-	SendMoveCommitment(commit shared.MoveCommit) (err error)
+	SendMoveCommitment(commit shared.MoveOp) (err error)
 
 	// Send moves to other players.
 	// Can return the following errors:
@@ -120,13 +120,13 @@ type WolfNodeImpl struct {
 }
 
 // Check move to see if it's valid based on this node's game state.
-func (wolfNode WolfNodeImpl) CheckMoveCommit(commit shared.MoveCommit) (err error) {
+func (wolfNode WolfNodeImpl) CheckMoveCommit(commitHash string, moveOp shared.MoveOp) (err error) {
 
-	if !ecdsa.Verify(commit.PubKey, []byte(commit.MoveCommitHash), commit.Signature.R, commit.Signature.S) {
-		return wolferrors.InvalidMoveHashError(commit.MoveCommitHash)
+	if !ecdsa.Verify(moveOp.PubKey, []byte(commitHash), moveOp.Signature.R, moveOp.Signature.S) {
+		return wolferrors.InvalidMoveHashError(commitHash)
 	}
 
-	coords := commit.GameState.PlayerLoc
+	coords := moveOp.GameState.PlayerLoc
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(coords) {
 		return wolferrors.OutOfBoundsError("You are out of bounds")
