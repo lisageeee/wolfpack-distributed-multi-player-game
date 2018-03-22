@@ -33,6 +33,6 @@ func main() {
 	}
 
 	pubKey, privKey := key_helpers.GenerateKeys()
-	node := logicImpl.CreatePlayerNode(nodeListenerAddr, playerListenerIpAddress, pixelIpAddress, *pubKey, *privKey)
+	node := logicImpl.CreatePlayerNode(nodeListenerAddr, playerListenerIpAddress, pixelIpAddress, pubKey, privKey)
 	node.RunGame()
 }
