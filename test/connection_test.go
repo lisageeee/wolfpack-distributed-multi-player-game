@@ -6,9 +6,21 @@ import (
 	"net"
 	"../key-helpers"
 	"time"
+	"context"
+	"os/exec"
+	"syscall"
 )
 
 func TestHeartbeat(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(2 * time.Second) // give server time to start
+
 	fmt.Println("Testing the heartbeat functionality")
 	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2124")
 	pubKey, privKey := key_helpers.GenerateKeys()
@@ -32,7 +44,7 @@ func TestHeartbeat(t *testing.T) {
 
 	fmt.Printf("[%v]\n", node3.Connections)
 	if len(node3.Connections) != 2 {
-		t.FailNow()
+		t.Fail()
 	}
 
 	time.Sleep(5*time.Second)
@@ -40,13 +52,26 @@ func TestHeartbeat(t *testing.T) {
 	node3.GetNodes()
 	fmt.Printf("[%v]\n", node3.Connections)
 	if len(node3.Connections) != 1 {
-		t.FailNow()
+		t.Fail()
 	}
 
 	fmt.Printf("TEST PASSED: Node3 has the connection details of Node1 only\n")
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }
 
 func TestIncrementingID(t *testing.T){
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(2 * time.Second) // give server time to start
+
 	fmt.Println("Testing that the ID's increment")
 	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
@@ -61,10 +86,14 @@ func TestIncrementingID(t *testing.T){
 	res2 := node2.ServerRegister()
 
 	if res1 == res2 {
-		t.FailNow()
+		t.Fail()
 	}
 
 	fmt.Printf("TEST PASSED: Res1's id is [%s] and Res2's id is [%s]\n", res1, res2)
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }
 
 // TODO: Test node re-joins and has been assigned an identifier - cannot assume that it's
