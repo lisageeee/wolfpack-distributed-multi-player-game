@@ -25,6 +25,15 @@ import (
 // This test will fail if you make a breaking change that keeps pixel.go from running
 // Inspiration: the breaking change I added that prevented pixel.go from running (wrong image path)
 func TestPixelNodeCanRun(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	fmt.Println(-serverStart.Process.Pid)
+	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
 	_ = l.CreatePlayerNode(":12400", ":12401", ":12402", *pub, *priv)
@@ -50,6 +59,8 @@ func TestPixelNodeCanRun(t *testing.T) {
 
 	// Kill after done + all children
 	syscall.Kill(-pixelStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+
 }
 
 // Tests that the logic node is able to send messages to the pixel node
@@ -62,7 +73,7 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	serverStart.Dir = "../server"
 	serverStart.Start()
 
-	time.Sleep(2*time.Second) // wait for server to get started
+	time.Sleep(3*time.Second) // wait for server to get started
 
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
