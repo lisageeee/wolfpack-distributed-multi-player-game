@@ -55,3 +55,21 @@ type IncorrectPlayerError string
 func (e IncorrectPlayerError) Error() string {
 	return fmt.Sprintf("WolfPack: Hash [%d] was sent by incorrect player", e)
 }
+
+type KeyAlreadyRegisteredError string
+
+func (e KeyAlreadyRegisteredError) Error() string {
+	return fmt.Sprintf("WolfPack: player already registered [%s]", string(e))
+}
+
+type AddressAlreadyRegisteredError string
+
+func (e AddressAlreadyRegisteredError) Error() string {
+	return fmt.Sprintf("WolfPack: player already registered [%s]", string(e))
+}
+
+type UnknownKeyError string
+
+func (e UnknownKeyError) Error() string {
+	return fmt.Sprintf("WolfPack: unknown key [%s]", string(e))
+}

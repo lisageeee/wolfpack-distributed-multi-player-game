@@ -12,11 +12,8 @@ type Coord struct {
 }
 
 type GameConfig struct {
-	Connections 		[]string
-	Identifier 			int
 	InitState			InitialState
-
-	// Hearbeat settings
+	Identifier 			int
 	GlobalServerHB		uint32
 	// Number of times we ping another player before we drop them
 	Ping				uint32
@@ -24,11 +21,8 @@ type GameConfig struct {
 
 // Initial game settings sent out by global server to start the game
 type InitialGameSettings struct {
-	// Size of game screen
 	WindowsX			float64
 	WindowsY			float64
-
-	// Walls
 	WallCoordinates		[]Coord
 }
 
@@ -65,11 +59,5 @@ type MoveCommit struct {
 type Sig struct {
 	R 					*big.Int
 	S 					*big.Int
-}
-
-// Player connection details
-type PlayerConn struct {
-	PubKey   ecdsa.PublicKey
-	playerIP string
 }
 

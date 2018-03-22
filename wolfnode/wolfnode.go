@@ -37,19 +37,21 @@ type WolfNode interface {
 	// Sends Pubkey and PlayerIP
 	// Can return the following errors:
 	// - DisconnectedError
-	// - TODO: AlreadyRegisteredError?
+	// - KeyAlreadyRegisteredError
+	// - AddressAlreadyRegisteredError
 	RegisterServer(serverAddr string) (err error)
 
 	// Sets up a hearbeat protocol with the global server to let it know that this player is alive.
 	// Can return the following errors:
 	// - DisconnectedError
-	SendHearbeatsGlobalServer()
+	SendHearbeat()
 
 	// Returns the other players' connection information from global server.
 	// Updates this node's OtherPlayersConn attribute (add to, or delete from).
 	// Can return the following errors:
 	// - DisconnectedError
-	GetNodes() (otherPlayers []shared.PlayerConn, err error)
+	// - UnknownKeyError
+	GetNodes() (err error)
 
 	// Listens to UDP packets coming in from other players
 	// https://stackoverflow.com/questions/28400340/how-support-concurrent-connections-with-a-udp-server-using-go
@@ -63,12 +65,6 @@ type WolfNode interface {
 	// Can return the following errors:
 	// - DisconnectedError
 	ConnectToOtherPlayerNodes() (err error)
-
-	// Sets up a heartbeat protocol with the other player nodes to let them know that this player is alive.
-	// Can return the following errors:
-	// - DisconnectedError
-	// TODO: should we just do this check when you're sending out messages to all nodes instead of this?
-	SendHearbeatsOtherPlayers() (err error)
 
 	// Updates this node's OtherPlayersConn attribute (delete from) iff we do not receive a "I'm alive" message Ping times.
 	// Can return the following errors:
