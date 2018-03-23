@@ -10,7 +10,7 @@ import (
 // The "main" node part of the logic node. Deals with computation and checks; not communications
 type PlayerNode struct {
 	pixelInterface	  PixelInterface
-	nodeInterface 	  NodeCommInterface
+	nodeInterface 	  *NodeCommInterface
 	playerCommChannel chan string
 	GameRenderState	  shared.GameRenderState
 	geo               geometry.GridManager
@@ -32,7 +32,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey)
-	go nodeInterface.RunListener(nodeListenerAddr)
+	addr, listener := StartListenerUDP(nodeListenerAddr)
+	nodeInterface.LocalAddr = addr
+	nodeInterface.IncomingMessages = listener
+	go nodeInterface.RunListener(listener, nodeListenerAddr)
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
@@ -49,7 +52,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	// Create player node
 	pn := PlayerNode{
 		pixelInterface: pixelInterface,
-		nodeInterface: nodeInterface,
+		nodeInterface: &nodeInterface,
 		playerCommChannel: playerCommChannel,
 		geo: geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameRenderState: gameRenderState,
@@ -75,6 +78,7 @@ func (pn * PlayerNode) RunGame() {
 		default:
 			pn.movePlayer(message)
 			pn.pixelInterface.SendPlayerGameState(pn.GameRenderState)
+			pn.nodeInterface.SendMoveToNodes(pn.GameRenderState, pn.identifier)
 			fmt.Println("movin' player", message)
 		}
 	}
@@ -112,6 +116,6 @@ func (pn *PlayerNode) GetPixelInterface() (PixelInterface) {
 	return pn.pixelInterface
 }
 
-func (pn *PlayerNode) GetNodeInterface() (NodeCommInterface) {
+func (pn *PlayerNode) GetNodeInterface() (*NodeCommInterface) {
 	return pn.nodeInterface
 }
