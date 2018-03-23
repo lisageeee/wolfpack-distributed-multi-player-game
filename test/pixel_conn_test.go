@@ -84,23 +84,31 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	pixel := p.CreatePixelNode(":12301", ":12302")
 
 	// Create a gameState
-	gameState := shared.GameRenderState {
-		PlayerLoc: shared.Coord{2,1},
-		Prey: shared.Coord{0,1},
-		OtherPlayers: make(map[string]shared.Coord),
+	//gameState := shared.GameRenderState {
+	//	PlayerLoc: shared.Coord{2,1},
+	//	Prey: shared.Coord{0,1},
+	//	OtherPlayers: make(map[string]shared.Coord),
+	//}
+
+	// Create a gamestate
+	playerLocs := make(map[string]shared.Coord)
+	playerLocs[n.Identifier] = shared.Coord{2,1}
+	playerLocs["prey"] = shared.Coord{0,1}
+	gameState := shared.GameState{
+		PlayerLocs: playerLocs,
 	}
 
 	// Send from the remote interface to the pixel node
-	remote.SendPlayerGameState(gameState)
+	remote.SendPlayerGameState(gameState, n.Identifier)
 
 	// Read from the pixel node's channel
 	pixelGameState := <- pixel.NewGameStates
 
 	// Check it was sent correctly
-	if pixelGameState.PlayerLoc.X != gameState.PlayerLoc.X {
+	if pixelGameState.PlayerLoc.X != gameState.PlayerLocs[n.Identifier].X {
 		t.Fail()
 	}
-	if pixelGameState.PlayerLoc.Y != gameState.PlayerLoc.Y {
+	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs[n.Identifier].Y {
 		t.Fail()
 	}
 
@@ -123,7 +131,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pub, priv := key.GenerateKeys()
 	n := l.CreatePlayerNode(":12303", ":12304", ":12305", pub, priv)
 	go n.RunGame()
-	state := n.GameRenderState // get the initial game render state
+	loc := n.GameState.PlayerLocs[n.Identifier] // get the initial game render state
 
 	// Start pixel node
 	pixel := p.CreatePixelNode(":12304", ":12305")
@@ -134,27 +142,30 @@ func TestPixelNodeMove(t *testing.T) {
 	time.Sleep(100*time.Millisecond)
 
 	// Check that the player has moved up
-	newState := n.GameRenderState
-	if newState.PlayerLoc.X != state.PlayerLoc.X {
+	newState := n.GameState
+
+	fmt.Println(newState, loc)
+	if newState.PlayerLocs[n.Identifier].X != loc.X {
 		t.Fail()
 	}
-	if newState.PlayerLoc.Y - 1 != state.PlayerLoc.Y {
+	if newState.PlayerLocs[n.Identifier].Y - 1 != loc.Y {
 		t.Fail()
 	}
 
 	// Reset to try moving down
-	state = newState
+	loc = newState.PlayerLocs[n.Identifier]
 	pixel.SendMove("down")
 
 	// Wait a tick for the move to be sent
 	time.Sleep(100*time.Millisecond)
 
 	// Check that the player has moved down
-	newState = n.GameRenderState
-	if newState.PlayerLoc.X != state.PlayerLoc.X {
+	newState = n.GameState
+	fmt.Println(newState, loc)
+	if newState.PlayerLocs[n.Identifier].X != loc.X {
 		t.Fail()
 	}
-	if newState.PlayerLoc.Y != state.PlayerLoc.Y - 1 {
+	if newState.PlayerLocs[n.Identifier].Y != loc.Y - 1 {
 		t.Fail()
 	}
 	serverStart.Process.Kill()

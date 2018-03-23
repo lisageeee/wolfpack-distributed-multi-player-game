@@ -12,10 +12,11 @@ type PlayerNode struct {
 	pixelInterface	  PixelInterface
 	nodeInterface 	  *NodeCommInterface
 	playerCommChannel chan string
-	GameRenderState	  shared.GameRenderState
-	geo               geometry.GridManager
-	identifier        string
-	GameConfig		  shared.InitialState
+	GameState		  shared.GameState
+	//GameRenderState	  shared.GameRenderState
+	geo        geometry.GridManager
+	Identifier string
+	GameConfig shared.InitialState
 }
 
 // Creates the main logic node and required interfaces with the arguments passed in logic-node.go
@@ -42,22 +43,30 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	go nodeInterface.SendHeartbeat()
 
 
+	//// Make a gameState
+	//gameRenderState := shared.GameRenderState{
+	//	PlayerLoc:shared.Coord{3,3},
+	//	OtherPlayers: make(map[string]shared.Coord),
+	//	Prey: shared.Coord{5,5},
+	//}
+	playerLocs := make(map[string]shared.Coord)
+	playerLocs["prey"] = shared.Coord{5,5}
+	playerLocs[uniqueId] = shared.Coord{3,3}
+
 	// Make a gameState
-	gameRenderState := shared.GameRenderState{
-		PlayerLoc:shared.Coord{3,3},
-		OtherPlayers: make(map[string]shared.Coord),
-		Prey: shared.Coord{5,5},
+	gameState := shared.GameState{
+		PlayerLocs: playerLocs,
 	}
 
 	// Create player node
 	pn := PlayerNode{
-		pixelInterface: pixelInterface,
-		nodeInterface: &nodeInterface,
+		pixelInterface:    pixelInterface,
+		nodeInterface:     &nodeInterface,
 		playerCommChannel: playerCommChannel,
-		geo: geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
-		GameRenderState: gameRenderState,
-		identifier: uniqueId,
-		GameConfig: nodeInterface.Config.InitState,
+		geo:               geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
+		GameState:         gameState,
+		Identifier:        uniqueId,
+		GameConfig:        nodeInterface.Config.InitState,
 	}
 
 	// Allow the node-node interface to refer back to this node
@@ -77,8 +86,8 @@ func (pn * PlayerNode) RunGame() {
 			break
 		default:
 			pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameRenderState)
-			pn.nodeInterface.SendMoveToNodes(pn.GameRenderState, pn.identifier)
+			pn.pixelInterface.SendPlayerGameState(pn.GameState, pn.Identifier)
+			// pn.nodeInterface.SendMoveToNodes(pn.GameState.PlayerLocs[pn.Identifier])
 			fmt.Println("movin' player", message)
 		}
 	}
@@ -89,7 +98,7 @@ func (pn * PlayerNode) RunGame() {
 // (not into a wall, out of bounds)
 func (pn * PlayerNode) movePlayer(move string) {
 	// Get current player state
-	playerLoc := pn.GameRenderState.PlayerLoc
+	playerLoc := pn.GameState.PlayerLocs[pn.Identifier]
 
 	// Calculate new position with move
 	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
@@ -106,7 +115,7 @@ func (pn * PlayerNode) movePlayer(move string) {
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) {
-		pn.GameRenderState.PlayerLoc = newPosition
+		pn.GameState.PlayerLocs[pn.Identifier] = newPosition
 	}
 }
 
