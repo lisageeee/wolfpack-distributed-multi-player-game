@@ -56,7 +56,7 @@ type GameRenderState struct {
 // before this player can receive all other players' game states
 
 type MoveOp struct {
-	GameState      		GameState
+	PlayerState     	PlayerState
 	PubKey         		*ecdsa.PublicKey
 	Signature			Sig
 }
