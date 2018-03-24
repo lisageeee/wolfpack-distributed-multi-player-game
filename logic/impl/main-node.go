@@ -95,6 +95,7 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	// Get current player state
 	playerLoc := pn.GameState.PlayerLocs[pn.Identifier]
 
+	originalPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	// Calculate new position with move
 	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	fmt.Println(move)
@@ -109,7 +110,7 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 		newPosition.X = newPosition.X + 1
 	}
 	// Check new move is valid, if so update player position
-	if pn.geo.IsValidMove(newPosition) {
+	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
 		pn.GameState.PlayerLocs[pn.Identifier] = newPosition
 		return newPosition
 	}

@@ -50,6 +50,19 @@ func (gm * GridManager) IsNotWall(coord shared.Coord) (bool) {
 	return !ok
 }
 
+func (gm * GridManager) IsNotTeleporting(origCoord shared.Coord, newCoord shared.Coord) (bool) {
+	x := origCoord.X - newCoord.X
+	y := origCoord.Y - newCoord.Y
+	if x < -1 || y < -1 || x > 1 || y > 1 {
+		return false
+	}
+	if ((x+y) < -1 || (x+y) > 1) && x != 0 && y != 0 {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (gm * GridManager) IsValidMove(coord shared.Coord) (bool) {
 	return gm.IsInBounds(coord) && gm.IsNotWall(coord)
 }

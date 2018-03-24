@@ -5,14 +5,17 @@ import (
 	"crypto/ecdsa"
 	"net"
 	"../shared"
+	"../key-helpers"
+	"../wolferrors"
+	"../geometry"
 )
 
 // A player information object
-type playerInfo struct {
+type PlayerInfo struct {
 	ServerAddr       string
 	ServerConn       *rpc.Client
-	PubKey           ecdsa.PublicKey
-	PrivKey          ecdsa.PrivateKey
+	PubKey           *ecdsa.PublicKey
+	PrivKey          *ecdsa.PrivateKey
 	PlayerIP         net.Addr
 	InitGameSettings shared.InitialGameSettings
 	// game states are really just position coordinates + other info related to time synchro
@@ -74,7 +77,8 @@ type WolfNode interface {
 	// Can return the following errors:
 	// - InvalidMoveError
 	// - OutOfBoundsError
-	CheckMoveCommit(commit shared.MoveCommit) (err error)
+	// - IncorrectPlayerError
+	CheckMoveCommit(commitHash string, moveOp shared.MoveOp) (err error)
 
 	// Check move to see if it's valid based on this node's game state.
 	// Can return the following errors:
@@ -84,13 +88,13 @@ type WolfNode interface {
 
 	// Check move to see if they actually got the prey based on this node's game state.
 	// Can return the following errors:
-	// - InvalidMoveError
-	CheckCapturedPrey()
+	// - InvalidPreyCaptureError
+	CheckCapturedPrey() (err error)
 
 	// Check update of high score is valid based on this node's game state.
 	// Can return the following errors:
 	// - InvalidScoreUpdateError
-	CheckScore()
+	CheckScore(score int) (err error)
 }
 
 // Methods that will utilize UDP to send info to other player nodes
@@ -98,7 +102,7 @@ type PlayerService interface {
 	// Send a move commit to other players.
 	// Can return the following errors:
 	// - DisconnectedError
-	SendMoveCommitment(commit shared.MoveCommit) (err error)
+	SendMoveCommitment(commit shared.MoveOp) (err error)
 
 	// Send moves to other players.
 	// Can return the following errors:
@@ -109,4 +113,70 @@ type PlayerService interface {
 	// Can return the following errors:
 	// - DisconnectedError
 	SendUpdatedScore(updatedScore uint32) (err error)
+}
+
+type WolfNodeImpl struct {
+	Info	PlayerInfo
+}
+
+// Check move to see if it's valid based on this node's game state.
+func (wolfNode WolfNodeImpl) CheckMoveCommit(commitHash string, moveOp shared.MoveOp) (err error) {
+
+	if !ecdsa.Verify(moveOp.PubKey, []byte(commitHash), moveOp.Signature.R, moveOp.Signature.S) {
+		return wolferrors.InvalidMoveHashError(commitHash)
+	}
+
+	coords := moveOp.GameState.PlayerLoc
+	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
+	if !gridManager.IsInBounds(coords) {
+		return wolferrors.OutOfBoundsError("You are out of bounds")
+	}
+	if !gridManager.IsValidMove(coords) {
+		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
+	}
+	return nil
+}
+
+// Check move to see if it's valid based on this node's game state.
+func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
+	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
+	if !gridManager.IsInBounds(move) {
+		return wolferrors.OutOfBoundsError("You are out of bounds")
+	}
+	if !gridManager.IsValidMove(move) {
+		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
+	}
+	return nil
+}
+
+// Check move to see if they actually got the prey based on this node's game state.
+func (wolfNode WolfNodeImpl) CheckCapturedPrey() (err error) {
+	//preyX := prey.PreyRunner{}.GetPosition().X
+	//preyY := prey.PreyRunner{}.GetPosition().Y
+	preyX := 5 // TODO: change these once we implement prey
+	preyY := 5 // TODO: change these once we implement prey
+	_, publicKeyString := key_helpers.Encode(wolfNode.Info.PrivKey, wolfNode.Info.PubKey)
+	coordinates := wolfNode.Info.CurrGameState[publicKeyString].PlayerLoc
+	currX := coordinates.X
+	currY := coordinates.Y
+	if int(preyX) == currX && int(preyY) == currY {
+		return nil
+	}
+	return wolferrors.InvalidPreyCaptureError("Gurl you did NOT get this prey")
+}
+
+// Check update of high score is valid based on this node's game state.
+func (wolfNode WolfNodeImpl) CheckScore(score int) (err error) {
+	// Check they actually scored
+	captured := wolfNode.CheckCapturedPrey()
+	if captured != nil {
+		return wolferrors.InvalidScoreUpdateError(score)
+	}
+
+	// Must report accurate score
+	if score != 1 { //TODO: change this if we want the score to not always be 1?
+		return wolferrors.InvalidScoreUpdateError(score)
+	}
+
+	return nil
 }

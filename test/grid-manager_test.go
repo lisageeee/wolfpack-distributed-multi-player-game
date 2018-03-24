@@ -2,7 +2,10 @@ package test
 
 import "testing"
 import "../geometry"
-import "../shared"
+import (
+	"../shared"
+	"fmt"
+)
 
 
 func setup() (geometry.GridManager) {
@@ -160,6 +163,40 @@ func TestInvalidMoveWall(t *testing.T) {
 	validMove = shared.Coord{10, 90}
 	response = gm.IsValidMove(validMove)
 	if response {
+		t.Fail()
+	}
+}
+
+func TestMoveTeleporting(t *testing.T) {
+	gm := setup()
+	prevCoord := shared.Coord{1, 1}
+	newCoord := shared.Coord{2, 2}
+	response := gm.IsNotTeleporting(prevCoord, newCoord)
+	if response {
+		fmt.Println("Nooo")
+		t.Fail()
+	}
+	prevCoord = shared.Coord{1, 1}
+	newCoord = shared.Coord{1, 3}
+	response = gm.IsNotTeleporting(prevCoord, newCoord)
+	if response {
+		fmt.Println("POO")
+		t.Fail()
+	}
+}
+
+func TestIsNotTeleporting(t *testing.T) {
+	gm := setup()
+	prevCoord := shared.Coord{1, 1}
+	newCoord := shared.Coord{1, 2}
+	response := gm.IsNotTeleporting(prevCoord, newCoord)
+	if !response {
+		t.Fail()
+	}
+	prevCoord = shared.Coord{1, 1}
+	newCoord = shared.Coord{2, 1}
+	response = gm.IsNotTeleporting(prevCoord, newCoord)
+	if !response {
 		t.Fail()
 	}
 }
