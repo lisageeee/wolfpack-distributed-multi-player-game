@@ -42,6 +42,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
 
+	// TODO: This starts a race condition. We might need to either
+	// block or get a unique id earlier
+
+
 
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
