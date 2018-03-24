@@ -6,15 +6,14 @@ import (
 	"context"
 	"time"
 	"syscall"
-	"fmt"
 	key "../key-helpers"
 	l "../logic/impl"
+	"../shared"
+	"fmt"
 )
 
-// This test will fail if you make a breaking change that keeps pixel.go from running
-// Inspiration: the breaking change I added that prevented pixel.go from running (wrong image path)
-func TestNodeToNodeComm(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+func TestNodeToNodeSendMove(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
 	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -24,29 +23,102 @@ func TestNodeToNodeComm(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	_ = l.CreatePlayerNode(":12400", ":12401", ":12402", pub, priv)
+	node1 := l.CreatePlayerNode(":12800", ":12801", ":12802", pub, priv)
 
-	pixelStart := exec.Command("go", "run", "pixel.go", ":12401", ":12402")
-	pixelStart.Dir = "../pixel"
-	pixelStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	var err error
+	pub, priv = key.GenerateKeys()
+	node2 := l.CreatePlayerNode(":12900", ":12901", ":12092", pub, priv)
 
-	// Start the pixel node, set err to the error returned if any
-	go func() {
-		_, err = pixelStart.Output()
-	}()
+	n1 := node1.GetNodeInterface()
+	n2 := node2.GetNodeInterface()
 
-	// Wait 5 seconds for errors to return
-	time.Sleep(5 * time.Second)
+	n1.ServerRegister()
+	time.Sleep(2*time.Second)
 
-	// If pixel can't start, will get err on this line
-	if err != nil {
-		fmt.Println("Pixel couldn't start, error:", err)
+	n2.ServerRegister()
+	time.Sleep(2*time.Second)
+
+	// Check nodes are connected to each other
+	if len(n2.OtherNodes) != len(n1.OtherNodes) {
+		fmt.Println("Nodes do not have a mutual connection, fail")
+		t.Fail()
+	}
+
+	// Test sending a move from one node to another
+	testCoord := shared.Coord{7,7}
+	n1.SendMoveToNodes(&testCoord)
+	time.Sleep(100*time.Millisecond)
+
+	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+		fmt.Println("Failed to send testCoord from Node 1 to node 2")
+		t.Fail()
+	}
+
+	testCoord = shared.Coord{6,3}
+	n2.SendMoveToNodes(&testCoord)
+	time.Sleep(100*time.Millisecond)
+
+	if n1.PlayerNode.GameState.PlayerLocs[node2.Identifier] != testCoord {
+		fmt.Println("Failed to send testCoord in the opposite direction")
 		t.Fail()
 	}
 
 	// Kill after done + all children
-	syscall.Kill(-pixelStart.Process.Pid, syscall.SIGKILL)
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 	serverStart.Process.Kill()
+}
 
+// NOTE: eventually this test will fail, as we won't be wholesale replacing the gamestate, can remove then
+func TestNodeToNodeSendGameState(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(3*time.Second) // wait for server to get started
+	// Create player node and get pixel interface
+	pub, priv := key.GenerateKeys()
+	node1 := l.CreatePlayerNode(":12200", ":12201", ":12202", pub, priv)
+
+	pub, priv = key.GenerateKeys()
+	node2 := l.CreatePlayerNode(":11900", ":11901", ":11092", pub, priv)
+
+	n1 := node1.GetNodeInterface()
+	n2 := node2.GetNodeInterface()
+
+	n1.ServerRegister()
+	time.Sleep(2*time.Second)
+
+	n2.ServerRegister()
+	time.Sleep(2*time.Second)
+
+	// Check nodes are connected to each other
+	if len(n2.OtherNodes) != len(n1.OtherNodes) {
+		fmt.Println("Nodes do not have a mutual connection, fail")
+		t.Fail()
+	}
+
+	// Test sending gamestate from one node to another
+	n1.SendGameStateToNode(node2.Identifier)
+	time.Sleep(100*time.Millisecond)
+
+	_, ok := n2.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier]
+	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PlayerNode.GameState.PlayerLocs)
+	if !ok {
+		fmt.Println("Gamestate not sent from 1 to 2, fail")
+		t.Fail()
+	}
+
+	if len(n2.PlayerNode.GameState.PlayerLocs) != len(n1.PlayerNode.GameState.PlayerLocs) {
+		fmt.Println("Gamestates not equal length (so not equal), fail")
+		t.Fail()
+	}
+
+	n1.SendGameStateToNode(node2.Identifier)
+	time.Sleep(100*time.Millisecond)
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }

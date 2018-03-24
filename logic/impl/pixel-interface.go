@@ -45,7 +45,7 @@ func (pi *PixelInterface) SendPlayerGameState(state shared.GameState, id string)
 	} else {
 		// Send position to player node
 		fmt.Println("sending position")
-		pi.pixelWriter.Write([]byte(toSend))
+		pi.pixelWriter.Write(toSend)
 	}
 }
 
