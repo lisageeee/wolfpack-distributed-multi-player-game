@@ -177,9 +177,8 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr: n.LocalAddr.String(),
 		}
 
-	var msg NodeMessage
 	toSend, err := json.Marshal(&message)
-	json.Unmarshal(toSend, &msg)
+
 	if err != nil {
 		fmt.Println(err)
 	}
