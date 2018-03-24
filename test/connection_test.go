@@ -42,16 +42,16 @@ func TestHeartbeat(t *testing.T) {
 	_ = node3.ServerRegister()
 	go node3.SendHeartbeat()
 
-	fmt.Printf("[%v]\n", node3.Connections)
-	if len(node3.Connections) != 2 {
+	fmt.Printf("[%v]\n", node3.OtherNodes)
+	if len(node3.OtherNodes) != 2 {
 		t.Fail()
 	}
 
 	time.Sleep(5*time.Second)
 
 	node3.GetNodes()
-	fmt.Printf("[%v]\n", node3.Connections)
-	if len(node3.Connections) != 1 {
+	fmt.Printf("[%v]\n", node3.OtherNodes)
+	if len(node3.OtherNodes) != 1 {
 		t.Fail()
 	}
 

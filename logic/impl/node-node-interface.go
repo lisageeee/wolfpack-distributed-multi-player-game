@@ -25,7 +25,6 @@ type NodeCommInterface struct {
 	IncomingMessages 	*net.UDPConn
 	LocalAddr			net.Addr
 	OtherNodes 			map[string]*net.UDPConn
-	Connections 		[]string
 }
 
 type PlayerInfo struct {
@@ -48,7 +47,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey)
 		PubKey: pubKey,
 		PrivKey: privKey,
 		OtherNodes: make(map[string]*net.UDPConn),
-		Connections: make([]string, 0)}
+		}
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
@@ -100,8 +99,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			// Code sgs sends the connecting node the position
 			remoteClient.Write([]byte("sgs" + n.PlayerNode.Identifier + string(toSend)))
 			n.OtherNodes[string(buf[0:rlen])] = remoteClient.(*net.UDPConn)
-			// Keeping connections as array because we'll eventually get rid of it
-			n.Connections = append(n.Connections, string(buf[0:rlen]))
 		}
 	}
 }
@@ -135,24 +132,36 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		n.Config = response
 	}
 
-	n.GetNodes()
+	localIP := n.GetNodes()
 
 	// Start communcation with the other nodes
-	go n.FloodNodes()
+	go n.FloodNodes(localIP)
 
 	return strconv.Itoa(n.Config.Identifier)
 }
 
-func (n *NodeCommInterface) GetNodes() {
-	var response []net.Addr
+func (n *NodeCommInterface) GetNodes() (*net.UDPAddr) {
+	var response map[string]net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
 		log.Fatal(err)
 	}
-	n.Connections = nil
-	for _, addr := range response {
-		n.Connections = append(n.Connections, addr.String())
+
+	n.OtherNodes = make(map[string]*net.UDPConn)
+	const udpGeneric = "127.0.0.1:0"
+	localIP, _ := net.ResolveUDPAddr("udp", udpGeneric)
+
+	for id, addr := range response {
+		nodeUdp, _ := net.ResolveUDPAddr("udp", addr.String())
+		// Connect to other node
+		nodeClient, err := net.DialUDP("udp", localIP, nodeUdp)
+		if err != nil {
+			panic(err)
+		}
+		n.OtherNodes[id] = nodeClient
 	}
+
+	return localIP
 }
 
 func (n *NodeCommInterface) SendHeartbeat() {
@@ -167,6 +176,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 		time.Sleep(time.Duration(boop)*time.Microsecond)
 	}
 }
+
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	message := NodeMessage{
@@ -203,17 +213,8 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 }
 
 // Initiates connection with n.connections (provided nodes from server) on game init
-func (n *  NodeCommInterface) FloodNodes() {
-	const udpGeneric = "127.0.0.1:0"
-	localIP, _ := net.ResolveUDPAddr("udp", udpGeneric)
-	for _, ip := range n.Connections {
-		nodeUdp, _ := net.ResolveUDPAddr("udp", ip)
-		// Connect to other node
-		nodeClient, err := net.DialUDP("udp", localIP, nodeUdp)
-		n.OtherNodes[ip] = nodeClient
-		if err != nil {
-			panic(err)
-		}
+func (n *  NodeCommInterface) FloodNodes(localIP *net.UDPAddr) {
+	for _, nodeClient := range n.OtherNodes {
 		// Exchange messages with other node
 		myListener := n.LocalAddr.String()
 		nodeClient.Write([]byte(myListener))

@@ -44,11 +44,6 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 
 
 	//// Make a gameState
-	//gameRenderState := shared.GameRenderState{
-	//	PlayerLoc:shared.Coord{3,3},
-	//	OtherPlayers: make(map[string]shared.Coord),
-	//	Prey: shared.Coord{5,5},
-	//}
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs["prey"] = shared.Coord{5,5}
 	playerLocs[uniqueId] = shared.Coord{3,3}

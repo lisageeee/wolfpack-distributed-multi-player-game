@@ -36,7 +36,7 @@ func TestPixelNodeCanRun(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	_ = l.CreatePlayerNode(":12400", ":12401", ":12402", pub, priv)
+	_ = l.CreatePlayerNode(":12500", ":12501", ":12502", pub, priv)
 
 	pixelStart := exec.Command("go", "run", "pixel.go", ":12401", ":12402")
 	pixelStart.Dir = "../pixel"

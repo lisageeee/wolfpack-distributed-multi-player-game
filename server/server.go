@@ -11,6 +11,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"crypto/elliptic"
+	"strconv"
 )
 
 type GServer int
@@ -18,6 +19,7 @@ type GServer int
 type Player struct {
 	Address net.Addr
 	RecentHB int64
+	Identifier int
 }
 
 type AllPlayers struct {
@@ -95,8 +97,9 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	// once all checks are made to ensure that this connecting player has not already been registered,
 	// add this player to allPlayers struct
 	allPlayers.all[pubKeyStr] = &Player {
-		p.Address,
-		time.Now().UnixNano(),
+		Address: p.Address,
+		RecentHB: time.Now().UnixNano(),
+		Identifier: id,
 	}
 
 	fmt.Printf("DEBUG - [%s] Connected\n", p.Address.String())
@@ -126,7 +129,7 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	return nil
 }
 
-func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
+func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]net.Addr) error {
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()
 
@@ -137,17 +140,16 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet *[]net.Addr) error {
 		return wolferrors.UnknownKeyError(pubKeyStr)
 	}
 
-	playerAddresses := make([]net.Addr, 0, len(allPlayers.all) - 1)
+	playerAddresses := make(map[string]net.Addr)
 
 	for k, player := range allPlayers.all {
 		if k == pubKeyStr {
 			continue
 		}
-		playerAddresses = append(playerAddresses, player.Address)
+		playerAddresses[strconv.Itoa(player.Identifier)] = player.Address
 	}
 
-	n := len(playerAddresses)
-	*addrSet = playerAddresses[:n]
+	*addrSet = playerAddresses
 
 	return nil
 }
