@@ -32,8 +32,9 @@ func TestGoVectorClockTick(t *testing.T) {
 	pub, priv := key.GenerateKeys()
 	node1 := l.CreatePlayerNode(":12800", ":12801", ":12802", pub, priv)
 
-	n1 := node1.GetNodeInterface()
 
+	n1 := node1.GetNodeInterface()
+	fmt.Println(n1.Log.GetCurrentVCAsClock())
 	if n1.Log.GetCurrentVCAsClock().LastUpdate()!= 1{
 		fmt.Println("Clock is farked")
 		t.FailNow()
@@ -41,15 +42,21 @@ func TestGoVectorClockTick(t *testing.T) {
 	pub, priv = key.GenerateKeys()
 	node2 := l.CreatePlayerNode(":12900", ":12901", ":12092", pub, priv)
 	n2 := node2.GetNodeInterface()
-
-
-
+	fmt.Println(n2.Log.GetCurrentVCAsClock())
+	time.Sleep(time.Second)
 	// Check nodes are connected to each other
+	fmt.Println(n1.Log.GetCurrentVCAsClock())
+	fmt.Println(n2.Log.GetCurrentVCAsClock())
 	if len(n2.OtherNodes) != 1 || len(n1.OtherNodes) != 1{
 		fmt.Println("Nodes do not have a mutual connection, fail")
 		t.Fail()
 	}
-
+	fmt.Println(n1.Log.GetCurrentVCAsClock())
+	fmt.Println(n2.Log.GetCurrentVCAsClock())
+	if n1.Log.GetCurrentVCAsClock().LastUpdate()!= 2 || n2.Log.GetCurrentVCAsClock().LastUpdate()!= 2{
+		fmt.Println("Clock is farked")
+		t.FailNow()
+	}
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7,7}
 	n1.SendMoveToNodes(&testCoord)
@@ -59,14 +66,10 @@ func TestGoVectorClockTick(t *testing.T) {
 		fmt.Println("Failed to send testCoord from Node 1 to node 2")
 		t.Fail()
 	}
-
-	testCoord = shared.Coord{6,3}
-	n2.SendMoveToNodes(&testCoord)
-	time.Sleep(100*time.Millisecond)
-
-	if n1.PlayerNode.GameState.PlayerLocs[node2.Identifier] != testCoord {
-		fmt.Println("Failed to send testCoord in the opposite direction")
-		t.Fail()
+	if n1.Log.GetCurrentVCAsClock().LastUpdate()!= 4 || n2.Log.GetCurrentVCAsClock().LastUpdate()!= 3{
+		fmt.Println(n2.Log.GetCurrentVCAsClock())
+		fmt.Println("Clock is farked")
+		t.FailNow()
 	}
 
 	// Kill after done + all children
