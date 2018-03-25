@@ -141,6 +141,7 @@ func (n *NodeCommInterface) GetNodes() {
 	var response map[string]net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
+		panic(err)
 		log.Fatal(err)
 	}
 
