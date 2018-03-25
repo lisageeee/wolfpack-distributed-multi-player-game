@@ -36,7 +36,7 @@ func TestPixelNodeCanRun(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	_ = l.CreatePlayerNode(":12500", ":12501", ":12502", pub, priv)
+	_ = l.CreatePlayerNode(":12500", ":12501", ":12502", pub, priv, ":8081")
 
 	pixelStart := exec.Command("go", "run", "pixel.go", ":12401", ":12402")
 	pixelStart.Dir = "../pixel"
@@ -77,7 +77,7 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	n := l.CreatePlayerNode(":12300", ":12301", ":12302", pub, priv)
+	n := l.CreatePlayerNode(":12300", ":12301", ":12302", pub, priv, ":8081")
 	remote := n.GetPixelInterface()
 
 	//Run pixel node
@@ -129,7 +129,7 @@ func TestPixelNodeMove(t *testing.T) {
 
 	// Create player node, run it and get pixel interface
 	pub, priv := key.GenerateKeys()
-	n := l.CreatePlayerNode(":12303", ":12304", ":12305", pub, priv)
+	n := l.CreatePlayerNode(":12303", ":12304", ":12305", pub, priv, ":8081")
 	go n.RunGame()
 	loc := n.GameState.PlayerLocs[n.Identifier] // get the initial game render state
 

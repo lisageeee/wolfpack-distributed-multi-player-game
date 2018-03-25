@@ -21,6 +21,7 @@ type NodeCommInterface struct {
 	PubKey 				*ecdsa.PublicKey
 	PrivKey 			*ecdsa.PrivateKey
 	Config 				shared.GameConfig
+	ServerAddr			string
 	ServerConn 			*rpc.Client
 	IncomingMessages 	*net.UDPConn
 	LocalAddr			net.Addr
@@ -42,10 +43,11 @@ type NodeMessage struct {
 }
 
 // Creates a node comm interface with initial empty arrays
-func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey) (NodeCommInterface) {
+func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
 	return NodeCommInterface {
 		PubKey: pubKey,
 		PrivKey: privKey,
+		ServerAddr : serverAddr,
 		OtherNodes: make(map[string]*net.UDPConn),
 		}
 }
@@ -93,7 +95,7 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	if n.ServerConn == nil {
 		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
 		// Connect to server with RPC, port is always :8081
-		serverConn, err := rpc.Dial("tcp", ":8081")
+		serverConn, err := rpc.Dial("tcp", n.ServerAddr)
 		if err != nil {
 			log.Println("Cannot dial server. Please ensure the server is running and try again.")
 			os.Exit(1)

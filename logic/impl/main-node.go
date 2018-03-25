@@ -23,7 +23,8 @@ type PlayerNode struct {
 // nodeListenerAddr = where we expect to receive messages from other nodes
 // playerListenerAddr = where we expect to receive messages from the pixel-node
 // pixelSendAddr = where we will be sending new game states to the pixel node
-func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string, pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey) (PlayerNode) {
+func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string,
+	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
 
@@ -32,7 +33,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
 
 	// Start the node to node interface
-	nodeInterface := CreateNodeCommInterface(pubKey, privKey)
+	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
 	addr, listener := StartListenerUDP(nodeListenerAddr)
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener

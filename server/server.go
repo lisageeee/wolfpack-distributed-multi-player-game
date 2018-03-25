@@ -12,7 +12,10 @@ import (
 	"fmt"
 	"crypto/elliptic"
 	"strconv"
+	"os"
 )
+
+// Usage go run server.go (runs on port 8081) or go run server.go [portnumber]
 
 type GServer int
 
@@ -40,6 +43,11 @@ type PlayerInfo struct {
 }
 
 func main() {
+	portString := ":8081"
+	args := os.Args
+	if len(args) > 1 {
+		portString = ":" + args[1]
+	}
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
 	gob.Register(&PlayerInfo{})
@@ -49,7 +57,7 @@ func main() {
 	server := rpc.NewServer()
 	server.Register(gserver)
 
-	l, err := net.Listen("tcp", ":8081")
+	l, err := net.Listen("tcp", portString)
 	if err != nil {
 		panic(err)
 	}

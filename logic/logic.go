@@ -18,8 +18,14 @@ func main() {
 	nodeListenerAddr := "127.0.0.1:0"
 	playerListenerIpAddress := "127.0.0.1:12345"
 	pixelIpAddress := "127.0.0.1:1234"
+	serverAddr := ":8081"
 	// Can start with an IP as param
-	if len(os.Args) > 3 {
+	if len(os.Args) > 4 {
+		nodeListenerAddr = os.Args[1]
+		playerListenerIpAddress = os.Args[2]
+		pixelIpAddress = os.Args[3]
+		serverAddr = os.Args[4]
+	} else if len(os.Args) > 3 {
 		nodeListenerAddr = os.Args[1]
 		playerListenerIpAddress = os.Args[2]
 		pixelIpAddress = os.Args[3]
@@ -33,6 +39,6 @@ func main() {
 	}
 
 	pubKey, privKey := key_helpers.GenerateKeys()
-	node := logicImpl.CreatePlayerNode(nodeListenerAddr, playerListenerIpAddress, pixelIpAddress, pubKey, privKey)
+	node := logicImpl.CreatePlayerNode(nodeListenerAddr, playerListenerIpAddress, pixelIpAddress, pubKey, privKey, serverAddr)
 	node.RunGame()
 }
