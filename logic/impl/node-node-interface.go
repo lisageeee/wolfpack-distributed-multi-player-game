@@ -27,6 +27,7 @@ type NodeCommInterface struct {
 	LocalAddr			net.Addr
 	OtherNodes 			map[string]*net.UDPConn
 	Log 				*govec.GoLog
+	HeartAttack 		chan bool
 }
 
 type PlayerInfo struct {
@@ -49,6 +50,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey)
 		PubKey: pubKey,
 		PrivKey: privKey,
 		OtherNodes: make(map[string]*net.UDPConn),
+		HeartAttack: make(chan bool),
 		}
 }
 
@@ -170,18 +172,23 @@ func (n *NodeCommInterface) GetClientFromAddrString(addr string) (*net.UDPConn) 
 }
 
 func (n *NodeCommInterface) SendHeartbeat() {
+	var _ignored bool
 	for {
-		var _ignored bool
-		err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
-		if err != nil {
-			fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-			n.ServerRegister()
+		select {
+		case <-n.HeartAttack:
+			return
+		default:
+			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
+			if err != nil {
+				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
+				n.ServerRegister()
+			}
+			boop := n.Config.GlobalServerHB
+			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
-		boop := n.Config.GlobalServerHB
-		time.Sleep(time.Duration(boop)*time.Microsecond)
+
 	}
 }
-
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	if move == nil {
@@ -195,10 +202,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr: n.LocalAddr.String(),
 		}
 
-	var msg NodeMessage
 	toSend := sendMessage(n.Log, message)
-	msg = receiveMessage(n.Log, toSend)
-	fmt.Println(msg)
 	for _, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
 		if err != nil{
