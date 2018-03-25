@@ -31,11 +31,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
 
-	n1.ServerRegister()
-	time.Sleep(2*time.Second)
-
-	n2.ServerRegister()
-	time.Sleep(2*time.Second)
+	time.Sleep(1*time.Second)
 
 	// Check nodes are connected to each other
 	if len(n2.OtherNodes) != len(n1.OtherNodes) {
@@ -87,11 +83,7 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
 
-	n1.ServerRegister()
-	time.Sleep(2*time.Second)
-
-	n2.ServerRegister()
-	time.Sleep(2*time.Second)
+	time.Sleep(1*time.Second)
 
 	// Check nodes are connected to each other
 	if len(n2.OtherNodes) != len(n1.OtherNodes) {
