@@ -25,12 +25,20 @@ type NodeCommInterface struct {
 	IncomingMessages 	*net.UDPConn
 	LocalAddr			net.Addr
 	OtherNodes 			map[string]*net.UDPConn
-	Connections 		[]string
 }
 
 type PlayerInfo struct {
 	Address 			net.Addr
 	PubKey 				ecdsa.PublicKey
+}
+
+// The message struct that is sent for all node communcation
+type NodeMessage struct {
+	Identifier string // the id of the sending node
+	MessageType	string // identifies the type of message, can be: "move", "gameState", "connect", "connected"
+	GameState * shared.GameState // a gamestate, included if MessageType is "gameState", else nil
+	Move  * shared.Coord // a move, included if the message type is move
+	Addr string // the address to connect to this node over
 }
 
 // Creates a node comm interface with initial empty arrays
@@ -39,7 +47,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey)
 		PubKey: pubKey,
 		PrivKey: privKey,
 		OtherNodes: make(map[string]*net.UDPConn),
-		Connections: make([]string, 0)}
+		}
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
@@ -48,6 +56,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	listener.SetReadBuffer(1048576)
 
 	i := 0
+	var message NodeMessage
 	for {
 		i++
 		buf := make([]byte, 1024)
@@ -58,41 +67,18 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		fmt.Println(string(buf[0:rlen]))
 		fmt.Println(addr)
 		fmt.Println(i)
-		// Write to the node comm channel
-		if "sgs" == string(buf[0:3]){
-			id := string(buf[3])
-			if err != nil{
-				panic(err)
-			}
-			var remoteCoord shared.Coord
-			fmt.Println(string(buf[4:rlen]))
-			err2 := json.Unmarshal(buf[4:rlen], &remoteCoord)
-			if err2 != nil {
-				panic(err2)
-			}
-			n.PlayerNode.GameRenderState.OtherPlayers[id] = remoteCoord
-			fmt.Println(n.PlayerNode.GameRenderState.OtherPlayers)
-		} else if string(buf[0:3]) == "sms"{
-			var recState shared.GameRenderState
-			err := json.Unmarshal(buf[4:rlen], &recState)
-			if err != nil {
-				panic(err)
-			}
-			id := string(buf[3])
-			n.PlayerNode.GameRenderState.OtherPlayers[id] = recState.PlayerLoc
-			fmt.Println(recState.PlayerLoc)
-			// TODO: Update go render state once other commit is merged
-		}else if string(buf[0:rlen]) != "connected" {
-			remoteClient, err := net.Dial("udp", string(buf[0:rlen]))
-			if err != nil {
-				panic(err)
-			}
-			toSend, err := json.Marshal(n.PlayerNode.GameRenderState.PlayerLoc)
-			// Code sgs sends the connecting node the position
-			remoteClient.Write([]byte("sgs" + n.PlayerNode.identifier + string(toSend)))
-			n.OtherNodes[string(buf[0:rlen])] = remoteClient.(*net.UDPConn)
-			// Keeping connections as array because we'll eventually get rid of it
-			n.Connections = append(n.Connections, string(buf[0:rlen]))
+
+		json.Unmarshal(buf[0:rlen], &message)
+
+		switch message.MessageType {
+			case "gameState":
+				n.HandleReceivedGameState(message.Identifier, message.GameState)
+			case "move":
+				n.HandleReceivedMove(message.Identifier, message.Move)
+			case "connect":
+				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
+			case "connected":
+			// Do nothing
 		}
 	}
 }
@@ -135,15 +121,34 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 }
 
 func (n *NodeCommInterface) GetNodes() {
-	var response []net.Addr
+	var response map[string]net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
 		log.Fatal(err)
 	}
-	n.Connections = nil
-	for _, addr := range response {
-		n.Connections = append(n.Connections, addr.String())
+
+	n.OtherNodes = make(map[string]*net.UDPConn)
+
+	for id, addr := range response {
+		nodeClient := n.GetClientFromAddrString(addr.String())
+		nodeUdp, _ := net.ResolveUDPAddr("udp", addr.String())
+		// Connect to other node
+		nodeClient, err := net.DialUDP("udp", nil, nodeUdp)
+		if err != nil {
+			panic(err)
+		}
+		n.OtherNodes[id] = nodeClient
 	}
+}
+
+func (n *NodeCommInterface) GetClientFromAddrString(addr string) (*net.UDPConn) {
+	nodeUdp, _ := net.ResolveUDPAddr("udp", addr)
+	// Connect to other node
+	nodeClient, err := net.DialUDP("udp", nil, nodeUdp)
+	if err != nil {
+		panic(err)
+	}
+	return nodeClient
 }
 
 func (n *NodeCommInterface) SendHeartbeat() {
@@ -158,30 +163,85 @@ func (n *NodeCommInterface) SendHeartbeat() {
 		time.Sleep(time.Duration(boop)*time.Microsecond)
 	}
 }
-func(n* NodeCommInterface) SendMoveToNodes(gameState shared.GameRenderState, identifier string){
 
-	toSend, _:= json.Marshal(gameState)
+func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
+
+	if move == nil {
+		return
+	}
+
+	message := NodeMessage{
+		MessageType: "move",
+		Identifier: n.PlayerNode.Identifier,
+		Move: move,
+		Addr: n.LocalAddr.String(),
+		}
+
+	toSend, err := json.Marshal(&message)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 	for _, val := range n.OtherNodes{
-		_, err := val.Write([]byte("sms" + identifier + string(toSend)))
+		_, err := val.Write(toSend)
 		if err != nil{
 			fmt.Println(err)
 		}
 	}
 }
-// Initiates connection with n.connections (provided nodes from server) on game init
-func (n *  NodeCommInterface) FloodNodes() {
-	const udpGeneric = "127.0.0.1:0"
-	localIP, _ := net.ResolveUDPAddr("udp", udpGeneric)
-	for _, ip := range n.Connections {
-		nodeUdp, _ := net.ResolveUDPAddr("udp", ip)
-		// Connect to other node
-		nodeClient, err := net.DialUDP("udp", localIP, nodeUdp)
-		n.OtherNodes[ip] = nodeClient
-		if err != nil {
-			panic(err)
+
+func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
+	message := NodeMessage{
+		MessageType: "gameState",
+		Identifier: n.PlayerNode.Identifier,
+		GameState: &n.PlayerNode.GameState,
+		Addr: n.LocalAddr.String(),
+	}
+
+	toSend, _:= json.Marshal(&message)
+	n.OtherNodes[otherNodeId].Write(toSend)
+}
+
+func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState *shared.GameState) {
+	//TODO: don't just wholesale replace this
+	n.PlayerNode.GameState = *gameState
+}
+
+func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) {
+	// TODO: add checks
+	// Need nil check for bad move
+	if move != nil {
+		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+	}
+}
+
+func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
+	node := n.GetClientFromAddrString(addr)
+	n.OtherNodes[identifier] = node
+}
+
+func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
+	message := NodeMessage{
+		MessageType: "connect",
+		Identifier: strconv.Itoa(n.Config.Identifier),
+		GameState: nil,
+		Addr: n.LocalAddr.String(),
+		Move: nil,
+	}
+
+	toSend, _:= json.Marshal(&message)
+	for _, val := range n.OtherNodes{
+		_, err := val.Write(toSend)
+		if err != nil{
+			fmt.Println(err)
 		}
+	}
+}
+
+// Sends connection message to connections after receiving from server
+func (n *  NodeCommInterface) FloodNodes() {
+	for _, nodeClient := range n.OtherNodes {
 		// Exchange messages with other node
-		myListener := n.LocalAddr.String()
-		nodeClient.Write([]byte(myListener))
+		n.InitiateConnection(nodeClient)
 	}
 }

@@ -25,8 +25,8 @@ func TestCapturedPreyValid(t *testing.T) {
 	wn := wnSetup()
 
 	_, publicKeyString := key_helpers.Encode(wn.Info.PrivKey, wn.Info.PubKey)
-	wn.Info.CurrGameState = make(map[string]shared.GameState)
-	wn.Info.CurrGameState[publicKeyString] = shared.GameState{
+	wn.Info.CurrGameState = make(map[string]shared.PlayerState)
+	wn.Info.CurrGameState[publicKeyString] = shared.PlayerState{
 		PlayerLoc: shared.Coord{5, 5},
 	}
 
@@ -40,8 +40,8 @@ func TestCapturedPreyInvalid(t *testing.T) {
 	wn := wnSetup()
 
 	_, publicKeyString := key_helpers.Encode(wn.Info.PrivKey, wn.Info.PubKey)
-	wn.Info.CurrGameState = make(map[string]shared.GameState)
-	wn.Info.CurrGameState[publicKeyString] = shared.GameState{
+	wn.Info.CurrGameState = make(map[string]shared.PlayerState)
+	wn.Info.CurrGameState[publicKeyString] = shared.PlayerState{
 		PlayerLoc: shared.Coord{6, 5},
 	}
 
@@ -55,8 +55,8 @@ func TestCheckScoreValid(t *testing.T) {
 	wn := wnSetup()
 
 	_, publicKeyString := key_helpers.Encode(wn.Info.PrivKey, wn.Info.PubKey)
-	wn.Info.CurrGameState = make(map[string]shared.GameState)
-	wn.Info.CurrGameState[publicKeyString] = shared.GameState{
+	wn.Info.CurrGameState = make(map[string]shared.PlayerState)
+	wn.Info.CurrGameState[publicKeyString] = shared.PlayerState{
 		PlayerLoc: shared.Coord{5, 5},
 	}
 
@@ -70,8 +70,8 @@ func TestCheckScoreInvalid(t *testing.T) {
 	wn := wnSetup()
 
 	_, publicKeyString := key_helpers.Encode(wn.Info.PrivKey, wn.Info.PubKey)
-	wn.Info.CurrGameState = make(map[string]shared.GameState)
-	wn.Info.CurrGameState[publicKeyString] = shared.GameState{
+	wn.Info.CurrGameState = make(map[string]shared.PlayerState)
+	wn.Info.CurrGameState[publicKeyString] = shared.PlayerState{
 		PlayerLoc: shared.Coord{6, 5},
 	}
 
@@ -117,12 +117,12 @@ func TestMoveCommitValid(t *testing.T) {
 func TestMoveCommitInvalid(t *testing.T) {
 	wn := wnSetup()
 
-	gs :=  shared.GameState{
+	gs :=  shared.PlayerState{
 		PlayerLoc: shared.Coord{5, 5},
 	}
 	publicKey, _ := key_helpers.GenerateKeys()
 	op := shared.MoveOp{
-		GameState:      gs,
+		PlayerState:      gs,
 		PubKey:         publicKey,
 		Signature:      shared.Sig{R: big.NewInt(184), S: big.NewInt(3)},
 	}

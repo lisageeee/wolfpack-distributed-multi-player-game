@@ -20,7 +20,7 @@ type PlayerInfo struct {
 	InitGameSettings shared.InitialGameSettings
 	// game states are really just position coordinates + other info related to time synchro
 	// we would also store this node's game state in here
-	CurrGameState    map[string]shared.GameState
+	CurrGameState    map[string]shared.PlayerState
 	// do we need this if we're using keys?
 	PlayerId			uint32
 	OtherPlayersConn	map[string]*rpc.Client
@@ -126,7 +126,7 @@ func (wolfNode WolfNodeImpl) CheckMoveCommit(commitHash string, moveOp shared.Mo
 		return wolferrors.InvalidMoveHashError(commitHash)
 	}
 
-	coords := moveOp.GameState.PlayerLoc
+	coords := moveOp.PlayerState.PlayerLoc
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(coords) {
 		return wolferrors.OutOfBoundsError("You are out of bounds")

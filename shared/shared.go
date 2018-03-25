@@ -31,12 +31,18 @@ type InitialState struct {
 	CatchWorth	int
 }
 // Game state sent by other player, or from this player
-type GameState struct {
+type PlayerState struct {
 	PlayerId			uint32
 	PlayerLoc			Coord
 	Timestamp			uint64
 	LastUpdated			uint64
 	HighestScore 		uint32
+}
+
+// Game state to communciate between nodes
+type GameState struct {
+	PlayerLocs map[string]Coord
+	// scores TODO
 }
 
 // Game state sent from logic node to pixel for rendering
@@ -48,8 +54,9 @@ type GameRenderState struct {
 
 // Move commitment sent by player, must be ACK'ed by all other players in game
 // before this player can receive all other players' game states
+
 type MoveOp struct {
-	GameState      		GameState
+	PlayerState     	PlayerState
 	PubKey         		*ecdsa.PublicKey
 	Signature			Sig
 }

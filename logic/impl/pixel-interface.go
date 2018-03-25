@@ -22,14 +22,30 @@ func CreatePixelInterface(playerCommChannel chan string) PixelInterface {
 }
 
 // Sends a game state to the player's pixel interface for rendering
-func (pi *PixelInterface) SendPlayerGameState(state shared.GameRenderState) {
-	toSend, err := json.Marshal(state)
+func (pi *PixelInterface) SendPlayerGameState(state shared.GameState, id string) {
+	//Create a game render state first
+
+	// Create the player map without without this node or prey node
+	otherPlayers := make(map[string]shared.Coord)
+	for key, value := range state.PlayerLocs {
+		if key != id && key != "prey" {
+			otherPlayers[key] = value
+		}
+	}
+
+	renderState := shared.GameRenderState {
+		PlayerLoc: state.PlayerLocs[id],
+		Prey: state.PlayerLocs["prey"],
+		OtherPlayers: otherPlayers,
+	}
+
+	toSend, err := json.Marshal(renderState)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		// Send position to player node
 		fmt.Println("sending position")
-		pi.pixelWriter.Write([]byte(toSend))
+		pi.pixelWriter.Write(toSend)
 	}
 }
 
