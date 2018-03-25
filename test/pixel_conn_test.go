@@ -99,7 +99,8 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	}
 
 	// Send from the remote interface to the pixel node
-	remote.SendPlayerGameState(gameState, n.Identifier)
+	remote.SendPlayerGameState(gameState)
+
 
 	// Read from the pixel node's channel
 	pixelGameState := <- pixel.NewGameStates
@@ -146,9 +147,11 @@ func TestPixelNodeMove(t *testing.T) {
 
 	fmt.Println(newState, loc)
 	if newState.PlayerLocs[n.Identifier].X != loc.X {
+		fmt.Println("Player x changed when it shouldn't have")
 		t.Fail()
 	}
 	if newState.PlayerLocs[n.Identifier].Y - 1 != loc.Y {
+		fmt.Println("Player Y didn't change when it should have")
 		t.Fail()
 	}
 
@@ -163,9 +166,11 @@ func TestPixelNodeMove(t *testing.T) {
 	newState = n.GameState
 	fmt.Println(newState, loc)
 	if newState.PlayerLocs[n.Identifier].X != loc.X {
+		fmt.Println("Player x changed when it shouldn't have")
 		t.Fail()
 	}
 	if newState.PlayerLocs[n.Identifier].Y != loc.Y - 1 {
+		fmt.Println("Player Y didn't change when it should have")
 		t.Fail()
 	}
 	serverStart.Process.Kill()

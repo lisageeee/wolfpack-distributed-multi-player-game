@@ -12,6 +12,7 @@ type PlayerNode struct {
 	pixelInterface	  PixelInterface
 	nodeInterface 	  *NodeCommInterface
 	playerCommChannel chan string
+	playerSendChannel chan shared.GameState
 	GameState		  shared.GameState
 	//GameRenderState	  shared.GameRenderState
 	geo        geometry.GridManager
@@ -27,10 +28,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
-
-	// Startup Pixel interface + listening
-	pixelInterface := CreatePixelInterface(playerCommChannel)
-	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
+	playerSendChannel := make(chan shared.GameState, 5)
 
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
@@ -42,6 +40,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
+
+	// Startup Pixel interface + listening
+	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel, uniqueId)
+	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
 
 
 	//// Make a gameState
@@ -59,6 +61,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 		pixelInterface:    pixelInterface,
 		nodeInterface:     &nodeInterface,
 		playerCommChannel: playerCommChannel,
+		playerSendChannel:playerSendChannel,
 		geo:               geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameState:         gameState,
 		Identifier:        uniqueId,
@@ -82,7 +85,7 @@ func (pn * PlayerNode) RunGame() {
 			break
 		default:
 			move := pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameState, pn.Identifier)
+			pn.pixelInterface.SendPlayerGameState(pn.GameState)
 			pn.nodeInterface.SendMoveToNodes(&move)
 			fmt.Println("movin' player", message)
 		}
