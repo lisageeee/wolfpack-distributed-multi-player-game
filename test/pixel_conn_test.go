@@ -36,9 +36,9 @@ func TestPixelNodeCanRun(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	_ = l.CreatePlayerNode(":12500", ":12501", ":12502", pub, priv, ":8081")
+	_ = l.CreatePlayerNode(":12500", ":12501",  pub, priv, ":8081")
 
-	pixelStart := exec.Command("go", "run", "pixel.go", ":12401", ":12402")
+	pixelStart := exec.Command("go", "run", "pixel.go", ":12501")
 	pixelStart.Dir = "../pixel"
 	pixelStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var err error
@@ -53,6 +53,7 @@ func TestPixelNodeCanRun(t *testing.T) {
 
 	// If pixel can't start, will get err on this line
 	if err != nil {
+		panic(err)
 		fmt.Println("Pixel couldn't start, error:", err)
 		t.Fail()
 	}
@@ -64,6 +65,7 @@ func TestPixelNodeCanRun(t *testing.T) {
 }
 
 // Tests that the logic node is able to send messages to the pixel node
+// NOTE: this test sometimes fails unless you run it alone (wooo back to that again)
 func TestLogicNodeToPixelComm(t *testing.T) {
 	// Start running server
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
@@ -77,18 +79,14 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	n := l.CreatePlayerNode(":12300", ":12301", ":12302", pub, priv, ":8081")
+	n := l.CreatePlayerNode(":12300", ":12301", pub, priv, ":8081")
 	remote := n.GetPixelInterface()
 
-	//Run pixel node
-	pixel := p.CreatePixelNode(":12301", ":12302")
+	time.Sleep(1*time.Second) // wait playernode to start
 
-	// Create a gameState
-	//gameState := shared.GameRenderState {
-	//	PlayerLoc: shared.Coord{2,1},
-	//	Prey: shared.Coord{0,1},
-	//	OtherPlayers: make(map[string]shared.Coord),
-	//}
+	//Run pixel node
+	pixel := p.CreatePixelNode(":12301")
+	go pixel.RunRemoteNodeListener()
 
 	// Create a gamestate
 	playerLocs := make(map[string]shared.Coord)
@@ -100,7 +98,6 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 
 	// Send from the remote interface to the pixel node
 	remote.SendPlayerGameState(gameState)
-
 
 	// Read from the pixel node's channel
 	pixelGameState := <- pixel.NewGameStates
@@ -117,6 +114,7 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 }
 
 // Tests that the pixel node can send messages to the logic node
+// NOTE: this test sometimes fails unless you run it alone (wooo back to that again)
 func TestPixelNodeMove(t *testing.T) {
 	// Start running server
 	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
@@ -130,12 +128,15 @@ func TestPixelNodeMove(t *testing.T) {
 
 	// Create player node, run it and get pixel interface
 	pub, priv := key.GenerateKeys()
-	n := l.CreatePlayerNode(":12303", ":12304", ":12305", pub, priv, ":8081")
+	n := l.CreatePlayerNode(":12303", ":12304", pub, priv, ":8081")
 	go n.RunGame()
 	loc := n.GameState.PlayerLocs[n.Identifier] // get the initial game render state
 
+	time.Sleep(1*time.Second) // wait playernode to start
+
 	// Start pixel node
-	pixel := p.CreatePixelNode(":12304", ":12305")
+	pixel := p.CreatePixelNode(":12304")
+	go pixel.RunRemoteNodeListener()
 
 	pixel.SendMove("up")
 

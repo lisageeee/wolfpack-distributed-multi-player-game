@@ -24,7 +24,7 @@ type PlayerNode struct {
 // nodeListenerAddr = where we expect to receive messages from other nodes
 // playerListenerAddr = where we expect to receive messages from the pixel-node
 // pixelSendAddr = where we will be sending new game states to the pixel node
-func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string,
+func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
@@ -32,19 +32,21 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
+	fmt.Println("created node comm interface")
 	addr, listener := StartListenerUDP(nodeListenerAddr)
+	fmt.Println("created node lsitener")
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
+	fmt.Println("ran listener")
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
+	fmt.Println("finished registering with the server")
 
 	// Startup Pixel interface + listening
 	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel, uniqueId)
-	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
-
 
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
@@ -76,7 +78,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
-func (pn * PlayerNode) RunGame() {
+func (pn * PlayerNode) RunGame(playerListener string) {
+	fmt.Println("about to run listener")
+	go pn.pixelInterface.RunPlayerListener(playerListener)
+	fmt.Println("listener running")
 
 	for {
 		message := <-pn.playerCommChannel

@@ -5,12 +5,13 @@ import (
 	"../../shared"
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 // The interface with the player's Pixel GUI (pixel-node.go) from the logic node
 type PixelInterface struct {
-	pixelListener     *net.UDPConn
-	pixelWriter 	  *net.UDPConn
+	pixelListener     *net.TCPListener
+	pixelWriter 	  *net.TCPConn
 	playerCommChannel chan string
 	playerSendChannel chan shared.GameState
 	Id string
@@ -57,32 +58,40 @@ func (pi *PixelInterface) SendPlayerGameState(state shared.GameState) {
 
 // Given two local UDP addresses, initializes the ports for sending and receiving messages from the
 // pixel-node, respectively. Must be run in a goroutine (infinite loop_
-func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr string) {
+func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 
-	_, playerInput := StartListenerUDP(receivingAddr)
-	defer playerInput.Close()
-
-	playerSend := StartSenderUDP(sendingAddr)
-	defer playerSend.Close()
-
-	pi.pixelWriter = playerSend
+	addr, _ := net.ResolveTCPAddr("tcp",receivingAddr)
+	playerInput, _ := net.ListenTCP("tcp", addr)
 	pi.pixelListener = playerInput
+	fmt.Println("about to get to conn")
+	conn := pi.GetTCPConn()
+	fmt.Println("got conn")
+	pi.pixelWriter = conn
 
 	go pi.waitForGameStates()
 
 	// takes a listener client
 	// runs the listener in a infinite loop
-	player := pi.pixelListener
-	player.SetReadBuffer(1024)
-
+	player := pi.pixelWriter
+	fmt.Println(player)
 	for {
 		buf := make([]byte, 1024)
-		rlen, _, err := player.ReadFromUDP(buf)
+		rlen, err := player.Read(buf)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal("Pixel node disconnected")
 		} else {
 			// Write to comm channel for node to receive
 			pi.playerCommChannel <- string(buf[0:rlen])
 		}
 	}
+}
+
+func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
+	// gets the initial TCP conn
+	player := pi.pixelListener
+	conn, err := player.AcceptTCP()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return conn
 }

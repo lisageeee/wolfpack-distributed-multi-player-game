@@ -11,6 +11,7 @@ import (
 	"net"
 	"fmt"
 	"encoding/json"
+	"log"
 )
 
 var NodeAddr string // must store as global to get it into run function
@@ -26,8 +27,8 @@ var SpriteMax float64 = 50
 
 
 type PixelNode struct {
-	Listener          *net.UDPConn
-	Sender            *net.UDPConn
+	//Listener          *net.UDPConn
+	Sender            *net.TCPConn
 	playerPosition    shared.Coord
 	Geom              geometry.PixelManager
 	GameState         shared.GameRenderState
@@ -38,7 +39,7 @@ type PixelNode struct {
 	PreySprite        *pixel.Sprite
 }
 
-func CreatePixelNode(nodeAddr string, myAddr string) (PixelNode) {
+func CreatePixelNode(nodeAddr string) (PixelNode) {
 	spriteStep := SpriteMax - SpriteMin // WinMaxX % spriteStep and WinMaxY % spriteStep should be 0 (spriteStep == spriteSize)
 
 	// Init walls
@@ -46,11 +47,11 @@ func CreatePixelNode(nodeAddr string, myAddr string) (PixelNode) {
 
 	// Create geometry manager
 	geom := geometry.CreatePixelManager(WinMaxX, WinMaxY, spriteStep, wallCoords)
-	//
-	_, conn := startListen(myAddr)
-	remote := setupUDP(nodeAddr)
-	node := PixelNode{Listener:conn, Sender: remote, Geom: geom, NewGameStates: make(chan shared.GameRenderState, 5)}
-	go node.runRemoteNodeListener()
+
+	// Setup connection
+	remote := setupTCP(nodeAddr)
+	node := PixelNode{ Sender: remote, Geom: geom, NewGameStates: make(chan shared.GameRenderState, 5)}
+	// go node.RunRemoteNodeListener()
 	return node
 }
 
@@ -86,18 +87,18 @@ func (pn * PixelNode) SendMove (move string) {
 
 
 // Listens for new game states from pixel node
-func (pn * PixelNode) runRemoteNodeListener() {
+func (pn * PixelNode) RunRemoteNodeListener() {
 	// takes a Listener client
 	// runs the Listener in a infinite loop
-	node := pn.Listener
-	node.SetReadBuffer(1048576)
+	node := pn.Sender
 
 	i := 0
 	var playerPos shared.GameRenderState
 	for {
 		i++
 		buf := make([]byte, 1024)
-		rlen, _, err := node.ReadFromUDP(buf)
+		rlen, err := node.Read(buf)
+		fmt.Println(node)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -118,23 +119,18 @@ func (pn * PixelNode ) DrawWalls(window *pixelgl.Window) {
 	}
 }
 
-func startListen(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
-	// takes an ip address and port to listen on
-	// returns the udp address and Listener client
-	// starts Listener
-	udp_addr, _ := net.ResolveUDPAddr("udp", ip_addr)
-	client, err := net.ListenUDP("udp", udp_addr)
+func setupTCP(ip_addr string) (*net.TCPConn) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", ip_addr)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return nil
 	}
-	return udp_addr, client
-}
-
-func setupUDP(ip_addr string) (*net.UDPConn) {
-	node_udp, _ := net.ResolveUDPAddr("udp", ip_addr)
-	node_client, err := net.DialUDP("udp", nil, node_udp)
+	fmt.Println(tcpAddr)
+	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return nil
 	}
-	return node_client
+	log.Print("done setting up tcp")
+	return tcpConn
 }
