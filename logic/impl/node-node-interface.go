@@ -126,7 +126,7 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 			log.Fatal(err)
 		}
 		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + strconv.Itoa(response.Identifier),
-			"LogicNodeFile"+ strconv.Itoa(response.Identifier))
+			"LogicNodeFile")
 
 		n.Config = response
 	}
