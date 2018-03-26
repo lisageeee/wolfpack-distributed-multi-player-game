@@ -35,10 +35,6 @@ func main() {
 	}
 
 	pubKey, privKey := key_helpers.GenerateKeys()
-	fmt.Println("creating node")
-
 	node := logicImpl.CreatePlayerNode(nodeListenerAddr, playerListenerIpAddress, pubKey, privKey, serverAddr)
-
-	fmt.Println("running game")
 	node.RunGame(playerListenerIpAddress)
 }

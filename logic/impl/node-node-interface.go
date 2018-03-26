@@ -92,13 +92,10 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&elliptic.CurveParams{})
 	gob.Register(&PlayerInfo{})
 
-	fmt.Println("about to get serverconn")
 	if n.ServerConn == nil {
 		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
 		// Connect to server with RPC, port is always :8081
-		fmt.Println("dialling server")
 		serverConn, err := rpc.Dial("tcp", n.ServerAddr)
-		fmt.Println("dialled server")
 		if err != nil {
 			log.Println("Cannot dial server. Please ensure the server is running and try again.")
 			os.Exit(1)
@@ -116,7 +113,6 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		}
 		n.Config = response
 	}
-	fmt.Println("about to get nodes")
 	n.GetNodes()
 
 	// Start communcation with the other nodes

@@ -32,18 +32,14 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
-	fmt.Println("created node comm interface")
 	addr, listener := StartListenerUDP(nodeListenerAddr)
-	fmt.Println("created node lsitener")
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
-	fmt.Println("ran listener")
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
-	fmt.Println("finished registering with the server")
 
 	// Startup Pixel interface + listening
 	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel, uniqueId)

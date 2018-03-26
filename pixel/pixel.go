@@ -24,9 +24,7 @@ func main() {
 }
 
 func run() {
-	log.Print("running")
 	node := impl.CreatePixelNode(nodeAddr)
-	log.Print("created pixel node")
 	go node.RunRemoteNodeListener()
 	winMaxX := node.Geom.GetX()
 	winMaxY := node.Geom.GetY()
