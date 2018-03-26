@@ -9,7 +9,6 @@ import (
 	"../shared"
 	"golang.org/x/image/colornames"
 	"image"
-	"log"
 )
 
 var nodeAddr string // must store as global to get it into run function

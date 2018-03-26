@@ -33,6 +33,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
 	addr, listener := StartListenerUDP(nodeListenerAddr)
+	fmt.Println(addr)
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
