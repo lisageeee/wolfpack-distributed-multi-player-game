@@ -28,7 +28,7 @@ type AllPlayers struct {
 }
 
 var (
-	heartBeat = uint32(500)
+	heartBeat = uint32(5000)
 	ping = uint32(3)
 	id = 1
 	allPlayers = AllPlayers{all: make(map[string]*Player)}

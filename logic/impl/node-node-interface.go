@@ -7,12 +7,13 @@ import (
 	"log"
 	"os"
 	"../../shared"
-	"encoding/json"
 	"crypto/ecdsa"
 	"time"
 	"encoding/gob"
 	"crypto/elliptic"
 	"strconv"
+
+	"github.com/rzlim08/GoVector/govec"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -25,6 +26,8 @@ type NodeCommInterface struct {
 	IncomingMessages 	*net.UDPConn
 	LocalAddr			net.Addr
 	OtherNodes 			map[string]*net.UDPConn
+	Log 				*govec.GoLog
+	HeartAttack 		chan bool
 }
 
 type PlayerInfo struct {
@@ -47,6 +50,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey)
 		PubKey: pubKey,
 		PrivKey: privKey,
 		OtherNodes: make(map[string]*net.UDPConn),
+		HeartAttack: make(chan bool),
 		}
 }
 
@@ -56,7 +60,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	listener.SetReadBuffer(1048576)
 
 	i := 0
-	var message NodeMessage
 	for {
 		i++
 		buf := make([]byte, 1024)
@@ -68,7 +71,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		fmt.Println(addr)
 		fmt.Println(i)
 
-		json.Unmarshal(buf[0:rlen], &message)
+		message := receiveMessage(n.Log, buf)
 
 		switch message.MessageType {
 			case "gameState":
@@ -83,6 +86,19 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	}
 }
 
+func receiveMessage(goLog *govec.GoLog, payload []byte)NodeMessage{
+	// Just removes the golog headers from each message
+	// TODO: set up error handling
+	var message NodeMessage
+	goLog.UnpackReceive("LogicNodeReceiveMessage", payload, &message)
+	return message
+}
+
+func sendMessage(goLog *govec.GoLog, message NodeMessage) []byte{
+	newMessage := goLog.PrepareSend("SendMessageToOtherNode", message)
+	return newMessage
+
+}
 // Registers the node with the server, receiving the gameconfig (and connections)
 // TODO: maybe move this into node.go?
 func (n *NodeCommInterface) ServerRegister() (id string) {
@@ -109,13 +125,16 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + strconv.Itoa(response.Identifier),
+			"LogicNodeFile")
+
 		n.Config = response
 	}
 
 	n.GetNodes()
 
 	// Start communcation with the other nodes
-	go n.FloodNodes()
+	n.FloodNodes()
 
 	return strconv.Itoa(n.Config.Identifier)
 }
@@ -124,6 +143,7 @@ func (n *NodeCommInterface) GetNodes() {
 	var response map[string]net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
+		panic(err)
 		log.Fatal(err)
 	}
 
@@ -152,18 +172,23 @@ func (n *NodeCommInterface) GetClientFromAddrString(addr string) (*net.UDPConn) 
 }
 
 func (n *NodeCommInterface) SendHeartbeat() {
+	var _ignored bool
 	for {
-		var _ignored bool
-		err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
-		if err != nil {
-			fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-			n.ServerRegister()
+		select {
+		case <-n.HeartAttack:
+			return
+		default:
+			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
+			if err != nil {
+				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
+				n.ServerRegister()
+			}
+			boop := n.Config.GlobalServerHB
+			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
-		boop := n.Config.GlobalServerHB
-		time.Sleep(time.Duration(boop)*time.Microsecond)
+
 	}
 }
-
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	if move == nil {
@@ -177,11 +202,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr: n.LocalAddr.String(),
 		}
 
-	toSend, err := json.Marshal(&message)
-
-	if err != nil {
-		fmt.Println(err)
-	}
+	toSend := sendMessage(n.Log, message)
 	for _, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
 		if err != nil{
@@ -198,7 +219,7 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 		Addr: n.LocalAddr.String(),
 	}
 
-	toSend, _:= json.Marshal(&message)
+	toSend := sendMessage(n.Log, message)
 	n.OtherNodes[otherNodeId].Write(toSend)
 }
 
@@ -229,7 +250,7 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		Move: nil,
 	}
 
-	toSend, _:= json.Marshal(&message)
+	toSend := sendMessage(n.Log, message)
 	for _, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
 		if err != nil{
