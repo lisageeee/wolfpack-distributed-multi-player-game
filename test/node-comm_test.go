@@ -23,10 +23,10 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":12800", ":12801", pub, priv, ":8081")
+	node1 := l.CreatePlayerNode(":12820", ":12821", pub, priv, ":8081")
 
 	pub, priv = key.GenerateKeys()
-	node2 := l.CreatePlayerNode(":12900", ":12901", pub, priv, ":8081")
+	node2 := l.CreatePlayerNode(":12920", ":12921", pub, priv, ":8081")
 
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()

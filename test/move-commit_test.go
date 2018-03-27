@@ -35,7 +35,8 @@ func TestHashAndSigning (t *testing.T) {
 	mc := shared.MoveCommit{
 		MoveHash: hashStr,
 		PubKey: pubStr,
-		Signature: shared.Sig{R: r, S: s},
+		R: r.String(),
+		S: s.String(),
 	}
 	if !n.CheckAuthenticityOfMoveCommit(&mc) {
 		fmt.Println("Verifying hash == false")
@@ -104,10 +105,10 @@ func TestNodeToNodeSendMoveCommit (t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":13800", ":13801", pub, priv, ":8081")
+	node1 := l.CreatePlayerNode(":15800", ":15801", pub, priv, ":8081")
 
 	pub, priv = key.GenerateKeys()
-	node2 := l.CreatePlayerNode(":13900", ":13901", pub, priv, ":8081")
+	node2 := l.CreatePlayerNode(":15900", ":15901", pub, priv, ":8081")
 
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
@@ -132,7 +133,8 @@ func TestNodeToNodeSendMoveCommit (t *testing.T) {
 	moveCommit := shared.MoveCommit {
 		MoveHash: hash,
 		PubKey: pubKey,
-		Signature: shared.Sig{R: r, S: s},
+		R: r.String(),
+		S: s.String(),
 	}
 	n1.SendMoveCommitToNodes(&moveCommit)
 	time.Sleep(1*time.Second)
@@ -158,7 +160,8 @@ func TestNodeToNodeSendMoveCommit (t *testing.T) {
 	moveCommit2 := shared.MoveCommit {
 		MoveHash: hash,
 		PubKey: pubKey,
-		Signature: shared.Sig{R: r, S: s},
+		R: r.String(),
+		S: s.String(),
 	}
 	n2.SendMoveCommitToNodes(&moveCommit2)
 	time.Sleep(1*time.Second)

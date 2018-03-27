@@ -337,7 +337,15 @@ func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r, s *big.Int, err erro
 // Checks to see if the hash is legit
 func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
 	publicKey := key.PublicKeyStringToKey(m.PubKey)
-	return ecdsa.Verify(publicKey, m.MoveHash, m.Signature.R, m.Signature.S)
+	rBigInt := new(big.Int)
+	_, err := fmt.Sscan(m.R, rBigInt)
+
+	sBigInt := new(big.Int)
+	_, err = fmt.Sscan(m.S, sBigInt)
+	if err != nil {
+		fmt.Println("Trouble converting string to big int")
+	}
+	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
 
 // Checks to see if there is an existing commit against the submitted move
