@@ -5,75 +5,93 @@ import (
 	"../../shared"
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 // The interface with the player's Pixel GUI (pixel-node.go) from the logic node
 type PixelInterface struct {
-	pixelListener     *net.UDPConn
-	pixelWriter 	  *net.UDPConn
+	pixelListener     *net.TCPListener
+	pixelWriter 	  *net.TCPConn
 	playerCommChannel chan string
+	playerSendChannel chan shared.GameState
+	Id string
 }
 
 // Creates & returns a pixel interface with a channel to send string information to the main node over
 // Called by the main logic node package
-func CreatePixelInterface(playerCommChannel chan string) PixelInterface {
-	pi := PixelInterface{playerCommChannel: playerCommChannel}
+func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan shared.GameState, id string) PixelInterface {
+	pi := PixelInterface{playerCommChannel: playerCommChannel,playerSendChannel:playerSendChannel, Id: id}
 	return pi
 }
 
-// Sends a game state to the player's pixel interface for rendering
-func (pi *PixelInterface) SendPlayerGameState(state shared.GameState, id string) {
-	//Create a game render state first
+func (pi *PixelInterface) waitForGameStates() {
+	for {
+		state := <-pi.playerSendChannel
+		// Create the player map without without this node or prey node
+		otherPlayers := make(map[string]shared.Coord)
+		for key, value := range state.PlayerLocs {
+			if key != pi.Id && key != "prey" {
+				otherPlayers[key] = value
+			}
+		}
 
-	// Create the player map without without this node or prey node
-	otherPlayers := make(map[string]shared.Coord)
-	for key, value := range state.PlayerLocs {
-		if key != id && key != "prey" {
-			otherPlayers[key] = value
+		renderState := shared.GameRenderState{
+			PlayerLoc:    state.PlayerLocs[pi.Id],
+			Prey:         state.PlayerLocs["prey"],
+			OtherPlayers: otherPlayers,
+		}
+
+		toSend, err := json.Marshal(renderState)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			// Send position to player node
+			fmt.Println("sending position")
+			pi.pixelWriter.Write(toSend)
 		}
 	}
-
-	renderState := shared.GameRenderState {
-		PlayerLoc: state.PlayerLocs[id],
-		Prey: state.PlayerLocs["prey"],
-		OtherPlayers: otherPlayers,
-	}
-
-	toSend, err := json.Marshal(renderState)
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		// Send position to player node
-		fmt.Println("sending position")
-		pi.pixelWriter.Write(toSend)
-	}
+}
+// Sends a game state to the player's pixel interface for rendering
+func (pi *PixelInterface) SendPlayerGameState(state shared.GameState) {
+	pi.playerSendChannel <- state
 }
 
 // Given two local UDP addresses, initializes the ports for sending and receiving messages from the
 // pixel-node, respectively. Must be run in a goroutine (infinite loop_
-func (pi * PixelInterface) RunPlayerListener(sendingAddr string, receivingAddr string) {
-	_, playerInput := StartListenerUDP(receivingAddr)
-	defer playerInput.Close()
+func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 
-	playerSend := StartSenderUDP(sendingAddr)
-	defer playerSend.Close()
-
-	pi.pixelWriter = playerSend
+	addr, _ := net.ResolveTCPAddr("tcp",receivingAddr)
+	playerInput, _ := net.ListenTCP("tcp", addr)
 	pi.pixelListener = playerInput
+	fmt.Println("about to get to conn")
+	conn := pi.GetTCPConn()
+	fmt.Println("got conn")
+	pi.pixelWriter = conn
+
+	go pi.waitForGameStates()
 
 	// takes a listener client
 	// runs the listener in a infinite loop
-	player := pi.pixelListener
-	player.SetReadBuffer(1024)
-
+	player := pi.pixelWriter
+	fmt.Println(player)
 	for {
 		buf := make([]byte, 1024)
-		rlen, _, err := player.ReadFromUDP(buf)
+		rlen, err := player.Read(buf)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal("Pixel node disconnected")
 		} else {
 			// Write to comm channel for node to receive
 			pi.playerCommChannel <- string(buf[0:rlen])
 		}
 	}
+}
+
+func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
+	// gets the initial TCP conn
+	player := pi.pixelListener
+	conn, err := player.AcceptTCP()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return conn
 }

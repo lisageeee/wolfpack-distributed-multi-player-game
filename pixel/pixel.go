@@ -12,22 +12,19 @@ import (
 )
 
 var nodeAddr string // must store as global to get it into run function
-var myAddr string
 
 func main() {
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		nodeAddr = "127.0.0.1:12345" // use port 12345 on localhost for remote node if no input provided
-		myAddr = "127.0.0.1:1234" // use :1234 for incoming messages
 	} else {
 		nodeAddr = os.Args[1]
-		myAddr = os.Args[2]
 	}
 	pixelgl.Run(run)
 }
 
 func run() {
-
-	node := impl.CreatePixelNode(nodeAddr, myAddr)
+	node := impl.CreatePixelNode(nodeAddr)
+	go node.RunRemoteNodeListener()
 	winMaxX := node.Geom.GetX()
 	winMaxY := node.Geom.GetY()
 

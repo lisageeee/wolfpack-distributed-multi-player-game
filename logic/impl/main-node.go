@@ -12,6 +12,7 @@ type PlayerNode struct {
 	pixelInterface	  PixelInterface
 	nodeInterface 	  *NodeCommInterface
 	playerCommChannel chan string
+	playerSendChannel chan shared.GameState
 	GameState		  shared.GameState
 	//GameRenderState	  shared.GameRenderState
 	geo        geometry.GridManager
@@ -23,16 +24,14 @@ type PlayerNode struct {
 // nodeListenerAddr = where we expect to receive messages from other nodes
 // playerListenerAddr = where we expect to receive messages from the pixel-node
 // pixelSendAddr = where we will be sending new game states to the pixel node
-func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string, pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey) (PlayerNode) {
+func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
+	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
-
-	// Startup Pixel interface + listening
-	pixelInterface := CreatePixelInterface(playerCommChannel)
-	go pixelInterface.RunPlayerListener(pixelSendAddr, playerListenerAddr)
+	playerSendChannel := make(chan shared.GameState, 5)
 
 	// Start the node to node interface
-	nodeInterface := CreateNodeCommInterface(pubKey, privKey)
+	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
 	addr, listener := StartListenerUDP(nodeListenerAddr)
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
@@ -42,6 +41,8 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
 
+	// Startup Pixel interface + listening
+	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel, uniqueId)
 
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
@@ -58,6 +59,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 		pixelInterface:    pixelInterface,
 		nodeInterface:     &nodeInterface,
 		playerCommChannel: playerCommChannel,
+		playerSendChannel:playerSendChannel,
 		geo:               geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameState:         gameState,
 		Identifier:        uniqueId,
@@ -72,7 +74,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr, pixelSendAddr string
 
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
-func (pn * PlayerNode) RunGame() {
+func (pn * PlayerNode) RunGame(playerListener string) {
+	fmt.Println("about to run listener")
+	go pn.pixelInterface.RunPlayerListener(playerListener)
+	fmt.Println("listener running")
 
 	for {
 		message := <-pn.playerCommChannel
@@ -81,7 +86,7 @@ func (pn * PlayerNode) RunGame() {
 			break
 		default:
 			move := pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameState, pn.Identifier)
+			pn.pixelInterface.SendPlayerGameState(pn.GameState)
 			pn.nodeInterface.SendMoveToNodes(&move)
 			fmt.Println("movin' player", message)
 		}

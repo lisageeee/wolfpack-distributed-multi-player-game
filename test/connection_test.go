@@ -24,20 +24,20 @@ func TestHeartbeat(t *testing.T) {
 	fmt.Println("Testing the heartbeat functionality")
 	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2124")
 	pubKey, privKey := key_helpers.GenerateKeys()
-	node := n.CreateNodeCommInterface(pubKey, privKey)
+	node := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node.LocalAddr = udp_addr1
 	_ = node.ServerRegister()
 	go node.SendHeartbeat()
 
 	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2125")
 	pubKey, privKey = key_helpers.GenerateKeys()
-	node2 := n.CreateNodeCommInterface(pubKey, privKey)
+	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node2.LocalAddr = udp_addr2
 	_ = node2.ServerRegister()
 
 	udp_addr3, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2126")
 	pubKey, privKey = key_helpers.GenerateKeys()
-	node3 := n.CreateNodeCommInterface(pubKey, privKey)
+	node3 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node3.LocalAddr = udp_addr3
 	_ = node3.ServerRegister()
 	go node3.SendHeartbeat()
@@ -75,13 +75,13 @@ func TestIncrementingID(t *testing.T){
 	fmt.Println("Testing that the ID's increment")
 	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
-	node := n.CreateNodeCommInterface(pubKey, privKey)
+	node := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node.LocalAddr = udp_addr1
 	res1 := node.ServerRegister()
 
 	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
 	pubKey, privKey = key_helpers.GenerateKeys()
-	node2 := n.CreateNodeCommInterface(pubKey, privKey)
+	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node2.LocalAddr = udp_addr2
 	res2 := node2.ServerRegister()
 
@@ -95,6 +95,42 @@ func TestIncrementingID(t *testing.T){
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 	serverStart.Process.Kill()
 }
+
+func TestServerCommandLineArgs(t *testing.T) {
+	const serverPort = "9001"
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go", serverPort)
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(4 * time.Second) // give server time to start
+
+	fmt.Println("Testing that the ID's increment")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	pubKey, privKey := key_helpers.GenerateKeys()
+	node := n.CreateNodeCommInterface(pubKey, privKey, ":" +serverPort)
+	node.LocalAddr = udp_addr1
+	res1 := node.ServerRegister()
+
+	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	pubKey, privKey = key_helpers.GenerateKeys()
+	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":"+serverPort)
+	node2.LocalAddr = udp_addr2
+	res2 := node2.ServerRegister()
+
+	if res1 == res2 {
+		t.Fail()
+	}
+
+	fmt.Printf("TEST PASSED: Nodes [%s] and [%s] able to connect to server running at port [%s]\n", res1, res2, serverPort)
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+}
+
 
 // TODO: Test node re-joins and has been assigned an identifier - cannot assume that it's
 // connecting from the same IP address
