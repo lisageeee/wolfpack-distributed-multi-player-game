@@ -13,6 +13,7 @@ import (
 	"crypto/elliptic"
 	"strconv"
 	"os"
+	keys "../key-helpers"
 )
 
 // Usage go run server.go (runs on port 8081) or go run server.go [portnumber]
@@ -85,7 +86,7 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	pubKeyStr := pubKeyToString(p.PubKey)
+	pubKeyStr := keys.PubKeyToString(p.PubKey)
 
 	// TODO: This needs to be fixed
 	//if player, exists := allPlayers.all[pubKeyStr]; exists {
@@ -141,7 +142,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]net.Addr)
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()
 
-	pubKeyStr := pubKeyToString(key)
+	pubKeyStr := keys.PubKeyToString(key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")
@@ -166,7 +167,7 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
-	pubKeyStr := pubKeyToString(key)
+	pubKeyStr := keys.PubKeyToString(key)
 
 	if _, ok := allPlayers.all[pubKeyStr]; !ok {
 		fmt.Println("DEBUG - Unknown Key Error")

@@ -5,8 +5,6 @@ import "../shared"
 import (
 	"../wolfnode"
 	"../key-helpers"
-	"math/big"
-	"fmt"
 )
 
 func wnSetup() (wolfnode.WolfNodeImpl) {
@@ -105,30 +103,6 @@ func TestMoveInvalid(t *testing.T) {
 	// wall
 	coords = shared.Coord{10, 90}
 	response = wn.CheckMove(coords)
-	if response == nil {
-		t.Fail()
-	}
-}
-
-func TestMoveCommitValid(t *testing.T) {
-	// I am stupid and don't know how to write a test for this xoxo
-}
-
-func TestMoveCommitInvalid(t *testing.T) {
-	wn := wnSetup()
-
-	gs :=  shared.PlayerState{
-		PlayerLoc: shared.Coord{5, 5},
-	}
-	publicKey, _ := key_helpers.GenerateKeys()
-	op := shared.MoveOp{
-		PlayerState:      gs,
-		PubKey:         publicKey,
-		Signature:      shared.Sig{R: big.NewInt(184), S: big.NewInt(3)},
-	}
-
-	response := wn.CheckMoveCommit("AHASH", op)
-	fmt.Println(response)
 	if response == nil {
 		t.Fail()
 	}

@@ -129,7 +129,7 @@ func TestPixelNodeMove(t *testing.T) {
 	// Create player node, run it and get pixel interface
 	pub, priv := key.GenerateKeys()
 	n := l.CreatePlayerNode(":12303", ":12304", pub, priv, ":8081")
-	go n.RunGame()
+	go n.RunGame(":12304")
 	loc := n.GameState.PlayerLocs[n.Identifier] // get the initial game render state
 
 	time.Sleep(1*time.Second) // wait playernode to start
