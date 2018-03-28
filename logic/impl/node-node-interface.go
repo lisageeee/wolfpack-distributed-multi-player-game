@@ -6,7 +6,6 @@ import (
 	"net/rpc"
 	"log"
 	"os"
-	"../../shared"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/md5"
@@ -19,6 +18,8 @@ import (
 	"math/big"
 	key "../../key-helpers"
 	"../../wolferrors"
+	"../../geometry"
+	"../../shared"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -204,7 +205,6 @@ func (n *NodeCommInterface) SendHeartbeat() {
 }
 
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
-
 	if move == nil {
 		return
 	}
@@ -244,7 +244,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 	n.sendMessageToNodes(toSend)
 }
 
-// Helper function to send a json marshaled message to other nodes
+// Helper function to send message to other nodes
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	for _, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
@@ -260,10 +260,18 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 }
 
 func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) {
-	// TODO: add checks
 	// Need nil check for bad move
 	if move != nil {
-		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		// if the player has previously submitted a move commit that's the same as the move
+		if n.CheckMoveCommitAgainstMove(identifier, *move) {
+			defer delete(n.MoveCommits, identifier)
+			// check to see if it's a valid move
+			err := n.CheckMoveIsValid(*move)
+			if err != nil {
+				return
+			}
+			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		}
 	}
 }
 
@@ -320,8 +328,6 @@ func CalculateHash(m shared.Coord, id string) ([]byte) {
 
 	arr = strconv.AppendInt(arr, int64(m.X), 10)
 	arr = strconv.AppendInt(arr, int64(m.Y), 10)
-	// Do we need id? If we do, we'll need to change the "move" message to a struct
-	// like in shared.MoveOp
 	arr = strconv.AppendQuote(arr, id)
 
 	// Write the hash
@@ -348,13 +354,27 @@ func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) 
 	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
 
+////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
+
 // Checks to see if there is an existing commit against the submitted move
-func (n *NodeCommInterface) CheckMoveCommitAgainstMove(move shared.MoveOp) (bool) {
-	hash := hex.EncodeToString(CalculateHash(move.PlayerLoc, move.PlayerId))
+func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord) (bool) {
+	hash := hex.EncodeToString(CalculateHash(move, identifier))
 	for i, mc := range n.MoveCommits {
-		if mc == hash && i == move.PlayerId {
+		if mc == hash && i == identifier {
 			return true
 		}
 	}
 	return false
+}
+
+// Check move to see if it's valid based on this node's game state
+func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
+	gridManager := geometry.CreateNewGridManager(n.PlayerNode.GameConfig.Settings)
+	if !gridManager.IsInBounds(move) {
+		return wolferrors.OutOfBoundsError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	if !gridManager.IsValidMove(move) {
+		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	return nil
 }
