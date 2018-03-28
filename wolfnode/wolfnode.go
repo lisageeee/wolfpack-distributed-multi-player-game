@@ -7,7 +7,6 @@ import (
 	"../shared"
 	"../key-helpers"
 	"../wolferrors"
-	"../geometry"
 )
 
 // A player information object
@@ -117,31 +116,6 @@ type PlayerService interface {
 
 type WolfNodeImpl struct {
 	Info	PlayerInfo
-}
-
-// Check move to see if it's valid based on this node's game state.
-func (wolfNode WolfNodeImpl) CheckMoveCommit(moveOp shared.MoveOp) (err error) {
-	coords := moveOp.PlayerLoc
-	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
-	if !gridManager.IsInBounds(coords) {
-		return wolferrors.OutOfBoundsError("You are out of bounds")
-	}
-	if !gridManager.IsValidMove(coords) {
-		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
-	}
-	return nil
-}
-
-// Check move to see if it's valid based on this node's game state.
-func (wolfNode WolfNodeImpl) CheckMove(move shared.Coord) (err error) {
-	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
-	if !gridManager.IsInBounds(move) {
-		return wolferrors.OutOfBoundsError("You are out of bounds")
-	}
-	if !gridManager.IsValidMove(move) {
-		return wolferrors.InvalidMoveError("The move you are trying to make is invalid")
-	}
-	return nil
 }
 
 // Check move to see if they actually got the prey based on this node's game state.

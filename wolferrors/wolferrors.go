@@ -23,13 +23,13 @@ func (e InvalidMoveHashError) Error() string {
 type InvalidMoveError string
 
 func (e InvalidMoveError) Error() string {
-	return fmt.Sprintf("WolfPack: [%s]", string(e))
+	return fmt.Sprintf("WolfPack: invalid move at [%s]", string(e))
 }
 
 type OutOfBoundsError string
 
 func (e OutOfBoundsError) Error() string {
-	return fmt.Sprintf("WolfPack: [%s]", string(e))
+	return fmt.Sprintf("WolfPack: out of bounds error at [%s]", string(e))
 }
 
 type InvalidScoreUpdateError string

@@ -58,12 +58,7 @@ func TestCheckMoveCommitAgainstMove (t *testing.T) {
 	n.MoveCommits = make(map[string]string)
 	n.MoveCommits["test2"] = hex.EncodeToString(hashStr)
 
-	moveOp := shared.MoveOp {
-		PlayerLoc: testCoords,
-		PlayerId: "test2",
-	}
-
-	if !n.CheckMoveCommitAgainstMove(moveOp) {
+	if !n.CheckMoveCommitAgainstMove("test2", testCoords) {
 		fmt.Println("There is no move associated with a move commit in n.MoveCommits map")
 		t.Fail()
 	}
@@ -83,12 +78,7 @@ func TestCheckMoveCommitAgainstMoveInvalid (t *testing.T) {
 	n.MoveCommits = make(map[string]string)
 	n.MoveCommits["test2"] = hex.EncodeToString(hashStr)
 
-	moveOp := shared.MoveOp {
-		PlayerLoc: testCoords,
-		PlayerId: "anotherId",
-	}
-
-	if n.CheckMoveCommitAgainstMove(moveOp) {
+	if n.CheckMoveCommitAgainstMove("SoMeOtHErId", testCoords) {
 		fmt.Println("There should not be a matching hash in n.MoveCommits map")
 		t.Fail()
 	}
