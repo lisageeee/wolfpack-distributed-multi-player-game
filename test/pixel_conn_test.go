@@ -13,30 +13,27 @@ import (
 	key "../key-helpers"
 )
 
-//NOTE command line args for playerNode:
-//nodeListenerAddr = os.Args[1]
-//playerListenerIpAddress = os.Args[2]
-//pixelIpAddress = os.Args[3]
-
-
 // Reference for killing exec.Command processes + childen:
 // https://medium.com/@felixge/killing-a-child-process-and-all-of-its-children-in-go-54079af94773
-
+var serverStart *exec.Cmd
 // This test will fail if you make a breaking change that keeps pixel.go from running
 // Inspiration: the breaking change I added that prevented pixel.go from running (wrong image path)
 func TestPixelNodeCanRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
 	defer cancel()
-	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart = exec.CommandContext(ctx, "go", "run", "server.go")
 	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	serverStart.Dir = "../server"
 	serverStart.Start()
 
-	fmt.Println(-serverStart.Process.Pid)
 	time.Sleep(3*time.Second) // wait for server to get started
+
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	_ = l.CreatePlayerNode(":12500", ":12501",  pub, priv, ":8081")
+	n := l.CreatePlayerNode(":12500", ":12501",  pub, priv, ":8081")
+	go n.RunGame(":12501")
+
+	time.Sleep(2*time.Second) // wait playernode to start
 
 	pixelStart := exec.Command("go", "run", "pixel.go", ":12501")
 	pixelStart.Dir = "../pixel"
@@ -58,10 +55,7 @@ func TestPixelNodeCanRun(t *testing.T) {
 		t.Fail()
 	}
 
-	// Kill after done + all children
-	syscall.Kill(-pixelStart.Process.Pid, syscall.SIGKILL)
-	serverStart.Process.Kill()
-
+	// Note: you can close the pixel window after this test finishes (sorry, killing it crashes the next test)
 }
 
 // Tests that the logic node is able to send messages to the pixel node
@@ -70,7 +64,7 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	// Start running server
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
 	defer cancel()
-	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart = exec.CommandContext(ctx, "go", "run", "server.go")
 	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	serverStart.Dir = "../server"
 	serverStart.Start()
@@ -80,6 +74,7 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
 	n := l.CreatePlayerNode(":12300", ":12301", pub, priv, ":8081")
+	go n.RunGame(":12301")
 	remote := n.GetPixelInterface()
 
 	time.Sleep(1*time.Second) // wait playernode to start
@@ -109,8 +104,6 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs[n.Identifier].Y {
 		t.Fail()
 	}
-
-	serverStart.Process.Kill()
 }
 
 // Tests that the pixel node can send messages to the logic node
@@ -119,12 +112,12 @@ func TestPixelNodeMove(t *testing.T) {
 	// Start running server
 	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
 	defer cancel()
-	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart = exec.CommandContext(ctx, "go", "run", "server.go")
 	serverStart.Dir = "../server"
 	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	serverStart.Start()
 
-	time.Sleep(2 * time.Second) // wait for server to get started
+	time.Sleep(3 * time.Second) // wait for server to get started
 
 	// Create player node, run it and get pixel interface
 	pub, priv := key.GenerateKeys()
@@ -174,5 +167,40 @@ func TestPixelNodeMove(t *testing.T) {
 		fmt.Println("Player Y didn't change when it should have")
 		t.Fail()
 	}
-	serverStart.Process.Kill()
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+}
+
+func TestPixelNodeGetConfigFromServer(t *testing.T) {
+	// Start running server
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go", "9090", "1") // run with the alt gamestate
+	serverStart.Dir = "../server"
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Start()
+
+	time.Sleep(3 * time.Second) // wait for server to get started
+
+	// Create player node, run it and get pixel interface
+	pub, priv := key.GenerateKeys()
+	n := l.CreatePlayerNode(":12504", ":12555", pub, priv, ":9090")
+	go n.RunGame(":12555")
+
+	time.Sleep(2*time.Second) // wait playernode to start
+
+	// Check the playernode has the alternate config (600x600)
+	if n.GameConfig.Settings.WindowsY != 600 || n.GameConfig.Settings.WindowsX != 600 {
+		t.Fail()
+	}
+
+	// Start pixel node
+	pixel := p.CreatePixelNode(":12555")
+	go pixel.RunRemoteNodeListener()
+
+	// Check the pixel node has the alternate config
+	if pixel.Geom.GetX() != 600 || pixel.Geom.GetY() != 600 {
+		t.Fail()
+	}
+
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 }

@@ -14,7 +14,6 @@ type PlayerNode struct {
 	playerCommChannel chan string
 	playerSendChannel chan shared.GameState
 	GameState		  shared.GameState
-	//GameRenderState	  shared.GameRenderState
 	geo        geometry.GridManager
 	Identifier string
 	GameConfig shared.InitialState
