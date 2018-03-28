@@ -14,13 +14,16 @@ type PixelInterface struct {
 	pixelWriter 	  *net.TCPConn
 	playerCommChannel chan string
 	playerSendChannel chan shared.GameState
+	gameConfig		  shared.InitialGameSettings
 	Id string
 }
 
 // Creates & returns a pixel interface with a channel to send string information to the main node over
 // Called by the main logic node package
-func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan shared.GameState, id string) PixelInterface {
-	pi := PixelInterface{playerCommChannel: playerCommChannel,playerSendChannel:playerSendChannel, Id: id}
+func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan shared.GameState,
+	settings shared.InitialGameSettings, id string) PixelInterface {
+	pi := PixelInterface{playerCommChannel: playerCommChannel,playerSendChannel:playerSendChannel, Id: id,
+	gameConfig: settings}
 	return pi
 }
 
@@ -92,6 +95,13 @@ func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
 	conn, err := player.AcceptTCP()
 	if err != nil {
 		fmt.Println(err)
+	}
+	// Send the pixel node gameConfig immediately
+	marshalledConfig, err := json.Marshal(&pi.gameConfig)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		conn.Write(marshalledConfig)
 	}
 	return conn
 }

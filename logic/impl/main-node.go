@@ -42,7 +42,8 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	go nodeInterface.SendHeartbeat()
 
 	// Startup Pixel interface + listening
-	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel, uniqueId)
+	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel,
+		nodeInterface.Config.InitState.Settings, uniqueId)
 
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
