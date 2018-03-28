@@ -66,6 +66,7 @@ func main() {
 	server.Register(gserver)
 
 	l, err := net.Listen("tcp", portString)
+	defer l.Close()
 	if err != nil {
 		panic(err)
 	}
