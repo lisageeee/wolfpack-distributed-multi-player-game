@@ -260,9 +260,9 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 }
 
 func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) (err error) {
+	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
 	if move != nil {
-		defer delete(n.MoveCommits, identifier)
 		// if the player has previously submitted a move commit that's the same as the move
 		if n.CheckMoveCommitAgainstMove(identifier, *move) {
 			// check to see if it's a valid move
