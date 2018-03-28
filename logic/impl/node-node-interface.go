@@ -45,12 +45,12 @@ type PlayerInfo struct {
 
 // The message struct that is sent for all node communcation
 type NodeMessage struct {
-	Identifier 			string // the id of the sending node
-	MessageType			string // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
-	GameState 			*shared.GameState // a gamestate, included if MessageType is "gameState", else nil
-	Move  				*shared.Coord // a move, included if the message type is move
-	MoveCommit 			*shared.MoveCommit // a move commit, included if the message type is moveCommit
-	Addr 				string // the address to connect to this node over
+	Identifier  string             // the id of the sending node
+	MessageType string             // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
+	GameState   *shared.GameState  // a gamestate, included if MessageType is "gameState", else nil
+	Move        *shared.Coord      // a move, included if the message type is move
+	MoveCommit  *shared.MoveCommit // a move commit, included if the message type is moveCommit
+	Addr        string             // the address to connect to this node over
 }
 
 // Creates a node comm interface with initial empty arrays
@@ -90,7 +90,14 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "moveCommit":
 				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 			case "move":
-				n.HandleReceivedMove(message.Identifier, message.Move)
+				// Currently only planning to do the lockstep protocol with prey node
+				// In the future, may include players close to prey node
+				// I.e. check move commits
+				if message.Identifier == "prey" {
+					n.HandleReceivedMoveL(message.Identifier, message.Move)
+				} else {
+					n.HandleReceivedMoveNL(message.Identifier, message.Move)
+				}
 			case "connect":
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
@@ -200,7 +207,6 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			boop := n.Config.GlobalServerHB
 			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
-
 	}
 }
 
@@ -211,9 +217,9 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	message := NodeMessage{
 		MessageType: "move",
-		Identifier: n.PlayerNode.Identifier,
-		Move: move,
-		Addr: n.LocalAddr.String(),
+		Identifier:  n.PlayerNode.Identifier,
+		Move:        move,
+		Addr:        n.LocalAddr.String(),
 		}
 
 	toSend := sendMessage(n.Log, message)
@@ -259,7 +265,8 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 	n.PlayerNode.GameState = *gameState
 }
 
-func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) (err error) {
+// Handle moves that require a move commit check (lockstep)
+func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
 	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
 	if move != nil {
@@ -273,6 +280,20 @@ func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.C
 			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
 			return nil
 		}
+	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+}
+
+// Handle moves that does not require a move commit check
+func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord) (err error) {
+	// Need nil check for bad move
+	if move != nil {
+		err := n.CheckMoveIsValid(*move)
+		if err != nil {
+			return err
+		}
+		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
@@ -298,10 +319,10 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
 		MessageType: "connect",
-		Identifier: strconv.Itoa(n.Config.Identifier),
-		GameState: nil,
-		Addr: n.LocalAddr.String(),
-		Move: nil,
+		Identifier:  strconv.Itoa(n.Config.Identifier),
+		GameState:   nil,
+		Addr:        n.LocalAddr.String(),
+		Move:        nil,
 	}
 
 	toSend := sendMessage(n.Log, message)
