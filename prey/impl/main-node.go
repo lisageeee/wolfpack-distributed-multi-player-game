@@ -44,7 +44,7 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
-	playerLocs["prey"] = shared.Coord{5,5}
+	playerLocs[uniqueId] = shared.Coord{5,5}
 	//playerLocs[uniqueId] = shared.Coord{3,3}
 
 	// Make a gameState
@@ -135,7 +135,7 @@ func (pn * PreyNode) movePrey(move string) (shared.Coord) {
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		pn.GameState.PlayerLocs[pn.Identifier] = newPosition
+		pn.GameState.PlayerLocs["prey"] = newPosition
 		return newPosition
 	}
 	return playerLoc

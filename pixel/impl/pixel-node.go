@@ -66,7 +66,10 @@ func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
 	pn.DrawWalls(win)
 
 	// Render prey
-	pn.PreySprite.Draw(win, pixel.IM.Moved(pn.Geom.GetVectorFromCoords(curState.Prey)))
+	preyPos := pn.Geom.GetVectorFromCoords(curState.Prey)
+	pMat := pixel.IM
+	pMat = pMat.Moved(preyPos)
+	pn.PreySprite.Draw(win, pMat)
 
 	// Render other players
 	for _, player := range curState.OtherPlayers {
