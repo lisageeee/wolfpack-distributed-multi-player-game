@@ -259,20 +259,22 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 	n.PlayerNode.GameState = *gameState
 }
 
-func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) {
+func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) (err error) {
 	// Need nil check for bad move
 	if move != nil {
+		defer delete(n.MoveCommits, identifier)
 		// if the player has previously submitted a move commit that's the same as the move
 		if n.CheckMoveCommitAgainstMove(identifier, *move) {
-			defer delete(n.MoveCommits, identifier)
 			// check to see if it's a valid move
 			err := n.CheckMoveIsValid(*move)
 			if err != nil {
-				return
+				return err
 			}
 			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+			return nil
 		}
 	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
