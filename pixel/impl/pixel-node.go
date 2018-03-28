@@ -11,19 +11,14 @@ import (
 	"net"
 	"fmt"
 	"encoding/json"
-	"log"
 )
 
 var NodeAddr string // must store as global to get it into run function
 var MyAddr string
 // Window size
 
-var WinMaxX float64 = 300
-var WinMaxY float64 = 300
-
 // Sprite size
-var SpriteMin float64 = 20
-var SpriteMax float64 = 50
+const spriteStep = 30
 
 
 type PixelNode struct {
@@ -40,17 +35,30 @@ type PixelNode struct {
 }
 
 func CreatePixelNode(nodeAddr string) (PixelNode) {
-	spriteStep := SpriteMax - SpriteMin // WinMaxX % spriteStep and WinMaxY % spriteStep should be 0 (spriteStep == spriteSize)
-
-	// Init walls
-	wallCoords := []shared.Coord{{X: 4, Y:3}}
-
-	// Create geometry manager
-	geom := geometry.CreatePixelManager(WinMaxX, WinMaxY, spriteStep, wallCoords)
 
 	// Setup connection
 	remote := setupTCP(nodeAddr)
+
+	// Get initial game state (first message after tcp setup)
+	var buf = make([]byte, 2048)
+	var settings shared.InitialGameSettings
+
+	// Get initial game state
+	rlen, err := remote.Read(buf)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		json.Unmarshal(buf[0:rlen], &settings)
+	}
+
+	// Init walls
+	wallCoords := settings.WallCoordinates
+
+	// Create geometry manager
+	geom := geometry.CreatePixelManager(settings.WindowsX, settings.WindowsY, spriteStep, wallCoords)
+
 	node := PixelNode{ Sender: remote, Geom: geom, NewGameStates: make(chan shared.GameRenderState, 5)}
+
 	// go node.RunRemoteNodeListener()
 	return node
 }
@@ -131,6 +139,6 @@ func setupTCP(ip_addr string) (*net.TCPConn) {
 		fmt.Println(err)
 		return nil
 	}
-	log.Print("done setting up tcp")
+
 	return tcpConn
 }
