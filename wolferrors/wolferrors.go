@@ -32,12 +32,6 @@ func (e OutOfBoundsError) Error() string {
 	return fmt.Sprintf("WolfPack: [%s]", string(e))
 }
 
-type InvalidNonceError string
-
-func (e InvalidNonceError) Error() string {
-	return fmt.Sprintf("WolfPack: cannot create move commit hash, nonce [%d] invalid PoW", e)
-}
-
 type InvalidScoreUpdateError string
 
 func (e InvalidScoreUpdateError) Error() string {

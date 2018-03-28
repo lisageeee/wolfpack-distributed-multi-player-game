@@ -120,13 +120,8 @@ type WolfNodeImpl struct {
 }
 
 // Check move to see if it's valid based on this node's game state.
-func (wolfNode WolfNodeImpl) CheckMoveCommit(commitHash string, moveOp shared.MoveOp) (err error) {
-
-	if !ecdsa.Verify(moveOp.PubKey, []byte(commitHash), moveOp.Signature.R, moveOp.Signature.S) {
-		return wolferrors.InvalidMoveHashError(commitHash)
-	}
-
-	coords := moveOp.PlayerState.PlayerLoc
+func (wolfNode WolfNodeImpl) CheckMoveCommit(moveOp shared.MoveOp) (err error) {
+	coords := moveOp.PlayerLoc
 	gridManager := geometry.CreateNewGridManager(wolfNode.Info.InitGameSettings)
 	if !gridManager.IsInBounds(coords) {
 		return wolferrors.OutOfBoundsError("You are out of bounds")

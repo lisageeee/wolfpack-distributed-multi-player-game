@@ -34,7 +34,7 @@ func TestGoVectorClockTick(t *testing.T) {
 	time.Sleep(3 * time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":13900", ":13901", ":13902", pub, priv)
+	node1 := l.CreatePlayerNode(":13900", ":13901", pub, priv, ":8081")
 	n1 := node1.GetNodeInterface()
 	if n1.Log.GetCurrentVCAsClock().LastUpdate() != 1 {
 		fmt.Println("Clock is farked")
@@ -54,10 +54,10 @@ func TestGoVectorSingleMessage(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":12800", ":12801", ":12802", pub, priv)
+	node1 := l.CreatePlayerNode(":12800", ":12801", pub, priv, ":8081")
 	n1 := node1.GetNodeInterface()
 	pub, priv = key.GenerateKeys()
-	node2 := l.CreatePlayerNode(":12900", ":12901", ":12092", pub, priv)
+	node2 := l.CreatePlayerNode(":12900", ":12901", pub, priv, ":8081")
 	n2 := node2.GetNodeInterface()
 	time.Sleep(time.Second)
 	// Check nodes are connected to each other
@@ -106,10 +106,10 @@ func TestGoVectorDoubleMessage(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":14800", ":14801", ":14802", pub, priv)
+	node1 := l.CreatePlayerNode(":14800", ":14801", pub, priv, ":8081")
 	n1 := node1.GetNodeInterface()
 	pub, priv = key.GenerateKeys()
-	node2 := l.CreatePlayerNode(":14900", ":14901", ":14092", pub, priv)
+	node2 := l.CreatePlayerNode(":14900", ":14901", pub, priv, ":8081")
 	n2 := node2.GetNodeInterface()
 	time.Sleep(time.Second)
 	// Check nodes are connected to each other

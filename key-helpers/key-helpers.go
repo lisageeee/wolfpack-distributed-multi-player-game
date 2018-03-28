@@ -71,3 +71,7 @@ func GenerateKeys() (*ecdsa.PublicKey, *ecdsa.PrivateKey){
 	}
 	return testPublicKey, testPrivateKey
 }
+
+func PubKeyToString(key ecdsa.PublicKey) string {
+	return string(elliptic.Marshal(key.Curve, key.X, key.Y))
+}

@@ -8,12 +8,17 @@ import (
 	"os"
 	"../../shared"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/md5"
+	"crypto/rand"
 	"time"
 	"encoding/gob"
-	"crypto/elliptic"
+	"encoding/hex"
 	"strconv"
-
 	"github.com/rzlim08/GoVector/govec"
+	"math/big"
+	key "../../key-helpers"
+	"../../wolferrors"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -29,6 +34,7 @@ type NodeCommInterface struct {
 	OtherNodes 			map[string]*net.UDPConn
 	Log 				*govec.GoLog
 	HeartAttack 		chan bool
+	MoveCommits			map[string]string
 }
 
 type PlayerInfo struct {
@@ -38,11 +44,12 @@ type PlayerInfo struct {
 
 // The message struct that is sent for all node communcation
 type NodeMessage struct {
-	Identifier string // the id of the sending node
-	MessageType	string // identifies the type of message, can be: "move", "gameState", "connect", "connected"
-	GameState * shared.GameState // a gamestate, included if MessageType is "gameState", else nil
-	Move  * shared.Coord // a move, included if the message type is move
-	Addr string // the address to connect to this node over
+	Identifier 			string // the id of the sending node
+	MessageType			string // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
+	GameState 			*shared.GameState // a gamestate, included if MessageType is "gameState", else nil
+	Move  				*shared.Coord // a move, included if the message type is move
+	MoveCommit 			*shared.MoveCommit // a move commit, included if the message type is moveCommit
+	Addr 				string // the address to connect to this node over
 }
 
 // Creates a node comm interface with initial empty arrays
@@ -53,6 +60,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		ServerAddr : serverAddr,
 		OtherNodes: make(map[string]*net.UDPConn),
 		HeartAttack: make(chan bool),
+		MoveCommits: make(map[string]string),
 		}
 }
 
@@ -64,7 +72,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	i := 0
 	for {
 		i++
-		buf := make([]byte, 1024)
+		buf := make([]byte, 2048)
 		rlen, addr, err := listener.ReadFromUDP(buf)
 		if err != nil {
 			fmt.Println(err)
@@ -78,17 +86,21 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		switch message.MessageType {
 			case "gameState":
 				n.HandleReceivedGameState(message.Identifier, message.GameState)
+			case "moveCommit":
+				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 			case "move":
 				n.HandleReceivedMove(message.Identifier, message.Move)
 			case "connect":
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
 			// Do nothing
+			default:
+				fmt.Println("Message type is incorrect")
 		}
 	}
 }
 
-func receiveMessage(goLog *govec.GoLog, payload []byte)NodeMessage{
+func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// Just removes the golog headers from each message
 	// TODO: set up error handling
 	var message NodeMessage
@@ -190,6 +202,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 
 	}
 }
+
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	if move == nil {
@@ -204,12 +217,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		}
 
 	toSend := sendMessage(n.Log, message)
-	for _, val := range n.OtherNodes{
-		_, err := val.Write(toSend)
-		if err != nil{
-			fmt.Println(err)
-		}
-	}
+	n.sendMessageToNodes(toSend)
 }
 
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
@@ -224,6 +232,28 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	n.OtherNodes[otherNodeId].Write(toSend)
 }
 
+func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
+	message := NodeMessage {
+		MessageType: "moveCommit",
+		Identifier:  n.PlayerNode.Identifier,
+		MoveCommit:  moveCommit,
+		Addr:        n.LocalAddr.String(),
+	}
+
+	toSend := sendMessage(n.Log, message)
+	n.sendMessageToNodes(toSend)
+}
+
+// Helper function to send a json marshaled message to other nodes
+func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
+	for _, val := range n.OtherNodes{
+		_, err := val.Write(toSend)
+		if err != nil{
+			fmt.Println(err)
+		}
+	}
+}
+
 func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState *shared.GameState) {
 	//TODO: don't just wholesale replace this
 	n.PlayerNode.GameState = *gameState
@@ -235,6 +265,19 @@ func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.C
 	if move != nil {
 		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
 	}
+}
+
+func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
+	// if the move is authentic
+	if n.CheckAuthenticityOfMoveCommit(moveCommit) {
+		// if identifier doesn't exist in map, add move commit to map
+		if _, ok := n.MoveCommits[identifier]; !ok {
+			n.MoveCommits[identifier] = hex.EncodeToString(moveCommit.MoveHash)
+		}
+	} else {
+		return wolferrors.IncorrectPlayerError(identifier)
+	}
+	return nil
 }
 
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
@@ -266,4 +309,52 @@ func (n *  NodeCommInterface) FloodNodes() {
 		// Exchange messages with other node
 		n.InitiateConnection(nodeClient)
 	}
+}
+
+////////////////////////////////////////////// MOVE COMMIT HASH FUNCTIONS //////////////////////////////////////////////
+
+// Calculate the hash of the coordinates which will be sent at the move commitment stage
+func CalculateHash(m shared.Coord, id string) ([]byte) {
+	hash := md5.New()
+	arr := make([]byte, 2048)
+
+	arr = strconv.AppendInt(arr, int64(m.X), 10)
+	arr = strconv.AppendInt(arr, int64(m.Y), 10)
+	// Do we need id? If we do, we'll need to change the "move" message to a struct
+	// like in shared.MoveOp
+	arr = strconv.AppendQuote(arr, id)
+
+	// Write the hash
+	hash.Write(arr)
+	return hash.Sum(nil)
+}
+
+// Sign the move commit with private key
+func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r, s *big.Int, err error) {
+	return ecdsa.Sign(rand.Reader, n.PrivKey, hash)
+}
+
+// Checks to see if the hash is legit
+func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
+	publicKey := key.PublicKeyStringToKey(m.PubKey)
+	rBigInt := new(big.Int)
+	_, err := fmt.Sscan(m.R, rBigInt)
+
+	sBigInt := new(big.Int)
+	_, err = fmt.Sscan(m.S, sBigInt)
+	if err != nil {
+		fmt.Println("Trouble converting string to big int")
+	}
+	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
+}
+
+// Checks to see if there is an existing commit against the submitted move
+func (n *NodeCommInterface) CheckMoveCommitAgainstMove(move shared.MoveOp) (bool) {
+	hash := hex.EncodeToString(CalculateHash(move.PlayerLoc, move.PlayerId))
+	for i, mc := range n.MoveCommits {
+		if mc == hash && i == move.PlayerId {
+			return true
+		}
+	}
+	return false
 }
