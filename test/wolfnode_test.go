@@ -84,28 +84,3 @@ func TestCheckScoreInvalid(t *testing.T) {
 	}
 }
 
-func TestMoveValid(t *testing.T) {
-	wn := wnSetup()
-	coords := shared.Coord{25, 25}
-	response := wn.CheckMove(coords)
-	if response != nil {
-		t.Fail()
-	}
-}
-
-func TestMoveInvalid(t *testing.T) {
-	wn := wnSetup()
-	coords := shared.Coord{3001, 25}
-	response := wn.CheckMove(coords)
-	if response == nil {
-		t.Fail()
-	}
-	// wall
-	coords = shared.Coord{10, 90}
-	response = wn.CheckMove(coords)
-	if response == nil {
-		t.Fail()
-	}
-}
-
-
