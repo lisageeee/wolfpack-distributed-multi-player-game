@@ -5,6 +5,8 @@ import (
 	"../../geometry"
 	"fmt"
 	"crypto/ecdsa"
+	"math"
+	"time"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -17,6 +19,7 @@ type PlayerNode struct {
 	geo        geometry.GridManager
 	Identifier string
 	GameConfig shared.InitialState
+	Bot 		bool
 }
 
 // Creates the main logic node and required interfaces with the arguments passed in logic-node.go
@@ -24,7 +27,7 @@ type PlayerNode struct {
 // playerListenerAddr = where we expect to receive messages from the pixel-node
 // pixelSendAddr = where we will be sending new game states to the pixel node
 func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
-	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (PlayerNode) {
+	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string, bot bool) (PlayerNode) {
 	// Setup the player communication buffered channel
 	playerCommChannel := make(chan string, 5)
 	playerSendChannel := make(chan shared.GameState, 5)
@@ -40,11 +43,10 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
-
 	// Startup Pixel interface + listening
+
 	pixelInterface := CreatePixelInterface(playerCommChannel, playerSendChannel,
 		nodeInterface.Config.InitState.Settings, uniqueId)
-
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs["prey"] = shared.Coord{5,5}
@@ -65,6 +67,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 		GameState:         gameState,
 		Identifier:        uniqueId,
 		GameConfig:        nodeInterface.Config.InitState,
+		Bot:			   bot,
 	}
 
 	// Allow the node-node interface to refer back to this node
@@ -76,25 +79,69 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
 func (pn * PlayerNode) RunGame(playerListener string) {
-	fmt.Println("about to run listener")
-	go pn.pixelInterface.RunPlayerListener(playerListener)
-	fmt.Println("listener running")
+	if !pn.Bot {
+		fmt.Println("about to run listener")
+		go pn.pixelInterface.RunPlayerListener(playerListener)
+		fmt.Println("listener running")
 
-	for {
-		message := <-pn.playerCommChannel
-		switch message {
-		case "quit":
-			break
-		default:
-			move := pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameState)
+		for {
+			message := <-pn.playerCommChannel
+			switch message {
+			case "quit":
+				break
+			default:
+				move := pn.movePlayer(message)
+				pn.pixelInterface.SendPlayerGameState(pn.GameState)
+				pn.nodeInterface.SendMoveToNodes(&move)
+				fmt.Println("movin' player", message)
+			}
+		}
+	} else{
+		minVal := math.MaxInt64
+		for {
+			myState := pn.GameState.PlayerLocs[pn.Identifier]
+			prey := pn.GameState.PlayerLocs["prey"]
+			command := "still"
+			for i:= range []int{-1,1}{
+				val := abs(myState.X+i-prey.X)+ abs(myState.Y-prey.Y)
+				if val < minVal && pn.geo.IsValidMove(shared.Coord{myState.X+i, myState.Y}) {
+					minVal = val
+					if i == -1{
+						command = "left"
+					}else{
+						command = "right"
+					}
+				}
+			}
+			for j := range []int{-1,1}{
+				val := abs(myState.X-prey.X)+ abs(myState.Y+j-prey.Y)
+				if val < minVal &&  pn.geo.IsValidMove(shared.Coord{myState.X, myState.Y+j}) {
+					minVal = val
+					if j == -1{
+						command = "down"
+					}else{
+						command = "up"
+					}
+				}
+			}
+			move := pn.movePlayer(command)
 			pn.nodeInterface.SendMoveToNodes(&move)
-			fmt.Println("movin' player", message)
+			fmt.Println("movin' bot", command)
+			fmt.Println(move)
+			time.Sleep(time.Second)
+
 		}
 	}
 
 }
 
+func abs(num int)int {
+	if num <0{
+		return -num
+	}else{
+		return num
+	}
+}
 // Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
 // (not into a wall, out of bounds)
 func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
