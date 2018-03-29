@@ -36,7 +36,7 @@ type AllPlayers struct {
 var (
 	heartBeat = uint32(5000)
 	ping = uint32(3)
-	id = 1
+	id = 0
 	allPlayers = AllPlayers{all: make(map[string]*Player)}
 )
 
@@ -91,6 +91,7 @@ func monitor(pubKeyStr string, heartBeatInterval time.Duration) {
 }
 
 func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
+	id++
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
@@ -125,8 +126,6 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 
 	settings := getSettingsByConfigString(foo.SelectConfig)
 	*response = settings
-
-	id++
 
 	return nil
 }
