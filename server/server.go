@@ -66,10 +66,11 @@ func main() {
 	server.Register(gserver)
 
 	l, err := net.Listen("tcp", portString)
-	defer l.Close()
 	if err != nil {
-		panic(err)
+		fmt.Printf("Server: error listening for incoming connections on port [%s]. Ensure there is not another" +
+			" server already running", portString)
 	}
+	defer l.Close()
 
 	for {
 		conn, _ := l.Accept()
