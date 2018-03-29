@@ -59,6 +59,9 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
 	curState := pn.GameState
 
+	fmt.Println("Prey state")
+	fmt.Println(curState.Prey)
+
 	// Clear current render
 	win.Clear(colornames.Skyblue)
 

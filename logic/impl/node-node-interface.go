@@ -73,13 +73,13 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	for {
 		i++
 		buf := make([]byte, 2048)
-		rlen, addr, err := listener.ReadFromUDP(buf)
+		_, _, err := listener.ReadFromUDP(buf)
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(string(buf[0:rlen]))
-		fmt.Println(addr)
-		fmt.Println(i)
+		//fmt.Println(string(buf[0:rlen]))
+		//fmt.Println(addr)
+		//fmt.Println(i)
 
 		message := receiveMessage(n.Log, buf)
 

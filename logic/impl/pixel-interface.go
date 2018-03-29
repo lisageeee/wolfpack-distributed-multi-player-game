@@ -41,8 +41,11 @@ func (pi *PixelInterface) waitForGameStates() {
 			OtherPlayers: otherPlayers,
 		}
 
+		renderState.Prey = state.PlayerLocs["prey"]
+
 		toSend, err := json.Marshal(renderState)
 		if err != nil {
+			fmt.Println("omg an error")
 			fmt.Println(err)
 		} else {
 			// Send position to player node
@@ -73,7 +76,7 @@ func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 	// takes a listener client
 	// runs the listener in a infinite loop
 	player := pi.pixelWriter
-	fmt.Println(player)
+	//fmt.Println(player)
 	for {
 		buf := make([]byte, 1024)
 		rlen, err := player.Read(buf)

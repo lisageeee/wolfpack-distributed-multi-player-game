@@ -111,6 +111,7 @@ func run() {
 			// Now, update the rendering
 			node.RenderNewState(win)
 		}
+		node.RenderNewState(win)
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
 }
