@@ -139,8 +139,7 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		//n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + strconv.Itoa(response.Identifier),
-		//	"LogicNodeFile")
+
 		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + "prey",
 			"LogicNodeFile")
 
@@ -151,7 +150,6 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	// Start communcation with the other nodes
 	n.FloodNodes()
 
-	//return strconv.Itoa(n.Config.Identifier
 	return "prey"
 }
 
