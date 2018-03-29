@@ -15,7 +15,6 @@ import (
 
 var NodeAddr string // must store as global to get it into run function
 var MyAddr string
-// Window size
 
 // Sprite size
 const spriteStep = 30
@@ -112,10 +111,9 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 		}
 		err = json.Unmarshal(buf[0:rlen], &playerPos)
 		if err != nil {
-			fmt.Println(err)
-			fmt.Println("Error w/new coord")
+			fmt.Println("Error receiving new GameRenderState on PixelNode:", err)
+
 		} else {
-			fmt.Println("Got new coord")
 			pn.NewGameStates <- playerPos
 		}
 	}

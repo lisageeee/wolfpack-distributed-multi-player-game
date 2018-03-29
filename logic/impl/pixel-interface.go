@@ -49,7 +49,6 @@ func (pi *PixelInterface) waitForGameStates() {
 			fmt.Println(err)
 		} else {
 			// Send position to player node
-			fmt.Println("sending position")
 			pi.pixelWriter.Write(toSend)
 		}
 	}
