@@ -12,6 +12,11 @@ or, with optional command line args:
 
 `go run logic.go [other-node-listener-addr] [pixel-incoming-addr] [pixel-outgoing-addr]`
 
+#### Start the prey node
+`cd prey ; go run prey.go`
+
+`go run prey.go [other-node-listener-addr] [pixel-incoming-addr] [pixel-outgoing-addr]`
+
 ##### Finally, start the Pixel node
 `cd pixel ; go run pixel.go`
 

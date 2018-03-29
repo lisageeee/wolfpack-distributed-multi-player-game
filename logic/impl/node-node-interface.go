@@ -77,9 +77,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		if err != nil {
 			fmt.Println(err)
 		}
-		//fmt.Println(string(buf[0:rlen]))
-		//fmt.Println(addr)
-		//fmt.Println(i)
 
 		message := receiveMessage(n.Log, buf)
 

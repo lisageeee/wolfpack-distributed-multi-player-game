@@ -45,7 +45,6 @@ func (pi *PixelInterface) waitForGameStates() {
 
 		toSend, err := json.Marshal(renderState)
 		if err != nil {
-			fmt.Println("omg an error")
 			fmt.Println(err)
 		} else {
 			// Send position to player node

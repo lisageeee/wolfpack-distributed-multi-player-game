@@ -1,38 +1,3 @@
-//package prey
-//
-//import (
-//	"../geometry"
-//	"github.com/faiface/pixel"
-//)
-//
-//type PreyRunner struct {
-//	geo geometry.PixelManager
-//	position pixel.Vec
-//}
-//
-//func (pr *PreyRunner) GetPosition() (pixel.Vec) {
-//	return pr.position
-//}
-//
-//func (pr *PreyRunner) Move() (pixel.Vec) {
-//	//random := rand.Float64()
-//	//X := pr.position.X
-//	//Y:= pr.position.Y
-//	//step := pr.geo.GetSpriteSize()
-//	//var newVec pixel.Vec
-//	//switch {
-//	//	case random < 0.25:
-//	//		newVec = pixel.V(X - step, Y + step)
-//	//	case random < 0.5:
-//	//		newVec = pixel.V(X + step, Y + step)
-//	//	case random < 0.75:
-//	//		newVec = pixel.V(X + step, Y - step)
-//	//	default:
-//	//		newVec = pixel.V(X - step, Y - step)
-//	//}
-//	return pr.position
-//}
-
 package main
 
 import (
@@ -44,10 +9,8 @@ import (
 	"../key-helpers"
 )
 
-// Entrypoint for the player (logic) node, creates the node and all interfaces by calling the playerNode constructor
-// and calling runGame
 func main() {
-	fmt.Println("hello world")
+	fmt.Println("I AM IN PREY MAIN FUNCTION")
 
 	// Default IP addresses if none provided
 	nodeListenerAddr := "127.0.0.1:0"

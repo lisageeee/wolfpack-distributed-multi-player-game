@@ -113,8 +113,8 @@ func sendMessage(goLog *govec.GoLog, message NodeMessage) []byte{
 	return newMessage
 
 }
+
 // Registers the node with the server, receiving the gameconfig (and connections)
-// TODO: maybe move this into node.go?
 func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
