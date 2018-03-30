@@ -1,6 +1,9 @@
 package impl
 
-import "net"
+import (
+	"net"
+	"log"
+)
 
 // Starts a UDP listener over the given address string, returns the address and the connection
 func StartListenerUDP(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
@@ -9,8 +12,23 @@ func StartListenerUDP(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	// starts Listener
 	udp_addr, _ := net.ResolveUDPAddr("udp", ip_addr)
 	client, err := net.ListenUDP("udp", udp_addr)
+	local_udp := client.LocalAddr().(*net.UDPAddr)
+	local_udp.IP = GetOutboundIP()
 	if err != nil {
 		panic(err)
 	}
-	return client.LocalAddr().(*net.UDPAddr), client
+	return local_udp, client
+}
+
+func GetOutboundIP() net.IP {
+	// https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
 }

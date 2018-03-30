@@ -18,7 +18,9 @@ import (
 
 // Usage go run server.go (runs on port 8081) or go run server.go [portnumber]
 
-type GServer int
+type GServer struct {
+	SelectConfig string
+}
 
 type Player struct {
 	Address net.Addr
@@ -34,7 +36,7 @@ type AllPlayers struct {
 var (
 	heartBeat = uint32(5000)
 	ping = uint32(3)
-	id = 1
+	id = 0
 	allPlayers = AllPlayers{all: make(map[string]*Player)}
 )
 
@@ -45,8 +47,12 @@ type PlayerInfo struct {
 
 func main() {
 	portString := ":8081"
+	configString := "0"
 	args := os.Args
-	if len(args) > 1 {
+	if len(args) > 2 {
+		portString = ":" + args[1]
+		configString = args[2]
+	} else if len(args) > 1 {
 		portString = ":" + args[1]
 	}
 	gob.Register(&net.UDPAddr{})
@@ -54,11 +60,13 @@ func main() {
 	gob.Register(&PlayerInfo{})
 
 	gserver := new(GServer)
+	gserver.SelectConfig = configString
 
 	server := rpc.NewServer()
 	server.Register(gserver)
 
 	l, err := net.Listen("tcp", portString)
+	defer l.Close()
 	if err != nil {
 		panic(err)
 	}
@@ -83,6 +91,7 @@ func monitor(pubKeyStr string, heartBeatInterval time.Duration) {
 }
 
 func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
+	id++
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
@@ -115,25 +124,8 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 
 	go monitor(pubKeyStr, time.Duration(heartBeat)*time.Millisecond)
 
-	settings := shared.InitialGameSettings {
-		WindowsX: 300,
-		WindowsY: 300,
-		WallCoordinates: []shared.Coord{{X: 4, Y:3}, },
-	}
-
-	initState := shared.InitialState {
-		Settings: settings,
-		CatchWorth: 1,
-	}
-
-	*response = shared.GameConfig {
-		InitState: 	initState,
-		Identifier: id,
-		GlobalServerHB: heartBeat,
-		Ping: 		ping,
-	}
-
-	id++
+	settings := getSettingsByConfigString(foo.SelectConfig)
+	*response = settings
 
 	return nil
 }
@@ -179,6 +171,49 @@ func (foo *GServer) Heartbeat(key ecdsa.PublicKey, _ignored *bool) error {
 	return nil
 }
 
+func getSettingsByConfigString(configString string) (shared.GameConfig) {
+	var response shared.GameConfig
+	switch configString {
+	case "1":
+		settings := shared.InitialGameSettings {
+			WindowsX: 600,
+			WindowsY: 600,
+			WallCoordinates: []shared.Coord{{X: 4, Y:3}, {X: 9, Y:9}, {X: 4, Y:4}, {X: 4, Y:5}},
+		}
+
+		initState := shared.InitialState {
+			Settings: settings,
+			CatchWorth: 1,
+		}
+
+		response = shared.GameConfig {
+			InitState: 	initState,
+			Identifier: id,
+			GlobalServerHB: heartBeat,
+			Ping: 		ping,
+		}
+	default:
+		settings := shared.InitialGameSettings {
+			WindowsX: 300,
+			WindowsY: 300,
+			WallCoordinates: []shared.Coord{{X: 4, Y:3}, {X: 9, Y:9}},
+		}
+
+		initState := shared.InitialState {
+			Settings: settings,
+			CatchWorth: 1,
+		}
+
+		response = shared.GameConfig {
+			InitState: 	initState,
+			Identifier: id,
+			GlobalServerHB: heartBeat,
+			Ping: 		ping,
+		}
+	}
+
+	return response
+}
 func pubKeyToString(key ecdsa.PublicKey) string {
 	return string(elliptic.Marshal(key.Curve, key.X, key.Y))
 }

@@ -6,7 +6,6 @@ import (
 	"net/rpc"
 	"log"
 	"os"
-	"../../shared"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/md5"
@@ -19,6 +18,8 @@ import (
 	"math/big"
 	key "../../key-helpers"
 	"../../wolferrors"
+	"../../geometry"
+	"../../shared"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -44,12 +45,12 @@ type PlayerInfo struct {
 
 // The message struct that is sent for all node communcation
 type NodeMessage struct {
-	Identifier 			string // the id of the sending node
-	MessageType			string // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
-	GameState 			*shared.GameState // a gamestate, included if MessageType is "gameState", else nil
-	Move  				*shared.Coord // a move, included if the message type is move
-	MoveCommit 			*shared.MoveCommit // a move commit, included if the message type is moveCommit
-	Addr 				string // the address to connect to this node over
+	Identifier  string             // the id of the sending node
+	MessageType string             // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
+	GameState   *shared.GameState  // a gamestate, included if MessageType is "gameState", else nil
+	Move        *shared.Coord      // a move, included if the message type is move
+	MoveCommit  *shared.MoveCommit // a move commit, included if the message type is moveCommit
+	Addr        string             // the address to connect to this node over
 }
 
 // Creates a node comm interface with initial empty arrays
@@ -86,7 +87,14 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "moveCommit":
 				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 			case "move":
-				n.HandleReceivedMove(message.Identifier, message.Move)
+				// Currently only planning to do the lockstep protocol with prey node
+				// In the future, may include players close to prey node
+				// I.e. check move commits
+				if message.Identifier == "prey" {
+					n.HandleReceivedMoveL(message.Identifier, message.Move)
+				} else {
+					n.HandleReceivedMoveNL(message.Identifier, message.Move)
+				}
 			case "connect":
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
@@ -118,35 +126,41 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
-		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
-		// Connect to server with RPC, port is always :8081
-		serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+		response, err := DialAndRegister(n)
 		if err != nil {
-			log.Println("Cannot dial server. Please ensure the server is running and try again.")
 			os.Exit(1)
 		}
-		// Storing in object so that we can do other RPC calls outside of this function
-		n.ServerConn = serverConn
-
-		var response shared.GameConfig
-		// Register with server
-		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-		// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
-		err = serverConn.Call("GServer.Register", playerInfo, &response)
-		if err != nil {
-			log.Fatal(err)
-		}
-		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + strconv.Itoa(response.Identifier),
+		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+strconv.Itoa(response.Identifier),
 			"LogicNodeFile")
 
 		n.Config = response
 	}
 	n.GetNodes()
 
-	// Start communcation with the other nodes
+	// Start communication with the other nodes
 	n.FloodNodes()
 
 	return strconv.Itoa(n.Config.Identifier)
+}
+func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
+	// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
+	// Connect to server with RPC, port is always :8081
+	serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+	if err != nil {
+		log.Println("Cannot dial server. Please ensure the server is running and try again.")
+		return shared.GameConfig{}, err
+	}
+	// Storing in object so that we can do other RPC calls outside of this function
+	n.ServerConn = serverConn
+	var response shared.GameConfig
+	// Register with server
+	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
+	// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+	err = serverConn.Call("GServer.Register", playerInfo, &response)
+	if err != nil {
+		return shared.GameConfig{}, err
+	}
+	return response, nil
 }
 
 func (n *NodeCommInterface) GetNodes() {
@@ -191,26 +205,36 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 			if err != nil {
 				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-				n.ServerRegister()
+				n.Config  = n.Reregister()
+
 			}
 			boop := n.Config.GlobalServerHB
 			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
-
 	}
 }
 
-func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
+func (n* NodeCommInterface)Reregister()shared.GameConfig{
+	response, register_failed_err := DialAndRegister(n)
+	for register_failed_err != nil{
+		response, register_failed_err = DialAndRegister(n)
+		time.Sleep(time.Second)
+	}
+	fmt.Println("Registered Server")
+	return response
+}
 
+
+func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	if move == nil {
 		return
 	}
 
 	message := NodeMessage{
 		MessageType: "move",
-		Identifier: n.PlayerNode.Identifier,
-		Move: move,
-		Addr: n.LocalAddr.String(),
+		Identifier:  n.PlayerNode.Identifier,
+		Move:        move,
+		Addr:        n.LocalAddr.String(),
 		}
 
 	toSend := sendMessage(n.Log, message)
@@ -241,7 +265,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 	n.sendMessageToNodes(toSend)
 }
 
-// Helper function to send a json marshaled message to other nodes
+// Helper function to send message to other nodes
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	for _, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
@@ -256,12 +280,37 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 	n.PlayerNode.GameState = *gameState
 }
 
-func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.Coord) {
-	// TODO: add checks
+// Handle moves that require a move commit check (lockstep)
+func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
+	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
 	if move != nil {
-		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		// if the player has previously submitted a move commit that's the same as the move
+		if n.CheckMoveCommitAgainstMove(identifier, *move) {
+			// check to see if it's a valid move
+			err := n.CheckMoveIsValid(*move)
+			if err != nil {
+				return err
+			}
+			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+			return nil
+		}
 	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+}
+
+// Handle moves that does not require a move commit check
+func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord) (err error) {
+	// Need nil check for bad move
+	if move != nil {
+		err := n.CheckMoveIsValid(*move)
+		if err != nil {
+			return err
+		}
+		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		return nil
+	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
@@ -285,10 +334,10 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
 		MessageType: "connect",
-		Identifier: strconv.Itoa(n.Config.Identifier),
-		GameState: nil,
-		Addr: n.LocalAddr.String(),
-		Move: nil,
+		Identifier:  strconv.Itoa(n.Config.Identifier),
+		GameState:   nil,
+		Addr:        n.LocalAddr.String(),
+		Move:        nil,
 	}
 
 	toSend := sendMessage(n.Log, message)
@@ -317,8 +366,6 @@ func CalculateHash(m shared.Coord, id string) ([]byte) {
 
 	arr = strconv.AppendInt(arr, int64(m.X), 10)
 	arr = strconv.AppendInt(arr, int64(m.Y), 10)
-	// Do we need id? If we do, we'll need to change the "move" message to a struct
-	// like in shared.MoveOp
 	arr = strconv.AppendQuote(arr, id)
 
 	// Write the hash
@@ -345,13 +392,27 @@ func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) 
 	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
 
+////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
+
 // Checks to see if there is an existing commit against the submitted move
-func (n *NodeCommInterface) CheckMoveCommitAgainstMove(move shared.MoveOp) (bool) {
-	hash := hex.EncodeToString(CalculateHash(move.PlayerLoc, move.PlayerId))
+func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord) (bool) {
+	hash := hex.EncodeToString(CalculateHash(move, identifier))
 	for i, mc := range n.MoveCommits {
-		if mc == hash && i == move.PlayerId {
+		if mc == hash && i == identifier {
 			return true
 		}
 	}
 	return false
+}
+
+// Check move to see if it's valid based on this node's game state
+func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
+	gridManager := geometry.CreateNewGridManager(n.PlayerNode.GameConfig.Settings)
+	if !gridManager.IsInBounds(move) {
+		return wolferrors.OutOfBoundsError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	if !gridManager.IsValidMove(move) {
+		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	return nil
 }
