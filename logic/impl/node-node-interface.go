@@ -39,11 +39,19 @@ type NodeCommInterface struct {
 	MessagesToSend		chan *PendingMessage
 	NodesToDelete		chan string // Nodes pending delete go here
 	NodesToAdd			chan *OtherNode // Nodes pending addition go here
+	ACKSReceived		map[uint64] []string // Key: message seq number, Value: nodes that ack-ed
+	MovesToSend			chan *PendingMoveUpdates
 }
 
 type PendingMessage struct {
 	Recipient string
 	Message []byte
+}
+
+type PendingMoveUpdates struct {
+	Seq	uint64
+	Coord *shared.Coord
+	Rejected int
 }
 
 type OtherNode struct {
@@ -59,12 +67,17 @@ type PlayerInfo struct {
 // The message struct that is sent for all node communcation
 type NodeMessage struct {
 	Identifier  string             // the id of the sending node
-	MessageType string             // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected"
+	MessageType string             // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected", "ack"
 	GameState   *shared.GameState  // a gamestate, included if MessageType is "gameState", else nil
 	Move        *shared.Coord      // a move, included if the message type is move
+	Seq			uint64			   // keep track of seq num for responding ACKs
 	MoveCommit  *shared.MoveCommit // a move commit, included if the message type is moveCommit
 	Addr        string             // the address to connect to this node over
 }
+
+var sequenceNumber uint64 = 0
+
+const REJECTION_MAX = 3
 
 // Creates a node comm interface with initial empty arrays
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
@@ -78,6 +91,8 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MessagesToSend: make(chan *PendingMessage, 30),
 		NodesToDelete: make(chan string, 5),
 		NodesToAdd: make(chan *OtherNode, 10),
+		ACKSReceived: make(map[uint64][]string),
+		MovesToSend: make(chan *PendingMoveUpdates),
 		}
 }
 
@@ -114,12 +129,14 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 						fmt.Println(err)
 					}
 				} else {
-					n.HandleReceivedMoveNL(message.Identifier, message.Move)
+					n.HandleReceivedMoveNL(message.Identifier, message.Move, message.Seq)
 				}
 			case "connect":
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
 			// Do nothing
+			case "ack":
+				n.HandleReceivedAck(message.Addr, message.Seq)
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -145,6 +162,43 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 		case toDelete := <-n.NodesToDelete:
 			delete(n.OtherNodes, toDelete)
+		}
+	}
+}
+
+// Routine that handles the ACKs being received in response to a move message from this node
+func (n *NodeCommInterface) ManageAcks() {
+	for {
+		select {
+		case moveToSend := <- n.MovesToSend:
+			if values, ok := n.ACKSReceived[moveToSend.Seq]; ok {
+				// if the # of acks > # of connected nodes (majority consensus)
+				if len(values) > len(n.OtherNodes) {
+					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
+					// sleep to see if we receive any other acks associated with this seq
+					time.Sleep(5 * time.Second)
+					// convert array associated with seq to a map
+					addresses := make(map[string]string)
+					for _, addr := range n.ACKSReceived[moveToSend.Seq] {
+						addresses[addr] = ""
+					}
+					for addr := range n.OtherNodes {
+						if _, ok := addresses[addr]; !ok {
+							n.NodesToDelete <- addr
+						}
+					}
+					delete(n.ACKSReceived, moveToSend.Seq)
+				} else {
+					if moveToSend.Rejected < REJECTION_MAX {
+						// no majority; so add this back to channel
+						moveToSend.Rejected++
+						time.Sleep(1 * time.Second)
+						n.MovesToSend <- moveToSend
+					} else {
+						delete(n.ACKSReceived, moveToSend.Seq)
+					}
+				}
+			}
 		}
 	}
 }
@@ -240,7 +294,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 			if err != nil {
 				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-				n.Config  = n.Reregister()
+				n.Config = n.Reregister()
 
 			}
 			boop := n.Config.GlobalServerHB
@@ -249,9 +303,9 @@ func (n *NodeCommInterface) SendHeartbeat() {
 	}
 }
 
-func (n* NodeCommInterface)Reregister()shared.GameConfig{
+func (n* NodeCommInterface) Reregister() shared.GameConfig {
 	response, register_failed_err := DialAndRegister(n)
-	for register_failed_err != nil{
+	for register_failed_err != nil {
 		response, register_failed_err = DialAndRegister(n)
 		time.Sleep(time.Second)
 	}
@@ -259,21 +313,25 @@ func (n* NodeCommInterface)Reregister()shared.GameConfig{
 	return response
 }
 
-
+// TODO: Only trying out the sending of ACKS here for now
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	if move == nil {
 		return
 	}
+
+	sequenceNumber++
 
 	message := NodeMessage{
 		MessageType: "move",
 		Identifier:  n.PlayerNode.Identifier,
 		Move:        move,
 		Addr:        n.LocalAddr.String(),
+		Seq:		 sequenceNumber,
 		}
 
 	toSend := sendMessage(n.Log, message)
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }
 
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
@@ -337,7 +395,7 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 }
 
 // Handle moves that does not require a move commit check
-func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord) (err error) {
+func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord, seq uint64) (err error) {
 	// Need nil check for bad move
 	if move != nil {
 		err := n.CheckMoveIsValid(*move)
@@ -347,6 +405,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
+		n.SendACK(identifier, seq)
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
@@ -362,6 +421,14 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 	} else {
 		return wolferrors.IncorrectPlayerError(identifier)
 	}
+	return nil
+}
+
+func (n* NodeCommInterface) HandleReceivedAck(addr string, seq uint64) (err error) {
+	if _, ok := n.ACKSReceived[seq]; !ok {
+		return wolferrors.UnknownSequenceError(seq)
+	}
+	n.ACKSReceived[seq] = append(n.ACKSReceived[seq], addr)
 	return nil
 }
 
@@ -388,6 +455,18 @@ func (n *  NodeCommInterface) FloodNodes() {
 		// Exchange messages with other node
 		n.InitiateConnection(node)
 	}
+}
+
+func (n *NodeCommInterface) SendACK(identifier string, seq uint64) {
+	message := NodeMessage {
+		MessageType: "ack",
+		Identifier: n.PlayerNode.Identifier,
+		Seq: seq,
+		Addr: n.LocalAddr.String(),
+	}
+
+	toSend := sendMessage(n.Log, message)
+	n.MessagesToSend <- &PendingMessage{Recipient: identifier, Message: toSend}
 }
 
 ////////////////////////////////////////////// MOVE COMMIT HASH FUNCTIONS //////////////////////////////////////////////
