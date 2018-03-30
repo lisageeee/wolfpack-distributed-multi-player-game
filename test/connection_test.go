@@ -200,6 +200,8 @@ func TestServerDies(t *testing.T) {
 		os.Exit(1)
 	}
 
+	syscall.Kill(-serverStart2.Process.Pid, syscall.SIGKILL)
+	serverStart2.Process.Kill()
 }
 
 // TODO: Test node re-joins and has been assigned an identifier - cannot assume that it's
