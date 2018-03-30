@@ -129,35 +129,41 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
-		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
-		// Connect to server with RPC, port is always :8081
-		serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+		response, err := DialAndRegister(n)
 		if err != nil {
-			log.Println("Cannot dial server. Please ensure the server is running and try again.")
 			os.Exit(1)
 		}
-		// Storing in object so that we can do other RPC calls outside of this function
-		n.ServerConn = serverConn
-
-		var response shared.GameConfig
-		// Register with server
-		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-		// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
-		err = serverConn.Call("GServer.Register", playerInfo, &response)
-		if err != nil {
-			log.Fatal(err)
-		}
-		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + strconv.Itoa(response.Identifier),
+		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+strconv.Itoa(response.Identifier),
 			"LogicNodeFile")
 
 		n.Config = response
 	}
 	n.GetNodes()
 
-	// Start communcation with the other nodes
+	// Start communication with the other nodes
 	n.FloodNodes()
 
 	return strconv.Itoa(n.Config.Identifier)
+}
+func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
+	// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
+	// Connect to server with RPC, port is always :8081
+	serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+	if err != nil {
+		log.Println("Cannot dial server. Please ensure the server is running and try again.")
+		return shared.GameConfig{}, err
+	}
+	// Storing in object so that we can do other RPC calls outside of this function
+	n.ServerConn = serverConn
+	var response shared.GameConfig
+	// Register with server
+	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
+	// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+	err = serverConn.Call("GServer.Register", playerInfo, &response)
+	if err != nil {
+		return shared.GameConfig{}, err
+	}
+	return response, nil
 }
 
 func (n *NodeCommInterface) GetNodes() {
@@ -202,13 +208,25 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 			if err != nil {
 				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-				n.ServerRegister()
+				n.Config  = n.Reregister()
+
 			}
 			boop := n.Config.GlobalServerHB
 			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
 	}
 }
+
+func (n* NodeCommInterface)Reregister()shared.GameConfig{
+	response, register_failed_err := DialAndRegister(n)
+	for register_failed_err != nil{
+		response, register_failed_err = DialAndRegister(n)
+		time.Sleep(time.Second)
+	}
+	fmt.Println("Registered Server")
+	return response
+}
+
 
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	if move == nil {

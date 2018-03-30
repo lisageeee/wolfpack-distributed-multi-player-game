@@ -9,6 +9,7 @@ import (
 	"context"
 	"os/exec"
 	"syscall"
+	"os"
 )
 
 func TestHeartbeat(t *testing.T) {
@@ -131,6 +132,65 @@ func TestServerCommandLineArgs(t *testing.T) {
 	serverStart.Process.Kill()
 }
 
+
+func TestServerDies(t *testing.T) {
+	const serverPort = "8008"
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go", serverPort)
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(4 * time.Second) // give server time to start
+
+	fmt.Println("Testing that the ID's increment")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	pubKey, privKey := key_helpers.GenerateKeys()
+	node := n.CreateNodeCommInterface(pubKey, privKey, ":" +serverPort)
+	node.LocalAddr = udp_addr1
+	res1 := node.ServerRegister()
+
+	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	pubKey, privKey = key_helpers.GenerateKeys()
+	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":"+serverPort)
+	node2.LocalAddr = udp_addr2
+	res2 := node2.ServerRegister()
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+	if res1 == res2 {
+		t.Fail()
+	}
+
+	fmt.Printf("TEST PASSED: Nodes [%s] and [%s] able to connect to server running at port [%s]\n", res1, res2, serverPort)
+	time.Sleep(time.Second)
+
+	// Test if still alive
+
+	var _ignored bool
+	err := node.ServerConn.Call("GServer.Heartbeat", *node.PubKey, &_ignored)
+	if err == nil {
+		fmt.Println("Server should be dead")
+		os.Exit(1)
+	}
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel2()
+	serverStart2 := exec.CommandContext(ctx2, "go", "run", "server.go", serverPort)
+	serverStart2.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart2.Dir = "../server"
+	server_err := serverStart2.Start()
+	if server_err!= nil {
+		fmt.Println(server_err)
+	}
+	time.Sleep(3*time.Second)
+	node.Reregister()
+	err = node.ServerConn.Call("GServer.Heartbeat", *node.PubKey, &_ignored)
+	if err != nil {
+		fmt.Println("Server should be alive" )
+		os.Exit(1)
+	}
+
+}
 
 // TODO: Test node re-joins and has been assigned an identifier - cannot assume that it's
 // connecting from the same IP address

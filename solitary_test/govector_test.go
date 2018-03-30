@@ -1,4 +1,4 @@
-package test
+package solitary_test
 
 import (
 	"time"
