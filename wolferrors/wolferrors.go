@@ -67,3 +67,9 @@ type UnknownKeyError string
 func (e UnknownKeyError) Error() string {
 	return fmt.Sprintf("WolfPack: unknown key [%s]", string(e))
 }
+
+type UnknownSequenceError string
+
+func (e UnknownSequenceError) Error() string {
+	return fmt.Sprintf("WolfPack: unknown sequence number [%s]", string(e))
+}
