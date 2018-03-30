@@ -23,7 +23,7 @@ func TestHashAndSigning (t *testing.T) {
 		PrivKey: priv,
 	}
 
-	hashStr := l.CalculateHash(shared.Coord{8,9}, n.PlayerNode.Identifier)
+	hashStr := n.CalculateHash(shared.Coord{8,9}, n.PlayerNode.Identifier)
 	r, s, err := n.SignMoveCommit(hashStr)
 	if err != nil {
 		fmt.Println("Something went wrong with signing move commit")
@@ -54,7 +54,7 @@ func TestCheckMoveCommitAgainstMove (t *testing.T) {
 		PrivKey: priv,
 	}
 	testCoords := shared.Coord{8,9}
-	hashStr := l.CalculateHash(testCoords, n.PlayerNode.Identifier)
+	hashStr := n.CalculateHash(testCoords, n.PlayerNode.Identifier)
 	n.MoveCommits = make(map[string]string)
 	n.MoveCommits["test2"] = hex.EncodeToString(hashStr)
 
@@ -74,7 +74,7 @@ func TestCheckMoveCommitAgainstMoveInvalid (t *testing.T) {
 		PrivKey: priv,
 	}
 	testCoords := shared.Coord{8,9}
-	hashStr := l.CalculateHash(testCoords, n.PlayerNode.Identifier)
+	hashStr := n.CalculateHash(testCoords, n.PlayerNode.Identifier)
 	n.MoveCommits = make(map[string]string)
 	n.MoveCommits["test2"] = hex.EncodeToString(hashStr)
 
@@ -113,7 +113,7 @@ func TestNodeToNodeSendMoveCommit (t *testing.T) {
 
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7,7}
-	hash := l.CalculateHash(testCoord, n1.PlayerNode.Identifier)
+	hash := n1.CalculateHash(testCoord, n1.PlayerNode.Identifier)
 	r, s, err := n1.SignMoveCommit(hash)
 	if err != nil {
 		fmt.Println("Error signing hash, fail")
@@ -140,7 +140,7 @@ func TestNodeToNodeSendMoveCommit (t *testing.T) {
 	fmt.Printf("Hash sent [%v]\n", hex.EncodeToString(moveCommit.MoveHash))
 
 	testCoord = shared.Coord{6,3}
-	hash = l.CalculateHash(testCoord, n2.PlayerNode.Identifier)
+	hash = n2.CalculateHash(testCoord, n2.PlayerNode.Identifier)
 	r, s, err = n2.SignMoveCommit(hash)
 	if err != nil {
 		fmt.Println("Error signing hash, fail")
