@@ -372,7 +372,6 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
 	node := n.GetClientFromAddrString(addr)
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
-	fmt.Println("adding node to nodetoadd ->", n.NodesToAdd, addr)
 }
 
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
