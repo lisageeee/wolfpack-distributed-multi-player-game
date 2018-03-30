@@ -36,6 +36,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
+	go nodeInterface.ManageOtherNodes()
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()

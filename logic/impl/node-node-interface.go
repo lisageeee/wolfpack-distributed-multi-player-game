@@ -86,8 +86,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	// Start the listener
 	listener.SetReadBuffer(1048576)
 
-	go n.ManageOtherNodes()
-
 	i := 0
 	for {
 		i++
