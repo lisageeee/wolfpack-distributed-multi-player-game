@@ -79,7 +79,6 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
 func (pn * PlayerNode) RunGame(playerListener string) {
-	fmt.Println("about to run listener")
 	go pn.pixelInterface.RunPlayerListener(playerListener)
 	fmt.Println("listener running")
 
@@ -108,7 +107,6 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	originalPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	// Calculate new position with move
 	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
-	fmt.Println(move)
 	switch move {
 	case "up":
 		newPosition.Y = newPosition.Y + 1

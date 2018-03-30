@@ -99,7 +99,6 @@ func run() {
 		}
 		if keyStroke != "" {
 			node.SendMove(keyStroke)
-			fmt.Println("sending keystroke")
 			keyStroke = ""
 		}
 
