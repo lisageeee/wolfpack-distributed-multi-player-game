@@ -44,7 +44,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	n1.SendMoveToNodes(&testCoord)
 	time.Sleep(100*time.Millisecond)
 
-	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Should have updated n1's location in n2's game state")
 		t.Fail()
 	}
@@ -53,7 +53,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	n2.SendMoveToNodes(&testCoord)
 	time.Sleep(100*time.Millisecond)
 
-	if n1.PlayerNode.GameState.PlayerLocs[node2.Identifier] != testCoord {
+	if n1.PlayerNode.GameState.PlayerLocs.Data[node2.Identifier] != testCoord {
 		fmt.Println("Should have updated n2's locatio in n1's game state")
 		t.Fail()
 	}
@@ -94,7 +94,7 @@ func TestNodeToNodeSendingNilMove(t *testing.T) {
 	n1.SendMoveToNodes(nil)
 	time.Sleep(100*time.Millisecond)
 
-	if _, ok := n2.PlayerNode.GameState.PlayerLocs[node1.Identifier]; ok {
+	if _, ok := n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier]; ok {
 		fmt.Println("Expected n2 to NOT contain n1's identifier in PlayerLocs map")
 		t.Fail()
 	}

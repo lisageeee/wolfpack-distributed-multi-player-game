@@ -43,14 +43,14 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 	n1.SendGameStateToNode(node2.Identifier)
 	time.Sleep(100*time.Millisecond)
 
-	_, ok := n2.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier]
+	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier]
 	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PlayerNode.GameState.PlayerLocs)
 	if !ok {
 		fmt.Println("Gamestate not sent from 1 to 2, fail")
 		t.Fail()
 	}
 
-	if len(n2.PlayerNode.GameState.PlayerLocs) != len(n1.PlayerNode.GameState.PlayerLocs) {
+	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PlayerNode.GameState.PlayerLocs.Data) {
 		fmt.Println("Gamestates not equal length (so not equal), fail")
 		t.Fail()
 	}

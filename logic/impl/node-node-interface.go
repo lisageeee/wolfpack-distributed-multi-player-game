@@ -36,6 +36,19 @@ type NodeCommInterface struct {
 	Log 				*govec.GoLog
 	HeartAttack 		chan bool
 	MoveCommits			map[string]string
+	MessagesToSend		chan *PendingMessage
+	NodesToDelete		chan string // Nodes pending delete go here
+	NodesToAdd			chan *OtherNode // Nodes pending addition go here
+}
+
+type PendingMessage struct {
+	Recipient string
+	Message []byte
+}
+
+type OtherNode struct {
+	Identifier string
+	Conn *net.UDPConn
 }
 
 type PlayerInfo struct {
@@ -62,6 +75,9 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		OtherNodes: make(map[string]*net.UDPConn),
 		HeartAttack: make(chan bool),
 		MoveCommits: make(map[string]string),
+		MessagesToSend: make(chan *PendingMessage, 30),
+		NodesToDelete: make(chan string, 5),
+		NodesToAdd: make(chan *OtherNode, 10),
 		}
 }
 
@@ -109,6 +125,29 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	}
 }
 
+// Routine that handles all reads and writes of the OtherNodes map; single thread preventing concurrent modification
+// exception
+func (n *NodeCommInterface) ManageOtherNodes() {
+	for {
+		select {
+		case toSend := <-n.MessagesToSend :
+			if toSend.Recipient != "all" {
+				// Send to the single node
+				if _, ok := n.OtherNodes[toSend.Recipient]; ok {
+					n.OtherNodes[toSend.Recipient].Write(toSend.Message)
+				}
+			} else {
+				// Send the message to all nodes
+				n.sendMessageToNodes(toSend.Message)
+			}
+		case toAdd := <- n.NodesToAdd:
+			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
+		case toDelete := <-n.NodesToDelete:
+			delete(n.OtherNodes, toDelete)
+		}
+	}
+}
+
 func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// Just removes the golog headers from each message
 	// TODO: set up error handling
@@ -141,9 +180,6 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	}
 	n.GetNodes()
 
-	// Start communication with the other nodes
-	n.FloodNodes()
-
 	return strconv.Itoa(n.Config.Identifier)
 }
 func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
@@ -175,8 +211,6 @@ func (n *NodeCommInterface) GetNodes() {
 		log.Fatal(err)
 	}
 
-	n.OtherNodes = make(map[string]*net.UDPConn)
-
 	for id, addr := range response {
 		nodeClient := n.GetClientFromAddrString(addr.String())
 		nodeUdp, _ := net.ResolveUDPAddr("udp", addr.String())
@@ -185,7 +219,9 @@ func (n *NodeCommInterface) GetNodes() {
 		if err != nil {
 			panic(err)
 		}
-		n.OtherNodes[id] = nodeClient
+		node := OtherNode{Identifier: id, Conn: nodeClient}
+		n.NodesToAdd <- &node
+		n.InitiateConnection(nodeClient)
 	}
 }
 
@@ -242,7 +278,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		}
 
 	toSend := sendMessage(n.Log, message)
-	n.sendMessageToNodes(toSend)
+	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
@@ -254,7 +290,7 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	}
 
 	toSend := sendMessage(n.Log, message)
-	n.OtherNodes[otherNodeId].Write(toSend)
+	n.MessagesToSend <- &PendingMessage{Recipient: otherNodeId, Message: toSend}
 }
 
 func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
@@ -266,7 +302,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 	}
 
 	toSend := sendMessage(n.Log, message)
-	n.sendMessageToNodes(toSend)
+	n.MessagesToSend <- &PendingMessage{Recipient:"all", Message: toSend}
 }
 
 // Helper function to send message to other nodes
@@ -296,7 +332,9 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			if err != nil {
 				return err
 			}
-			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+			n.PlayerNode.GameState.PlayerLocs.Lock()
+			n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
+			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			return nil
 		}
 	}
@@ -311,7 +349,9 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if err != nil {
 			return err
 		}
-		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		n.PlayerNode.GameState.PlayerLocs.Lock()
+		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
+		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
@@ -332,7 +372,7 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
 	node := n.GetClientFromAddrString(addr)
-	n.OtherNodes[identifier] = node
+	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
 }
 
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
@@ -343,21 +383,15 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		Addr:        n.LocalAddr.String(),
 		Move:        nil,
 	}
-
 	toSend := sendMessage(n.Log, message)
-	for _, val := range n.OtherNodes{
-		_, err := val.Write(toSend)
-		if err != nil{
-			fmt.Println(err)
-		}
-	}
+	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
 // Sends connection message to connections after receiving from server
 func (n *  NodeCommInterface) FloodNodes() {
-	for _, nodeClient := range n.OtherNodes {
+	for _, node := range n.OtherNodes {
 		// Exchange messages with other node
-		n.InitiateConnection(nodeClient)
+		n.InitiateConnection(node)
 	}
 }
 

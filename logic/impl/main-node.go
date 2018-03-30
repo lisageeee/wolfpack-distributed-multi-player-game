@@ -32,10 +32,11 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
 	addr, listener := StartListenerUDP(nodeListenerAddr)
-	fmt.Println(addr)
+
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
+	go nodeInterface.ManageOtherNodes()
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
@@ -50,9 +51,11 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	playerLocs["prey"] = shared.Coord{5,5}
 	playerLocs[uniqueId] = shared.Coord{3,3}
 
+	playerMap := shared.PlayerLockMap{Data:playerLocs}
+
 	// Make a gameState
 	gameState := shared.GameState{
-		PlayerLocs: playerLocs,
+		PlayerLocs: playerMap,
 	}
 
 	// Create player node
@@ -76,7 +79,6 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
 func (pn * PlayerNode) RunGame(playerListener string) {
-	fmt.Println("about to run listener")
 	go pn.pixelInterface.RunPlayerListener(playerListener)
 	fmt.Println("listener running")
 
@@ -89,7 +91,6 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			move := pn.movePlayer(message)
 			pn.pixelInterface.SendPlayerGameState(pn.GameState)
 			pn.nodeInterface.SendMoveToNodes(&move)
-			fmt.Println("movin' player", message)
 		}
 	}
 
@@ -99,12 +100,13 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 // (not into a wall, out of bounds)
 func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	// Get current player state
-	playerLoc := pn.GameState.PlayerLocs[pn.Identifier]
+	pn.GameState.PlayerLocs.RLock()
+	playerLoc := pn.GameState.PlayerLocs.Data[pn.Identifier]
+	pn.GameState.PlayerLocs.RUnlock()
 
 	originalPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
 	// Calculate new position with move
 	newPosition := shared.Coord{X: playerLoc.X, Y: playerLoc.Y}
-	fmt.Println(move)
 	switch move {
 	case "up":
 		newPosition.Y = newPosition.Y + 1
@@ -117,7 +119,9 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		pn.GameState.PlayerLocs[pn.Identifier] = newPosition
+		pn.GameState.PlayerLocs.Lock()
+		pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
+		pn.GameState.PlayerLocs.Unlock()
 		return newPosition
 	}
 	return playerLoc

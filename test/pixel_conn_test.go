@@ -87,8 +87,9 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs[n.Identifier] = shared.Coord{2,1}
 	playerLocs["prey"] = shared.Coord{0,1}
+	playerMap := shared.PlayerLockMap{Data : playerLocs}
 	gameState := shared.GameState{
-		PlayerLocs: playerLocs,
+		PlayerLocs: playerMap,
 	}
 
 	// Send from the remote interface to the pixel node
@@ -98,10 +99,10 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	pixelGameState := <- pixel.NewGameStates
 
 	// Check it was sent correctly
-	if pixelGameState.PlayerLoc.X != gameState.PlayerLocs[n.Identifier].X {
+	if pixelGameState.PlayerLoc.X != gameState.PlayerLocs.Data[n.Identifier].X {
 		t.Fail()
 	}
-	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs[n.Identifier].Y {
+	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs.Data[n.Identifier].Y {
 		t.Fail()
 	}
 }
@@ -123,7 +124,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pub, priv := key.GenerateKeys()
 	n := l.CreatePlayerNode(":12303", ":12304", pub, priv, ":8081")
 	go n.RunGame(":12304")
-	loc := n.GameState.PlayerLocs[n.Identifier] // get the initial game render state
+	loc := n.GameState.PlayerLocs.Data[n.Identifier] // get the initial game render state
 
 	time.Sleep(1*time.Second) // wait playernode to start
 
@@ -140,17 +141,17 @@ func TestPixelNodeMove(t *testing.T) {
 	newState := n.GameState
 
 	fmt.Println(newState, loc)
-	if newState.PlayerLocs[n.Identifier].X != loc.X {
+	if newState.PlayerLocs.Data[n.Identifier].X != loc.X {
 		fmt.Println("Player x changed when it shouldn't have")
 		t.Fail()
 	}
-	if newState.PlayerLocs[n.Identifier].Y - 1 != loc.Y {
+	if newState.PlayerLocs.Data[n.Identifier].Y - 1 != loc.Y {
 		fmt.Println("Player Y didn't change when it should have")
 		t.Fail()
 	}
 
 	// Reset to try moving down
-	loc = newState.PlayerLocs[n.Identifier]
+	loc = newState.PlayerLocs.Data[n.Identifier]
 	pixel.SendMove("down")
 
 	// Wait a tick for the move to be sent
@@ -159,11 +160,11 @@ func TestPixelNodeMove(t *testing.T) {
 	// Check that the player has moved down
 	newState = n.GameState
 	fmt.Println(newState, loc)
-	if newState.PlayerLocs[n.Identifier].X != loc.X {
+	if newState.PlayerLocs.Data[n.Identifier].X != loc.X {
 		fmt.Println("Player x changed when it shouldn't have")
 		t.Fail()
 	}
-	if newState.PlayerLocs[n.Identifier].Y != loc.Y - 1 {
+	if newState.PlayerLocs.Data[n.Identifier].Y != loc.Y - 1 {
 		fmt.Println("Player Y didn't change when it should have")
 		t.Fail()
 	}

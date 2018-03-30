@@ -2,6 +2,7 @@ package shared
 
 import (
 	_ "crypto/ecdsa"
+	"sync"
 )
 
 // Coordinates of an element in game
@@ -40,8 +41,13 @@ type PlayerState struct {
 
 // Game state to communciate between nodes
 type GameState struct {
-	PlayerLocs map[string]Coord
+	PlayerLocs PlayerLockMap
 	// scores TODO
+}
+
+type PlayerLockMap struct {
+	sync.RWMutex
+	Data map[string]Coord
 }
 
 // Game state sent from logic node to pixel for rendering
