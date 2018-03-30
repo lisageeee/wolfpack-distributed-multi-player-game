@@ -69,6 +69,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("Server: error listening for incoming connections on port [%s]. Ensure there is not another" +
 			" server already running", portString)
+		os.Exit(1)
 	}
 	defer l.Close()
 

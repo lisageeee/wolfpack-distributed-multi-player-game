@@ -181,7 +181,7 @@ func TestServerDies(t *testing.T) {
 	err := node.ServerConn.Call("GServer.Heartbeat", *node.PubKey, &_ignored)
 	if err == nil {
 		fmt.Println("Server should be dead")
-		// os.Exit(1) <- for some reason this test always fails if this line is left in???
+		os.Exit(1)
 	}
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 7 * time.Second)
 	defer cancel2()
