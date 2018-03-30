@@ -26,6 +26,7 @@ func TestHeartbeat(t *testing.T) {
 	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2124")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
+
 	node.LocalAddr = udp_addr1
 	_ = node.ServerRegister()
 	go node.SendHeartbeat()
@@ -33,12 +34,14 @@ func TestHeartbeat(t *testing.T) {
 	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2125")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
+
 	node2.LocalAddr = udp_addr2
 	_ = node2.ServerRegister()
 
 	udp_addr3, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2126")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node3 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
+
 	node3.LocalAddr = udp_addr3
 	_ = node3.ServerRegister()
 	go node3.SendHeartbeat()
