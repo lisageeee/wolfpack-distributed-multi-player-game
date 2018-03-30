@@ -140,7 +140,6 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	// Start communication with the other nodes
 	n.FloodNodes()
 
-	fmt.Println("My  id is prey")
 	return "prey"
 }
 
@@ -157,7 +156,6 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 	var response shared.GameConfig
 	// Register with server
 	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-	// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
 	err = serverConn.Call("GServer.Register", playerInfo, &response)
 	if err != nil {
 		return shared.GameConfig{}, err
@@ -257,16 +255,12 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 }
 
 func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
-	fmt.Println("Got into send move commit to nodes")
 	message := NodeMessage {
 		MessageType: "moveCommit",
 		Identifier:  "prey",
 		MoveCommit:  moveCommit,
 		Addr:        n.LocalAddr.String(),
 	}
-
-	fmt.Println("The message I am sending")
-	fmt.Println(message)
 
 	toSend := sendMessage(n.Log, message)
 	n.sendMessageToNodes(toSend)
@@ -275,7 +269,6 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 // Helper function to send a json marshaled message to other nodes
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	for _, val := range n.OtherNodes{
-		fmt.Println(val)
 		_, err := val.Write(toSend)
 		if err != nil{
 			fmt.Println(err)
@@ -398,15 +391,15 @@ func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r *big.Int, s *big.Int,
 // Checks to see if the hash is legit
 func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
 	publicKey := key.PublicKeyStringToKey(m.PubKey)
-	//rBigInt := new(big.Int)
-	//_, err := fmt.Sscan(m.R, rBigInt)
-	//
-	//sBigInt := new(big.Int)
-	//_, err = fmt.Sscan(m.S, sBigInt)
-	//if err != nil {
-	//	fmt.Println("Trouble converting string to big int")
-	//}
-	return ecdsa.Verify(publicKey, m.MoveHash, m.R, m.S)
+	rBigInt := new(big.Int)
+	_, err := fmt.Sscan(m.R, rBigInt)
+
+	sBigInt := new(big.Int)
+	_, err = fmt.Sscan(m.S, sBigInt)
+	if err != nil {
+		fmt.Println("Trouble converting string to big int")
+	}
+	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
 
 ////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
