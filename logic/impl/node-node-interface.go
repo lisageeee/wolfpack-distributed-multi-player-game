@@ -93,6 +93,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				// Currently only planning to do the lockstep protocol with prey node
 				// In the future, may include players close to prey node
 				// I.e. check move commits
+				n.PlayerNode.pixelInterface.SendPlayerGameState(n.PlayerNode.GameState)
 				if message.Identifier == "prey" {
 					n.HandleReceivedMoveL(message.Identifier, message.Move)
 				} else {
