@@ -2,6 +2,8 @@ package shared
 
 import (
 	_ "crypto/ecdsa"
+	"math/big"
+	//"crypto/ecdsa"
 )
 
 // Coordinates of an element in game
@@ -56,8 +58,8 @@ type GameRenderState struct {
 type MoveCommit struct {
 	MoveHash			[]byte
 	PubKey         		string
-	R					string
-	S					string
+	R					*big.Int
+	S					*big.Int
 }
 
 type MoveOp struct {

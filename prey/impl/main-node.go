@@ -6,6 +6,9 @@ import (
 	"crypto/ecdsa"
 	"time"
 	"math/rand"
+	//"fmt"
+	"fmt"
+	key "../../key-helpers"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -63,7 +66,7 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
 func (pn * PreyNode) RunGame(playerListener string) {
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(time.Millisecond * 1000)
 	for _ = range ticker.C {
 		var dir string
 
@@ -81,6 +84,21 @@ func (pn * PreyNode) RunGame(playerListener string) {
 				}
 
 				move := pn.movePrey(dir)
+
+				hash := pn.nodeInterface.CalculateHash(move, "prey")
+				r, s, err := pn.nodeInterface.SignMoveCommit(hash)
+				if err != nil {
+					fmt.Println("Error singing move hash")
+					fmt.Println(err)
+				}
+
+				_, pubString := key.Encode(pn.nodeInterface.PrivKey, pn.nodeInterface.PubKey)
+
+				fmt.Println("The hash I am sending is")
+				fmt.Println(hash)
+				commit := shared.MoveCommit{MoveHash: hash, PubKey: pubString, R: r, S: s}
+				pn.nodeInterface.SendMoveCommitToNodes(&commit)
+
 				pn.nodeInterface.SendMoveToNodes(&move)
 		}()
 	}

@@ -45,6 +45,7 @@ func (pi *PixelInterface) waitForGameStates() {
 		}
 
 		renderState.Prey = state.PlayerLocs["prey"]
+		fmt.Println(renderState.Prey)
 
 		toSend, err := json.Marshal(renderState)
 		if err != nil {

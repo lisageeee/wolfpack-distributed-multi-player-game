@@ -80,22 +80,34 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		}
 
 		message := receiveMessage(n.Log, buf)
+		fmt.Println("THE MESSAGE RECEIVED")
+		fmt.Println(message)
 
 		switch message.MessageType {
 			case "gameState":
 				n.HandleReceivedGameState(message.Identifier, message.GameState)
 			case "moveCommit":
+				fmt.Println("Received a move commit")
 				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 			case "move":
+				fmt.Println("Receive a single move")
 				// Currently only planning to do the lockstep protocol with prey node
 				// In the future, may include players close to prey node
 				// I.e. check move commits
+				//n.HandleReceivedMove(message.Identifier, message.Move)
 				if message.Identifier == "prey" {
-					n.HandleReceivedMoveL(message.Identifier, message.Move)
+					err := n.HandleReceivedMoveL(message.Identifier, message.Move)
+					if err != nil {
+						fmt.Println("The error in the prey moving")
+						fmt.Println(err)
+					}
 				} else {
 					n.HandleReceivedMoveNL(message.Identifier, message.Move)
 				}
 			case "connect":
+				fmt.Println("Received a connection message")
+				fmt.Println(message.Identifier)
+				fmt.Println(message.Addr)
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
 			// Do nothing
@@ -110,6 +122,8 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// TODO: set up error handling
 	var message NodeMessage
 	goLog.UnpackReceive("LogicNodeReceiveMessage", payload, &message)
+	fmt.Println("Testing in receivemessage")
+	fmt.Println(message)
 	return message
 }
 
@@ -284,9 +298,13 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
 	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
+	fmt.Println("IS the move nil?")
+	fmt.Println(move)
 	if move != nil {
+		fmt.Println("The move was not nil")
 		// if the player has previously submitted a move commit that's the same as the move
 		if n.CheckMoveCommitAgainstMove(identifier, *move) {
+			fmt.Println("Got into here")
 			// check to see if it's a valid move
 			err := n.CheckMoveIsValid(*move)
 			if err != nil {
@@ -328,6 +346,8 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
 	node := n.GetClientFromAddrString(addr)
+	fmt.Println("The node in incoming connection request")
+	fmt.Println(node)
 	n.OtherNodes[identifier] = node
 }
 
@@ -360,7 +380,7 @@ func (n *  NodeCommInterface) FloodNodes() {
 ////////////////////////////////////////////// MOVE COMMIT HASH FUNCTIONS //////////////////////////////////////////////
 
 // Calculate the hash of the coordinates which will be sent at the move commitment stage
-func CalculateHash(m shared.Coord, id string) ([]byte) {
+func (n *NodeCommInterface) CalculateHash(m shared.Coord, id string) ([]byte) {
 	hash := md5.New()
 	arr := make([]byte, 2048)
 
@@ -381,22 +401,25 @@ func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r, s *big.Int, err erro
 // Checks to see if the hash is legit
 func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
 	publicKey := key.PublicKeyStringToKey(m.PubKey)
-	rBigInt := new(big.Int)
-	_, err := fmt.Sscan(m.R, rBigInt)
-
-	sBigInt := new(big.Int)
-	_, err = fmt.Sscan(m.S, sBigInt)
-	if err != nil {
-		fmt.Println("Trouble converting string to big int")
-	}
-	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
+	//rBigInt := new(big.Int)
+	//_, err := fmt.Sscan(m.R, rBigInt)
+	//
+	//sBigInt := new(big.Int)
+	//_, err = fmt.Sscan(m.S, sBigInt)
+	//if err != nil {
+	//	fmt.Println("Trouble converting string to big int")
+	//}
+	return ecdsa.Verify(publicKey, m.MoveHash, m.R, m.S)
 }
 
 ////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
 
 // Checks to see if there is an existing commit against the submitted move
 func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord) (bool) {
-	hash := hex.EncodeToString(CalculateHash(move, identifier))
+	//hash := hex.EncodeToString(n.CalculateHash(move, identifier))
+	hash := hex.EncodeToString(n.CalculateHash(move, identifier))
+	fmt.Println("The hash in check move commit against move hash is")
+	fmt.Println(hash)
 	for i, mc := range n.MoveCommits {
 		if mc == hash && i == identifier {
 			return true

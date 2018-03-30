@@ -15,8 +15,8 @@ func main() {
 	fmt.Println("hello world")
 
 	// Default IP addresses if none provided
-	nodeListenerAddr := "127.0.0.1:0"
-	playerListenerIpAddress := "127.0.0.1:12345"
+	nodeListenerAddr := ":0"
+	playerListenerIpAddress := ":12345"
 	serverAddr := ":8081"
 	// Can start with an IP as param
 	if len(os.Args) > 3 {

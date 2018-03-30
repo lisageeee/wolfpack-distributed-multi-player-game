@@ -19,6 +19,7 @@ import (
 	"math/big"
 	key "../../key-helpers"
 	"../../wolferrors"
+	"../../geometry"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -73,29 +74,33 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	for {
 		i++
 		buf := make([]byte, 2048)
-		rlen, addr, err := listener.ReadFromUDP(buf)
+		_, _, err := listener.ReadFromUDP(buf)
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(string(buf[0:rlen]))
-		fmt.Println(addr)
-		fmt.Println(i)
 
 		message := receiveMessage(n.Log, buf)
 
 		switch message.MessageType {
-			case "gameState":
-				n.HandleReceivedGameState(message.Identifier, message.GameState)
-			case "moveCommit":
-				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
-			case "move":
-				n.HandleReceivedMove(message.Identifier, message.Move)
-			case "connect":
-				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
-			case "connected":
+		case "gameState":
+			n.HandleReceivedGameState(message.Identifier, message.GameState)
+		case "moveCommit":
+			n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
+		case "move":
+			// Currently only planning to do the lockstep protocol with prey node
+			// In the future, may include players close to prey node
+			// I.e. check move commits
+			if message.Identifier == "prey" {
+				n.HandleReceivedMoveL(message.Identifier, message.Move)
+			} else {
+				n.HandleReceivedMoveNL(message.Identifier, message.Move)
+			}
+		case "connect":
+			n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
+		case "connected":
 			// Do nothing
-			default:
-				fmt.Println("Message type is incorrect")
+		default:
+			fmt.Println("Message type is incorrect")
 		}
 	}
 }
@@ -121,36 +126,43 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
-		// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
-		// Connect to server with RPC, port is always :8081
-		serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+		response, err := DialAndRegister(n)
 		if err != nil {
-			log.Println("Cannot dial server. Please ensure the server is running and try again.")
 			os.Exit(1)
 		}
-		// Storing in object so that we can do other RPC calls outside of this function
-		n.ServerConn = serverConn
-
-		var response shared.GameConfig
-		// Register with server
-		playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-		// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
-		err = serverConn.Call("GServer.Register", playerInfo, &response)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-" + "prey",
+		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+"prey",
 			"LogicNodeFile")
 
 		n.Config = response
 	}
 	n.GetNodes()
 
-	// Start communcation with the other nodes
+	// Start communication with the other nodes
 	n.FloodNodes()
 
+	fmt.Println("My  id is prey")
 	return "prey"
+}
+
+func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
+	// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
+	// Connect to server with RPC, port is always :8081
+	serverConn, err := rpc.Dial("tcp", n.ServerAddr)
+	if err != nil {
+		log.Println("Cannot dial server. Please ensure the server is running and try again.")
+		return shared.GameConfig{}, err
+	}
+	// Storing in object so that we can do other RPC calls outside of this function
+	n.ServerConn = serverConn
+	var response shared.GameConfig
+	// Register with server
+	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
+	// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
+	err = serverConn.Call("GServer.Register", playerInfo, &response)
+	if err != nil {
+		return shared.GameConfig{}, err
+	}
+	return response, nil
 }
 
 func (n *NodeCommInterface) GetNodes() {
@@ -195,17 +207,27 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			err := n.ServerConn.Call("GServer.Heartbeat", *n.PubKey, &_ignored)
 			if err != nil {
 				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
-				n.ServerRegister()
+				n.Config  = n.Reregister()
 			}
 			boop := n.Config.GlobalServerHB
 			time.Sleep(time.Duration(boop)*time.Microsecond)
 		}
-
 	}
+}
+
+func (n* NodeCommInterface)Reregister()shared.GameConfig{
+	response, register_failed_err := DialAndRegister(n)
+	for register_failed_err != nil{
+		response, register_failed_err = DialAndRegister(n)
+		time.Sleep(time.Second)
+	}
+	fmt.Println("Registered Server")
+	return response
 }
 
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
+	fmt.Println("sending")
 	if move == nil {
 		return
 	}
@@ -217,10 +239,6 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr: n.LocalAddr.String(),
 		}
 
-		fmt.Println(message.MessageType)
-		fmt.Println(message.Identifier)
-		fmt.Println(message.Move)
-		fmt.Println(message.Addr)
 
 	toSend := sendMessage(n.Log, message)
 	n.sendMessageToNodes(toSend)
@@ -239,12 +257,16 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 }
 
 func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
+	fmt.Println("Got into send move commit to nodes")
 	message := NodeMessage {
 		MessageType: "moveCommit",
 		Identifier:  "prey",
 		MoveCommit:  moveCommit,
 		Addr:        n.LocalAddr.String(),
 	}
+
+	fmt.Println("The message I am sending")
+	fmt.Println(message)
 
 	toSend := sendMessage(n.Log, message)
 	n.sendMessageToNodes(toSend)
@@ -253,6 +275,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 // Helper function to send a json marshaled message to other nodes
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	for _, val := range n.OtherNodes{
+		fmt.Println(val)
 		_, err := val.Write(toSend)
 		if err != nil{
 			fmt.Println(err)
@@ -271,6 +294,38 @@ func (n* NodeCommInterface) HandleReceivedMove(identifier string, move *shared.C
 	if move != nil {
 		n.PreyNode.GameState.PlayerLocs[identifier] = *move
 	}
+}
+
+func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
+	defer delete(n.MoveCommits, identifier)
+	// Need nil check for bad move
+	if move != nil {
+		// if the player has previously submitted a move commit that's the same as the move
+		if n.CheckMoveCommitAgainstMove(identifier, *move) {
+			// check to see if it's a valid move
+			err := n.CheckMoveIsValid(*move)
+			if err != nil {
+				return err
+			}
+			n.PreyNode.GameState.PlayerLocs[identifier] = *move
+			return nil
+		}
+	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+}
+
+// Handle moves that does not require a move commit check
+func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord) (err error) {
+	// Need nil check for bad move
+	if move != nil {
+		err := n.CheckMoveIsValid(*move)
+		if err != nil {
+			return err
+		}
+		n.PreyNode.GameState.PlayerLocs[identifier] = *move
+		return nil
+	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
@@ -294,7 +349,7 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
 		MessageType: "connect",
-		Identifier: strconv.Itoa(n.Config.Identifier),
+		Identifier: "prey",
 		GameState: nil,
 		Addr: n.LocalAddr.String(),
 		Move: nil,
@@ -320,7 +375,7 @@ func (n *  NodeCommInterface) FloodNodes() {
 ////////////////////////////////////////////// MOVE COMMIT HASH FUNCTIONS //////////////////////////////////////////////
 
 // Calculate the hash of the coordinates which will be sent at the move commitment stage
-func CalculateHash(m shared.Coord, id string) ([]byte) {
+func (n *NodeCommInterface) CalculateHash(m shared.Coord, id string) ([]byte) {
 	hash := md5.New()
 	arr := make([]byte, 2048)
 
@@ -336,31 +391,45 @@ func CalculateHash(m shared.Coord, id string) ([]byte) {
 }
 
 // Sign the move commit with private key
-func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r, s *big.Int, err error) {
+func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r *big.Int, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, n.PrivKey, hash)
 }
 
 // Checks to see if the hash is legit
 func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
 	publicKey := key.PublicKeyStringToKey(m.PubKey)
-	rBigInt := new(big.Int)
-	_, err := fmt.Sscan(m.R, rBigInt)
-
-	sBigInt := new(big.Int)
-	_, err = fmt.Sscan(m.S, sBigInt)
-	if err != nil {
-		fmt.Println("Trouble converting string to big int")
-	}
-	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
+	//rBigInt := new(big.Int)
+	//_, err := fmt.Sscan(m.R, rBigInt)
+	//
+	//sBigInt := new(big.Int)
+	//_, err = fmt.Sscan(m.S, sBigInt)
+	//if err != nil {
+	//	fmt.Println("Trouble converting string to big int")
+	//}
+	return ecdsa.Verify(publicKey, m.MoveHash, m.R, m.S)
 }
 
+////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
+
 // Checks to see if there is an existing commit against the submitted move
-func (n *NodeCommInterface) CheckMoveCommitAgainstMove(move shared.MoveOp) (bool) {
-	hash := hex.EncodeToString(CalculateHash(move.PlayerLoc, move.PlayerId))
+func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord) (bool) {
+	hash := hex.EncodeToString(n.CalculateHash(move, identifier))
 	for i, mc := range n.MoveCommits {
-		if mc == hash && i == move.PlayerId {
+		if mc == hash && i == identifier {
 			return true
 		}
 	}
 	return false
+}
+
+// Check move to see if it's valid based on this node's game state
+func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
+	gridManager := geometry.CreateNewGridManager(n.PreyNode.GameConfig.Settings)
+	if !gridManager.IsInBounds(move) {
+		return wolferrors.OutOfBoundsError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	if !gridManager.IsValidMove(move) {
+		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	}
+	return nil
 }
