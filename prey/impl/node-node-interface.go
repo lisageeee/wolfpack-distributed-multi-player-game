@@ -123,7 +123,7 @@ func sendMessage(goLog *govec.GoLog, message NodeMessage) []byte{
 func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
-	gob.Register(&PlayerInfo{})
+	//gob.Register(&PlayerInfo{})
 
 	if n.ServerConn == nil {
 		response, err := DialAndRegister(n)

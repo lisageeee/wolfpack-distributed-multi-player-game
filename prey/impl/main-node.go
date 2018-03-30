@@ -82,7 +82,7 @@ func (pn * PreyNode) RunGame(playerListener string) {
 					dir = "left"
 				}
 
-				move := pn.movePrey(dir)
+				move := pn.MovePrey(dir)
 
 				hash := pn.nodeInterface.CalculateHash(move, "prey")
 				r, s, err := pn.nodeInterface.SignMoveCommit(hash)
@@ -102,7 +102,7 @@ func (pn * PreyNode) RunGame(playerListener string) {
 }
 
 
-func (pn * PreyNode) movePrey(move string) (shared.Coord) {
+func (pn * PreyNode) MovePrey(move string) (shared.Coord) {
 	preyLoc := pn.GameState.PlayerLocs["prey"]
 
 	originalPosition := shared.Coord{X: preyLoc.X, Y: preyLoc.Y}
