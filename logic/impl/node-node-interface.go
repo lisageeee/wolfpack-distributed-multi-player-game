@@ -130,7 +130,6 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 	for {
 		select {
 		case toSend := <-n.MessagesToSend :
-			fmt.Println("have message to send")
 			if toSend.Recipient != "all" {
 				// Send to the single node
 				if _, ok := n.OtherNodes[toSend.Recipient]; ok {
@@ -141,10 +140,8 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 				n.sendMessageToNodes(toSend.Message)
 			}
 		case toAdd := <- n.NodesToAdd:
-			fmt.Println("have node to add")
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 		case toDelete := <-n.NodesToDelete:
-			fmt.Println("have node to delete")
 			delete(n.OtherNodes, toDelete)
 		}
 	}
@@ -334,7 +331,9 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			if err != nil {
 				return err
 			}
-			n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+			n.PlayerNode.GameState.PlayerLocs.Lock()
+			n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
+			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			return nil
 		}
 	}
@@ -349,7 +348,9 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if err != nil {
 			return err
 		}
-		n.PlayerNode.GameState.PlayerLocs[identifier] = *move
+		n.PlayerNode.GameState.PlayerLocs.Lock()
+		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
+		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
