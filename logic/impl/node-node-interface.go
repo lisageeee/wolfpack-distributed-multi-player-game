@@ -221,13 +221,8 @@ func (n *NodeCommInterface) ManageAcks() {
 				}
 				n.Strikes.Lock()
 				for id := range n.OtherNodes {
-					// if you don't find the id in the addresses array, they did not send an ACK
 					if _, ok := addresses[id]; !ok {
 						n.Strikes.StrikeCount[id]++
-						if n.Strikes.StrikeCount[id] > STRIKE_OUT {
-							n.NodesToDelete <- id
-							delete(n.Strikes.StrikeCount, id)
-						}
 					} else {
 						n.Strikes.StrikeCount[id] = 0
 					}
@@ -239,51 +234,17 @@ func (n *NodeCommInterface) ManageAcks() {
 	}
 }
 
-// Routine that handles the ACKs being received in response to a move message from this node
-func (n *NodeCommInterface) ManageAcks() {
-	collectAcks := make(map[uint64][]string)
-
+// routine to go and send id for deletion if they haven't been responding via ACKs for a while
+func (n *NodeCommInterface) PruneOtherNodes() {
 	for {
-		select {
-		case ack := <-n.ACKSReceived:
-			if len(n.MovesToSend) != 0 {
-				moveToSend := <-n.MovesToSend
-				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
-
-				// if the # of acks > # of connected nodes (majority consensus)
-				fmt.Printf("DEBUG: LENGTH OF ACKS %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
-				fmt.Printf("DEBUG: LENGTH OF OTHER NODES %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
-				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
-					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
-					collectAcks = nil
-				} else {
-					if moveToSend.Rejected < REJECTION_MAX {
-						// no majority; so add this back to channel
-						moveToSend.Rejected++
-						n.MovesToSend <- moveToSend
-					}
-				}
+		n.Strikes.RLock()
+		for id := range n.Strikes.StrikeCount {
+			if n.Strikes.StrikeCount[id] >= STRIKE_OUT {
+				n.NodesToDelete <- id
 			}
-
-		case <- time.After(5 * time.Second):
-			collectAcks = nil
-			// TODO: Leaving this in for now; for YY's reference. Delete this after hb between nodes has been implemented
-			// convert array associated with seq to a map
-			//if len(collectAcks) != 0 {
-			//	addresses := make(map[string]string)
-			//	for k := range collectAcks {
-			//		for _, ack := range collectAcks[k] {
-			//			addresses[ack] = ""
-			//		}
-			//	}
-			//	for id := range n.OtherNodes {
-			//		if _, ok := addresses[id]; !ok {
-			//			n.NodesToDelete <- id
-			//		}
-			//	}
-			//	collectAcks = nil
-			//}
 		}
+		n.Strikes.RUnlock()
+		time.After(5*time.Second)
 	}
 }
 
