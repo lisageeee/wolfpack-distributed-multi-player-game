@@ -32,6 +32,7 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
+	go nodeInterface.ManageOtherNodes()
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
@@ -40,10 +41,11 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 	// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs[uniqueId] = shared.Coord{5,5}
+	playerMap := shared.PlayerLockMap{Data:playerLocs}
 
 	// Make a gameState
 	gameState := shared.GameState{
-		PlayerLocs: playerLocs,
+		PlayerLocs: playerMap,
 	}
 
 	// Create Prey node
@@ -103,7 +105,9 @@ func (pn * PreyNode) RunGame(playerListener string) {
 
 
 func (pn * PreyNode) MovePrey(move string) (shared.Coord) {
-	preyLoc := pn.GameState.PlayerLocs["prey"]
+	pn.GameState.PlayerLocs.RLock()
+	preyLoc := pn.GameState.PlayerLocs.Data["prey"]
+	pn.GameState.PlayerLocs.RUnlock()
 
 	originalPosition := shared.Coord{X: preyLoc.X, Y: preyLoc.Y}
 
@@ -121,7 +125,9 @@ func (pn * PreyNode) MovePrey(move string) (shared.Coord) {
 	}
 	// Check new move is valid, if so update prey position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		pn.GameState.PlayerLocs["prey"] = newPosition
+		pn.GameState.PlayerLocs.Lock()
+		pn.GameState.PlayerLocs.Data["prey"] = newPosition
+		pn.GameState.PlayerLocs.Unlock()
 		return newPosition
 	}
 	return preyLoc
