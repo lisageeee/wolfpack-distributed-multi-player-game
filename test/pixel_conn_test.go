@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"syscall"
 	key "../key-helpers"
+	"regexp"
 )
 
 // Reference for killing exec.Command processes + childen:
@@ -204,4 +205,39 @@ func TestPixelNodeGetConfigFromServer(t *testing.T) {
 	}
 
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+}
+
+func TestPixelSortsScores(t *testing.T) {
+	fakeScoreMap := make(map[string]int)
+	fakeScoreMap["loser2"] = 100
+	fakeScoreMap["loser1"] = 300
+	fakeScoreMap["loser3"] = 50
+	fakeScoreMap["winner"] = 1000
+
+	scoreString := p.SortScores(fakeScoreMap)
+
+	winnerRegex, _ := regexp.Compile("winner")
+	secondRegex, _ := regexp.Compile("loser1")
+	thirdRegex, _ := regexp.Compile("loser2")
+	lastRegex, _ := regexp.Compile("loser3")
+
+	winner := winnerRegex.FindIndex([]byte(scoreString))[0]
+	second := secondRegex.FindIndex([]byte(scoreString))[0]
+	third := thirdRegex.FindIndex([]byte(scoreString))[0]
+	last := lastRegex.FindIndex([]byte(scoreString))[0]
+
+	if winner > second || winner > third || winner > last {
+		fmt.Println("Score order incorrect, fail - winner is not first")
+		t.Fail()
+	}
+
+	if second > third || second > last {
+		fmt.Println("Score order incorrect, fail - second is not second")
+		t.Fail()
+	}
+
+	if third > last {
+		fmt.Println("Score order incorrect, fail - third is after last")
+		t.Fail()
+	}
 }

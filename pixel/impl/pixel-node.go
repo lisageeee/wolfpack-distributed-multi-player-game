@@ -156,7 +156,7 @@ func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
 	title.Draw(window, pixel.IM.Scaled(title.Orig, titleMultiplier))
 
 	// Render the scores
-	scoreString := sortScores(fakeScoreMap) // sort 'em
+	scoreString := SortScores(fakeScoreMap) // sort 'em
 	scoresPos := pixel.V(pn.Geom.GetX() + padding, pn.Geom.GetY() - (titleMultiplier + 2) * textHeight)
 	scores := text.New(scoresPos, pn.TextAtlas)
 	fmt.Fprintln(scores, scoreString)
@@ -172,7 +172,7 @@ func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
 
 // Couldn't be bothered to figure this out myself
 // https://stackoverflow.com/questions/18695346/how-to-sort-a-mapstringint-by-its-values
-func sortScores (scoreMap map[string]int) (string) {
+func SortScores (scoreMap map[string]int) (string) {
 	n := map[int][]string{}
 	var a []int
 	for k, v := range scoreMap {
