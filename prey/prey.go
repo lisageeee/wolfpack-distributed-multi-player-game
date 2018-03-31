@@ -25,7 +25,7 @@ func main() {
 		nodeListenerAddr = os.Args[1]
 		playerListenerIpAddress = os.Args[2]
 	} else if len(os.Args)>1{
-		nodeListenerAddr = "127.0.0.1:0"
+		nodeListenerAddr = ":0"
 		playerListenerIpAddress = os.Args[1]
 	}
 
