@@ -23,10 +23,10 @@ func TestPreyNodeToNodeInterface(t *testing.T) {
 	time.Sleep(3*time.Second) // wait for server to get started
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePreyNode(":12200", ":12201", pub, priv, ":8081")
+	node1 := l.CreatePreyNode(":17700", ":17701", pub, priv, ":8081")
 
 	pub, priv = key.GenerateKeys()
-	node2 := l2.CreatePlayerNode(":11900", ":11901", pub, priv, ":8081")
+	node2 := l2.CreatePlayerNode(":17900", ":17901", pub, priv, ":8081")
 
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
@@ -43,14 +43,14 @@ func TestPreyNodeToNodeInterface(t *testing.T) {
 	n1.SendGameStateToNode(node2.Identifier)
 	time.Sleep(100*time.Millisecond)
 
-	_, ok := n2.PlayerNode.GameState.PlayerLocs["prey"]
+	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data["prey"]
 	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PreyNode.GameState.PlayerLocs)
 	if !ok {
 		fmt.Println("Gamestate not sent from 1 to 2, fail")
 		t.Fail()
 	}
 
-	if len(n2.PlayerNode.GameState.PlayerLocs) != len(n1.PreyNode.GameState.PlayerLocs) {
+	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PreyNode.GameState.PlayerLocs.Data) {
 		fmt.Println("Gamestates not equal length (so not equal), fail")
 		t.Fail()
 	}

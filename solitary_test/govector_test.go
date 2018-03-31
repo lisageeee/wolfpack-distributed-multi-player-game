@@ -77,7 +77,7 @@ func TestGoVectorSingleMessage(t *testing.T) {
 
 	time.Sleep(100*time.Millisecond)
 
-	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Failed to send testCoord from Node 1 to node 2")
 		t.Fail()
 	}
@@ -129,7 +129,7 @@ func TestGoVectorDoubleMessage(t *testing.T) {
 
 	time.Sleep(100*time.Millisecond)
 
-	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Failed to send testCoord from Node 1 to node 2")
 		t.Fail()
 	}

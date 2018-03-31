@@ -10,7 +10,8 @@ import (
 func wnSetup() (wolfnode.WolfNodeImpl) {
 	wn := wolfnode.WolfNodeImpl{}
 	info := wolfnode.PlayerInfo{}
-	settings := shared.InitialGameSettings{3000, 3000, []shared.Coord{{1, 1}, {10, 90}, {23, 99}}}
+	settings := shared.InitialGameSettings{3000, 3000,
+	[]shared.Coord{{1, 1}, {10, 90}, {23, 99}}, 200}
 	pub, priv := key_helpers.GenerateKeys()
 	info.InitGameSettings = settings
 	info.PubKey = pub

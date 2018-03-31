@@ -31,7 +31,7 @@ func run() {
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
 		Title:  "Wolfpack",
-		Bounds: pixel.R(0, 0, winMaxX, winMaxY),
+		Bounds: pixel.R(0, 0, winMaxX + node.Geom.GetScoreboardWidth(), winMaxY),
 		VSync:  true,
 	}
 
@@ -40,10 +40,6 @@ func run() {
 		fmt.Println(err)
 	}
 	win.Clear(colornames.Skyblue)
-
-	//Enable text
-	//basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
-	//basicTxt := text.New(geom.GetVectorFromCoords(1,1), basicAtlas)
 
 	// Create player sprite
 	pic, err := LoadPicture("../sprites/wolf.jpg")
@@ -80,6 +76,7 @@ func run() {
 	wallSprite := pixel.NewSprite(pic, pic.Bounds())
 	node.WallSprite = wallSprite
 
+	node.DrawScore(win)
 	node.DrawWalls(win) // call this to draw walls every update
 
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
@@ -110,11 +107,9 @@ func run() {
 			// Now, update the rendering
 			node.RenderNewState(win)
 		}
-		node.RenderNewState(win)
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
 }
-
 
 func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
 	if sprite.X == prey.X && sprite.Y == prey.Y {
