@@ -241,21 +241,18 @@ func (n *NodeCommInterface) ManageAcks() {
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
-	collectAcks := make(map[uint64][]*ACKMessage)
+	collectAcks := make(map[uint64][]string)
 
 	for {
 		select {
-
 		case ack := <-n.ACKSReceived:
-			if len(n.MovesToSend) == 0 {
-				if _, ok := collectAcks[ack.Seq]; ok {
-					collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack)
-				}
-			} else {
+			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
-				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack)
+				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
 
 				// if the # of acks > # of connected nodes (majority consensus)
+				fmt.Printf("DEBUG: LENGTH OF ACKS %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
+				fmt.Printf("DEBUG: LENGTH OF OTHER NODES %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
 				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
 					collectAcks = nil
