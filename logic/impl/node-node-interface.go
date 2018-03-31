@@ -20,6 +20,7 @@ import (
 	"../../wolferrors"
 	"../../geometry"
 	"../../shared"
+	"sync"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -41,6 +42,12 @@ type NodeCommInterface struct {
 	NodesToAdd			chan *OtherNode // Nodes pending addition go here
 	ACKSReceived		chan *ACKMessage
 	MovesToSend			chan *PendingMoveUpdates
+	Strikes				StrikeLockMap // Heartbeat protocol between nodes
+}
+
+type StrikeLockMap struct {
+	sync.RWMutex
+	StrikeCount map[string]int
 }
 
 type PendingMessage struct {
@@ -83,6 +90,7 @@ type NodeMessage struct {
 var sequenceNumber uint64 = 0
 
 const REJECTION_MAX = 3
+const STRIKE_OUT = 3
 
 // Creates a node comm interface with initial empty arrays
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
@@ -98,6 +106,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodesToAdd: make(chan *OtherNode, 10),
 		ACKSReceived: make(chan *ACKMessage, 30),
 		MovesToSend: make(chan *PendingMoveUpdates, 2),
+		Strikes:StrikeLockMap{StrikeCount:make(map[string]int)},
 		}
 }
 
@@ -167,6 +176,9 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 		case toDelete := <-n.NodesToDelete:
 			delete(n.OtherNodes, toDelete)
+			n.Strikes.Lock()
+			delete(n.Strikes.StrikeCount, toDelete)
+			n.Strikes.Unlock()
 		}
 	}
 }
@@ -183,11 +195,11 @@ func (n *NodeCommInterface) ManageAcks() {
 				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
 
 				// if the # of acks > # of connected nodes (majority consensus)
-				fmt.Printf("DEBUG: LENGTH OF ACKS %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
-				fmt.Printf("DEBUG: LENGTH OF OTHER NODES %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
+				fmt.Printf("DEBUG: LENGTH OF ACKS = %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
+				fmt.Printf("DEBUG: LENGTH OF OTHER NODES / 2 = %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
 				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
-					collectAcks = nil
+					// collectAcks = nil
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel
@@ -197,25 +209,42 @@ func (n *NodeCommInterface) ManageAcks() {
 				}
 			}
 
+			// no more acks coming through
 		case <- time.After(5 * time.Second):
-			collectAcks = nil
-			// TODO: Leaving this in for now; for YY's reference. Delete this after hb between nodes has been implemented
 			// convert array associated with seq to a map
-			//if len(collectAcks) != 0 {
-			//	addresses := make(map[string]string)
-			//	for k := range collectAcks {
-			//		for _, ack := range collectAcks[k] {
-			//			addresses[ack] = ""
-			//		}
-			//	}
-			//	for id := range n.OtherNodes {
-			//		if _, ok := addresses[id]; !ok {
-			//			n.NodesToDelete <- id
-			//		}
-			//	}
-			//	collectAcks = nil
-			//}
+			if len(collectAcks) != 0 {
+				addresses := make(map[string]string)
+				for k := range collectAcks {
+					for _, ack := range collectAcks[k] {
+						addresses[ack] = ""
+					}
+				}
+				n.Strikes.Lock()
+				for id := range n.OtherNodes {
+					if _, ok := addresses[id]; !ok {
+						n.Strikes.StrikeCount[id]++
+					} else {
+						n.Strikes.StrikeCount[id] = 0
+					}
+				}
+				n.Strikes.Unlock()
+				collectAcks = nil
+			}
 		}
+	}
+}
+
+// routine to go and send id for deletion if they haven't been responding via ACKs for a while
+func (n *NodeCommInterface) PruneOtherNodes() {
+	for {
+		n.Strikes.RLock()
+		for id := range n.Strikes.StrikeCount {
+			if n.Strikes.StrikeCount[id] >= STRIKE_OUT {
+				n.NodesToDelete <- id
+			}
+		}
+		n.Strikes.RUnlock()
+		time.After(5*time.Second)
 	}
 }
 
