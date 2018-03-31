@@ -7,8 +7,8 @@ import (
 	"github.com/faiface/pixel"
 	"fmt"
 	"../shared"
-	"golang.org/x/image/colornames"
 	"image"
+	"image/color"
 )
 
 var nodeAddr string // must store as global to get it into run function
@@ -39,7 +39,7 @@ func run() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	win.Clear(colornames.Skyblue)
+	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff} )
 
 	// Create player sprite
 	pic, err := LoadPicture("../sprites/wolf.jpg")

@@ -3,7 +3,6 @@ package impl
 import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"golang.org/x/image/colornames"
 	"../../geometry"
 	"../../shared"
 	_ "image/png"
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/image/font/basicfont"
 	"sort"
 	"os"
+	"image/color"
 )
 
 var NodeAddr string // must store as global to get it into run function
@@ -80,7 +80,7 @@ func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
 	curState := pn.GameState
 
 	// Clear current render
-	win.Clear(colornames.Skyblue)
+	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff})
 
 	// Render walls, first
 	pn.DrawWalls(win)
