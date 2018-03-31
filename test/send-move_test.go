@@ -105,3 +105,76 @@ func TestNodeToNodeSendingNilMove(t *testing.T) {
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 	serverStart.Process.Kill()
 }
+
+func TestNodeToNodeValidSelfMove(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(3*time.Second) // wait for server to get started
+	// Create player node and get pixel interface
+	pub, priv := key.GenerateKeys()
+	node1 := l.CreatePlayerNode(":12830", ":12831", pub, priv, ":8081")
+
+	pub, priv = key.GenerateKeys()
+	node2 := l.CreatePlayerNode(":12940", ":12941", pub, priv, ":8081")
+
+	pub, priv = key.GenerateKeys()
+	node3 := l.CreatePlayerNode(":12950", ":12951", pub, priv, ":8081")
+
+	pub, priv = key.GenerateKeys()
+	node4 := l.CreatePlayerNode(":12960", ":12961", pub, priv, ":8081")
+
+	n1 := node1.GetNodeInterface()
+	n2 := node2.GetNodeInterface()
+	n3 := node3.GetNodeInterface()
+	n4 := node4.GetNodeInterface()
+
+	time.Sleep(1*time.Second)
+
+	// Check nodes are connected to each other
+	if len(n2.OtherNodes) != len(n1.OtherNodes) {
+		fmt.Println("Nodes do not have a mutual connection, fail")
+		t.Fail()
+	}
+
+	// Test sending a move from one node to another
+	testCoord := shared.Coord{7,7}
+	n1.SendMoveToNodes(&testCoord)
+	time.Sleep(3*time.Second)
+
+	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+		fmt.Println("Should have updated n1's location in n2's game state")
+		t.Fail()
+	}
+
+	if n3.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+		fmt.Println("Should have updated n1's location in n2's game state")
+		t.Fail()
+	}
+
+	if n4.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+		fmt.Println("Should have updated n1's location in n2's game state")
+		t.Fail()
+	}
+
+	time.Sleep(10*time.Second)
+
+	if n1.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier] != testCoord {
+		fmt.Printf("Should have updated n1's coords to %v, instead it's %v\n", testCoord,
+			n1.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier])
+		t.Fail()
+	}
+
+	if len(n1.OtherNodes) != 3 {
+		fmt.Printf("It should still have 3 connections, instead there's: %v\n", n1.OtherNodes)
+		// TODO: don't fail this yet until the hb stuff between nodes is done
+	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+}
