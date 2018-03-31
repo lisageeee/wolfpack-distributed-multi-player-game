@@ -10,12 +10,13 @@ type PixelManager struct {
 	y float64
 	spriteSize float64
 	wallVectors []pixel.Vec
+	scoreboardWidth float64
 }
 
 // Creates a new instance of a Geometry manager to handle movement.
 // Takes the Pixel max dimensions of the window, the one-dimensional size of the square sprite and an array of wall coords.
-func CreatePixelManager(windowMaxX float64, windowMaxY float64, spriteSize float64, walls []shared.Coord) (PixelManager) {
-	gm := PixelManager{x: windowMaxX, y: windowMaxY, spriteSize: spriteSize}
+func CreatePixelManager(windowMaxX, windowMaxY, scoreboardWidth float64, spriteSize float64, walls []shared.Coord) (PixelManager) {
+	gm := PixelManager{x: windowMaxX, y: windowMaxY, spriteSize: spriteSize, scoreboardWidth: scoreboardWidth}
 	gm.getWallVectors(walls)
 	return gm
 }
@@ -49,6 +50,10 @@ func (gm *PixelManager) GetX() (float64) {
 
 func (gm *PixelManager) GetY() (float64) {
 	return gm.y
+}
+
+func (gm *PixelManager) GetScoreboardWidth() (float64) {
+	return gm.scoreboardWidth
 }
 
 func (gm *PixelManager) GetSpriteSize() (float64)  {
