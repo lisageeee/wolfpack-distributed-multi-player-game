@@ -241,34 +241,29 @@ func (n *NodeCommInterface) ManageAcks() {
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
+	collectAcks := make(map[uint64][]*ACKMessage)
+
 	for {
 		select {
-		case moveToSend := <- n.MovesToSend:
-			if values, ok := n.ACKSReceived[moveToSend.Seq]; ok {
+
+		case ack := <-n.ACKSReceived:
+			if len(n.MovesToSend) == 0 {
+				if _, ok := collectAcks[ack.Seq]; ok {
+					collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack)
+				}
+			} else {
+				moveToSend := <-n.MovesToSend
+				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack)
+
 				// if the # of acks > # of connected nodes (majority consensus)
-				if len(values) > len(n.OtherNodes) {
+				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
-					// sleep to see if we receive any other acks associated with this seq
-					time.Sleep(5 * time.Second)
-					// convert array associated with seq to a map
-					addresses := make(map[string]string)
-					for _, addr := range n.ACKSReceived[moveToSend.Seq] {
-						addresses[addr] = ""
-					}
-					for addr := range n.OtherNodes {
-						if _, ok := addresses[addr]; !ok {
-							n.NodesToDelete <- addr
-						}
-					}
-					delete(n.ACKSReceived, moveToSend.Seq)
+					collectAcks = nil
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel
 						moveToSend.Rejected++
-						time.Sleep(1 * time.Second)
 						n.MovesToSend <- moveToSend
-					} else {
-						delete(n.ACKSReceived, moveToSend.Seq)
 					}
 				}
 			}

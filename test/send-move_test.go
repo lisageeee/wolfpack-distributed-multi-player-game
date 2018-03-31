@@ -186,6 +186,12 @@ func TestNodeToNodeValidSelfMove(t *testing.T) {
 
 	time.Sleep(1*time.Second)
 
+	// Check nodes are connected to each other
+	if len(n2.OtherNodes) != len(n1.OtherNodes) {
+		fmt.Println("Nodes do not have a mutual connection, fail")
+		t.Fail()
+	}
+
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7,7}
 	n1.SendMoveToNodes(&testCoord)
@@ -206,7 +212,7 @@ func TestNodeToNodeValidSelfMove(t *testing.T) {
 		t.Fail()
 	}
 
-	time.Sleep(5*time.Second)
+	time.Sleep(5*time.Second)t
 
 	if n1.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier] != testCoord {
 		fmt.Printf("Should have updated n1's coords to %v, instead it's %v\n", testCoord,
@@ -266,4 +272,8 @@ func TestPruningNodes(t *testing.T) {
 		fmt.Println("This node should not be in the other nodes map")
 		t.Fail()
 	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }
