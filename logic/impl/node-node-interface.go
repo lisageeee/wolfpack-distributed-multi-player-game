@@ -264,6 +264,25 @@ func (n *NodeCommInterface) ManageAcks() {
 					}
 				}
 			}
+
+		case <- time.After(5 * time.Second):
+			collectAcks = nil
+			// TODO: Leaving this in for now; for YY's reference. Delete this after hb between nodes has been implemented
+			// convert array associated with seq to a map
+			//if len(collectAcks) != 0 {
+			//	addresses := make(map[string]string)
+			//	for k := range collectAcks {
+			//		for _, ack := range collectAcks[k] {
+			//			addresses[ack] = ""
+			//		}
+			//	}
+			//	for id := range n.OtherNodes {
+			//		if _, ok := addresses[id]; !ok {
+			//			n.NodesToDelete <- id
+			//		}
+			//	}
+			//	collectAcks = nil
+			//}
 		}
 	}
 }
