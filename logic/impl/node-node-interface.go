@@ -221,8 +221,13 @@ func (n *NodeCommInterface) ManageAcks() {
 				}
 				n.Strikes.Lock()
 				for id := range n.OtherNodes {
+					// if you don't find the id in the addresses array, they did not send an ACK
 					if _, ok := addresses[id]; !ok {
 						n.Strikes.StrikeCount[id]++
+						if n.Strikes.StrikeCount[id] > STRIKE_OUT {
+							n.NodesToDelete <- id
+							delete(n.Strikes.StrikeCount, id)
+						}
 					} else {
 						n.Strikes.StrikeCount[id] = 0
 					}
@@ -231,20 +236,6 @@ func (n *NodeCommInterface) ManageAcks() {
 				collectAcks = nil
 			}
 		}
-	}
-}
-
-// routine to go and send id for deletion if they haven't been responding via ACKs for a while
-func (n *NodeCommInterface) PruneOtherNodes() {
-	for {
-		n.Strikes.RLock()
-		for id := range n.Strikes.StrikeCount {
-			if n.Strikes.StrikeCount[id] >= STRIKE_OUT {
-				n.NodesToDelete <- id
-			}
-		}
-		n.Strikes.RUnlock()
-		time.After(5*time.Second)
 	}
 }
 
