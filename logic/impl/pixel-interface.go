@@ -78,7 +78,6 @@ func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 	// takes a listener client
 	// runs the listener in a infinite loop
 	player := pi.pixelWriter
-	fmt.Println(player)
 	for {
 		buf := make([]byte, 1024)
 		rlen, err := player.Read(buf)

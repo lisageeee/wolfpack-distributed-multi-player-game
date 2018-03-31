@@ -62,6 +62,7 @@ func run() {
 	}
 	preySprite := pixel.NewSprite(pic, pic.Bounds())
 	node.PreySprite = preySprite
+	preyPos := node.Geom.GetVectorFromCoords(shared.Coord{5,5})
 
 	// Create other player sprite
 	pic, err = LoadPicture("../sprites/other-player.jpg")
@@ -82,6 +83,7 @@ func run() {
 	node.DrawWalls(win) // call this to draw walls every update
 
 	sprite.Draw(win, pixel.IM.Moved(spritePos))
+	preySprite.Draw(win, pixel.IM.Moved(preyPos))
 
 	win.Update()
 
@@ -101,7 +103,6 @@ func run() {
 			node.SendMove(keyStroke)
 			keyStroke = ""
 		}
-
 		// Update game state
 		if len(node.NewGameStates) > 0 {
 			curState := <- node.NewGameStates
@@ -109,6 +110,7 @@ func run() {
 			// Now, update the rendering
 			node.RenderNewState(win)
 		}
+		node.RenderNewState(win)
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
 }
