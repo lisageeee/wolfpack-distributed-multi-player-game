@@ -39,7 +39,7 @@ type NodeCommInterface struct {
 	MessagesToSend		chan *PendingMessage
 	NodesToDelete		chan string // Nodes pending delete go here
 	NodesToAdd			chan *OtherNode // Nodes pending addition go here
-	ACKSReceived		map[uint64] []string // Key: message seq number, Value: nodes that ack-ed
+	ACKSReceived		chan *ACKMessage
 	MovesToSend			chan *PendingMoveUpdates
 }
 
@@ -52,6 +52,11 @@ type PendingMoveUpdates struct {
 	Seq	uint64
 	Coord *shared.Coord
 	Rejected int
+}
+
+type ACKMessage struct {
+	Seq        uint64
+	Identifier string
 }
 
 type OtherNode struct {
@@ -91,8 +96,8 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MessagesToSend: make(chan *PendingMessage, 30),
 		NodesToDelete: make(chan string, 5),
 		NodesToAdd: make(chan *OtherNode, 10),
-		ACKSReceived: make(map[uint64][]string),
-		MovesToSend: make(chan *PendingMoveUpdates),
+		ACKSReceived: make(chan *ACKMessage, 30),
+		MovesToSend: make(chan *PendingMoveUpdates, 2),
 		}
 }
 
@@ -134,7 +139,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "connected":
 			// Do nothing
 			case "ack":
-				n.HandleReceivedAck(message.Addr, message.Seq)
+				n.HandleReceivedAck(message.Identifier, message.Seq)
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -169,34 +174,29 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
+	collectAcks := make(map[uint64][]*ACKMessage)
+
 	for {
 		select {
-		case moveToSend := <- n.MovesToSend:
-			if values, ok := n.ACKSReceived[moveToSend.Seq]; ok {
+
+		case ack := <-n.ACKSReceived:
+			if len(n.MovesToSend) == 0 {
+				if _, ok := collectAcks[ack.Seq]; ok {
+					collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack)
+				}
+			} else {
+				moveToSend := <-n.MovesToSend
+				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack)
+
 				// if the # of acks > # of connected nodes (majority consensus)
-				if len(values) > len(n.OtherNodes) {
+				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
-					// sleep to see if we receive any other acks associated with this seq
-					time.Sleep(5 * time.Second)
-					// convert array associated with seq to a map
-					addresses := make(map[string]string)
-					for _, addr := range n.ACKSReceived[moveToSend.Seq] {
-						addresses[addr] = ""
-					}
-					for addr := range n.OtherNodes {
-						if _, ok := addresses[addr]; !ok {
-							n.NodesToDelete <- addr
-						}
-					}
-					delete(n.ACKSReceived, moveToSend.Seq)
+					collectAcks = nil
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel
 						moveToSend.Rejected++
-						time.Sleep(1 * time.Second)
 						n.MovesToSend <- moveToSend
-					} else {
-						delete(n.ACKSReceived, moveToSend.Seq)
 					}
 				}
 			}
@@ -427,12 +427,8 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 	return nil
 }
 
-func (n* NodeCommInterface) HandleReceivedAck(addr string, seq uint64) (err error) {
-	if _, ok := n.ACKSReceived[seq]; !ok {
-		return wolferrors.UnknownSequenceError(seq)
-	}
-	n.ACKSReceived[seq] = append(n.ACKSReceived[seq], addr)
-	return nil
+func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
+	n.ACKSReceived <- &ACKMessage{Seq: seq, Identifier: identifier}
 }
 
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
