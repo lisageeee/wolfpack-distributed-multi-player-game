@@ -50,8 +50,8 @@ func TestPixelNodeCanRun(t *testing.T) {
 
 	// If pixel can't start, will get err on this line
 	if err != nil {
-		panic(err)
 		fmt.Println("Pixel couldn't start, error:", err)
+		panic(err)
 		t.Fail()
 	}
 

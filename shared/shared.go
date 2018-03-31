@@ -24,6 +24,7 @@ type InitialGameSettings struct {
 	WindowsX			float64
 	WindowsY			float64
 	WallCoordinates		[]Coord
+	ScoreboardWidth		float64
 }
 
 type InitialState struct {

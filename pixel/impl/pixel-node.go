@@ -39,7 +39,7 @@ type PixelNode struct {
 	TextAtlas  		  *text.Atlas
 }
 
-func CreatePixelNode(nodeAddr string, scoreboardWidth float64) (PixelNode) {
+func CreatePixelNode(nodeAddr string) (PixelNode) {
 
 	// Setup connection
 	remote := setupTCP(nodeAddr)
@@ -60,10 +60,11 @@ func CreatePixelNode(nodeAddr string, scoreboardWidth float64) (PixelNode) {
 	wallCoords := settings.WallCoordinates
 
 	// Create geometry manager
-	geom := geometry.CreatePixelManager(settings.WindowsX, settings.WindowsY, scoreboardWidth, spriteStep, wallCoords)
+	geom := geometry.CreatePixelManager(settings.WindowsX, settings.WindowsY, settings.ScoreboardWidth,
+		spriteStep, wallCoords)
 
 	// Create scoreboard
-	scoreboardBg := createScoreboard(settings.WindowsX, settings.WindowsY, scoreboardWidth)
+	scoreboardBg := createScoreboard(settings.WindowsX, settings.WindowsY, settings.ScoreboardWidth)
 
 	// Allow text rendering
 	basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)

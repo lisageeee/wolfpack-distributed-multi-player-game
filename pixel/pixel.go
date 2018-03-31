@@ -12,7 +12,6 @@ import (
 )
 
 var nodeAddr string // must store as global to get it into run function
-const scoreSize = 200
 
 func main() {
 	if len(os.Args) < 2 {
@@ -24,7 +23,7 @@ func main() {
 }
 
 func run() {
-	node := impl.CreatePixelNode(nodeAddr, scoreSize)
+	node := impl.CreatePixelNode(nodeAddr)
 	go node.RunRemoteNodeListener()
 	winMaxX := node.Geom.GetX()
 	winMaxY := node.Geom.GetY()
@@ -32,7 +31,7 @@ func run() {
 	// all of our code will be fired up from here
 	cfg := pixelgl.WindowConfig{
 		Title:  "Wolfpack",
-		Bounds: pixel.R(0, 0, winMaxX + scoreSize, winMaxY),
+		Bounds: pixel.R(0, 0, winMaxX + node.Geom.GetScoreboardWidth(), winMaxY),
 		VSync:  true,
 	}
 

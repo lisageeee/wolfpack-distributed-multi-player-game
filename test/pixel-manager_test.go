@@ -9,10 +9,11 @@ import (
 const sizeX  = 300
 const sizeY = 300
 const spriteSize = 30
+const scoreboardWidth = 200
 
 func pmTestSetup() (geometry.PixelManager) {
 	// Creates pixel manager on a 300x300 screen with a 30px
-	pm := geometry.CreatePixelManager(sizeX, sizeY, spriteSize,
+	pm := geometry.CreatePixelManager(sizeX, sizeY, scoreboardWidth, spriteSize,
 		[]shared.Coord{{1,1}, {10, 90}, {23, 99} })
 	return pm
 }

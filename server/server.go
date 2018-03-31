@@ -181,6 +181,7 @@ func getSettingsByConfigString(configString string) (shared.GameConfig) {
 			WindowsX: 600,
 			WindowsY: 600,
 			WallCoordinates: []shared.Coord{{X: 4, Y:3}, {X: 9, Y:9}, {X: 4, Y:4}, {X: 4, Y:5}},
+			ScoreboardWidth: 200,
 		}
 
 		initState := shared.InitialState {
@@ -199,6 +200,7 @@ func getSettingsByConfigString(configString string) (shared.GameConfig) {
 			WindowsX: 300,
 			WindowsY: 300,
 			WallCoordinates: []shared.Coord{{X: 4, Y:3}, {X: 9, Y:9}},
+			ScoreboardWidth: 200,
 		}
 
 		initState := shared.InitialState {
