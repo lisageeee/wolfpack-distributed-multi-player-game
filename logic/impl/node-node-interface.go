@@ -214,12 +214,6 @@ func (n *NodeCommInterface) GetNodes() {
 
 	for id, addr := range response {
 		nodeClient := n.GetClientFromAddrString(addr.String())
-		nodeUdp, _ := net.ResolveUDPAddr("udp", addr.String())
-		// Connect to other node
-		nodeClient, err := net.DialUDP("udp", nil, nodeUdp)
-		if err != nil {
-			panic(err)
-		}
 		node := OtherNode{Identifier: id, Conn: nodeClient}
 		n.NodesToAdd <- &node
 		n.InitiateConnection(nodeClient)
