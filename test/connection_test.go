@@ -23,24 +23,28 @@ func TestHeartbeat(t *testing.T) {
 	time.Sleep(2 * time.Second) // give server time to start
 
 	fmt.Println("Testing the heartbeat functionality")
-	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2124")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	go node.ManageOtherNodes()
 
-	node.LocalAddr = udp_addr1
+	addr1, nodeConn := n.StartListenerUDP(":2124")
+	node.LocalAddr = addr1
+	go node.RunListener(nodeConn, addr1.String())
+
 	_ = node.ServerRegister()
 	go node.SendHeartbeat()
 
-	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2125")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	go node2.ManageOtherNodes()
 
-	node2.LocalAddr = udp_addr2
+	addr2, nodeConn2 := n.StartListenerUDP(":2125")
+	node2.LocalAddr = addr2
+	go node2.RunListener(nodeConn2, addr2.String())
 	_ = node2.ServerRegister()
 
-	udp_addr3, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2126")
+
+	udp_addr3, _ := net.ResolveUDPAddr("udp", ":2126")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node3 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	go node3.ManageOtherNodes()
@@ -83,13 +87,13 @@ func TestIncrementingID(t *testing.T){
 	time.Sleep(2 * time.Second) // give server time to start
 
 	fmt.Println("Testing that the ID's increment")
-	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", ":2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node.LocalAddr = udp_addr1
 	res1 := node.ServerRegister()
 
-	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	udp_addr2, _ := net.ResolveUDPAddr("udp", ":2023")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":8081")
 	node2.LocalAddr = udp_addr2
@@ -118,13 +122,13 @@ func TestServerCommandLineArgs(t *testing.T) {
 	time.Sleep(4 * time.Second) // give server time to start
 
 	fmt.Println("Testing that the ID's increment")
-	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", ":2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":" +serverPort)
 	node.LocalAddr = udp_addr1
 	res1 := node.ServerRegister()
 
-	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	udp_addr2, _ := net.ResolveUDPAddr("udp", ":2023")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":"+serverPort)
 	node2.LocalAddr = udp_addr2
@@ -154,13 +158,13 @@ func TestServerDies(t *testing.T) {
 	time.Sleep(4 * time.Second) // give server time to start
 
 	fmt.Println("Testing that the ID's increment")
-	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", ":2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":" +serverPort)
 	node.LocalAddr = udp_addr1
 	res1 := node.ServerRegister()
 
-	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	udp_addr2, _ := net.ResolveUDPAddr("udp", ":2023")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":"+serverPort)
 	node2.LocalAddr = udp_addr2
