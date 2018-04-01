@@ -54,7 +54,6 @@ func (pi *PixelInterface) waitForGameStates() {
 			// Send position to player node
 			pi.pixelWriter.Write(toSend)
 		}
-		state.PlayerLocs.Unlock()
 	}
 }
 // Sends a game state to the player's pixel interface for rendering
