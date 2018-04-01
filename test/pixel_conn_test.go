@@ -143,7 +143,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pixel.SendMove("up")
 
 	// Wait a tick for the move to be sent
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	// Check that the player has moved up
 	newState := n.GameState
@@ -163,7 +163,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pixel.SendMove("down")
 
 	// Wait a tick for the move to be sent
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	// Check that the player has moved down
 	newState = n.GameState
