@@ -198,8 +198,9 @@ func (n *NodeCommInterface) ManageAcks() {
 				fmt.Printf("DEBUG: LENGTH OF ACKS = %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
 				fmt.Printf("DEBUG: LENGTH OF OTHER NODES / 2 = %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
 				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
-					n.PlayerNode.GameState.PlayerLocs[n.PlayerNode.Identifier] = *moveToSend.Coord
-					// collectAcks = nil
+					n.PlayerNode.GameState.PlayerLocs.Lock()
+					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
+					n.PlayerNode.GameState.PlayerLocs.Unlock()
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel

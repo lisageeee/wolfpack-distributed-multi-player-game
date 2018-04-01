@@ -44,7 +44,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	n1.SendMoveToNodes(&testCoord)
 	time.Sleep(100*time.Millisecond)
 
-	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Should have updated n1's location in n2's game state")
 		t.Fail()
 	}
@@ -53,7 +53,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	n2.SendMoveToNodes(&testCoord)
 	time.Sleep(100*time.Millisecond)
 
-	if n1.PlayerNode.GameState.PlayerLocs[node2.Identifier] != testCoord {
+	if n1.PlayerNode.GameState.PlayerLocs.Data[node2.Identifier] != testCoord {
 		fmt.Println("Should have updated n2's locatio in n1's game state")
 		t.Fail()
 	}
@@ -140,26 +140,26 @@ func TestNodeToNodeValidSelfMove(t *testing.T) {
 	n1.SendMoveToNodes(&testCoord)
 	time.Sleep(3*time.Second)
 
-	if n2.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Should have updated n1's location in n2's game state")
 		t.Fail()
 	}
 
-	if n3.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n3.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Should have updated n1's location in n2's game state")
 		t.Fail()
 	}
 
-	if n4.PlayerNode.GameState.PlayerLocs[node1.Identifier] != testCoord {
+	if n4.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
 		fmt.Println("Should have updated n1's location in n2's game state")
 		t.Fail()
 	}
 
 	time.Sleep(5*time.Second)
 
-	if n1.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier] != testCoord {
+	if n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier] != testCoord {
 		fmt.Printf("Should have updated n1's coords to %v, instead it's %v\n", testCoord,
-			n1.PlayerNode.GameState.PlayerLocs[n1.PlayerNode.Identifier])
+			n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier])
 		t.Fail()
 	}
 
@@ -207,12 +207,12 @@ func TestPruningNodes(t *testing.T) {
 	fmt.Printf("Here is the Strike Count map for n1: %v\n", n1.Strikes.StrikeCount)
 
 	if _, ok := n1.Strikes.StrikeCount[node2.Identifier]; ok {
-		fmt.Println("This node should not be in the strikes map")
+		fmt.Printf("This node id should not be in the strikes map: %s", node2.Identifier)
 		t.Fail()
 	}
 
 	if _, ok := n1.OtherNodes[node2.Identifier]; ok {
-		fmt.Println("This node should not be in the other nodes map")
+		fmt.Printf("This node id should not be in the other nodes map: %s", node2.Identifier)
 		t.Fail()
 	}
 }
