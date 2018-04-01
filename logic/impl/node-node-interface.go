@@ -43,12 +43,7 @@ type NodeCommInterface struct {
 	ACKSReceived		chan *ACKMessage
 	MovesToSend			chan *PendingMoveUpdates
 	Strikes				StrikeLockMap // Heartbeat protocol between nodes
-	GameStateToSend		GameStateReady
-}
-
-type GameStateReady struct {
-	prey chan *shared.Coord
-	self chan *shared.Coord
+	GameStateToSend		chan bool
 }
 
 type StrikeLockMap struct {
@@ -113,6 +108,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		ACKSReceived: make(chan *ACKMessage, 30),
 		MovesToSend: make(chan *PendingMoveUpdates, 2),
 		Strikes:StrikeLockMap{StrikeCount:make(map[string]int)},
+		GameStateToSend: make(chan bool),
 		}
 }
 
@@ -203,7 +199,7 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
-					n.GameStateToSend.self <- moveToSend.Coord
+					n.GameStateToSend <- true
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel
@@ -214,38 +210,39 @@ func (n *NodeCommInterface) ManageAcks() {
 			}
 
 			// no more acks coming through
-		case <- time.After(1 * time.Second):
-			// convert array associated with seq to a map
-			if len(collectAcks) != 0 {
-				addresses := make(map[string]string)
-				for k := range collectAcks {
-					for _, ack := range collectAcks[k] {
-						addresses[ack] = ""
-					}
-				}
-				n.Strikes.Lock()
-				for id := range n.OtherNodes {
-					// if you don't find the id in the addresses array, they did not send an ACK
-					if _, ok := addresses[id]; !ok {
-						n.Strikes.StrikeCount[id]++
-						if n.Strikes.StrikeCount[id] > STRIKE_OUT {
-							n.NodesToDelete <- id
-							delete(n.Strikes.StrikeCount, id)
-						}
-					} else {
-						n.Strikes.StrikeCount[id] = 0
-					}
-				}
-				n.Strikes.Unlock()
-				collectAcks = make(map[uint64][]string)
-			}
-		default:
+		case <-time.After(500 * time.Millisecond):
 			if len(n.OtherNodes) <= 1 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
+					n.GameStateToSend <- true
+				}
+			} else {
+				// convert array associated with seq to a map
+				if len(collectAcks) != 0 {
+					addresses := make(map[string]string)
+					for k := range collectAcks {
+						for _, ack := range collectAcks[k] {
+							addresses[ack] = ""
+						}
+					}
+					n.Strikes.Lock()
+					for id := range n.OtherNodes {
+						// if you don't find the id in the addresses array, they did not send an ACK
+						if _, ok := addresses[id]; !ok {
+							n.Strikes.StrikeCount[id]++
+							if n.Strikes.StrikeCount[id] > STRIKE_OUT {
+								n.NodesToDelete <- id
+								delete(n.Strikes.StrikeCount, id)
+							}
+						} else {
+							n.Strikes.StrikeCount[id] = 0
+						}
+					}
+					n.Strikes.Unlock()
+					collectAcks = make(map[uint64][]string)
 				}
 			}
 		}
@@ -254,19 +251,9 @@ func (n *NodeCommInterface) ManageAcks() {
 
 func (n *NodeCommInterface) SendGameStateToPixel() {
 	for {
-		self := false
-		prey := false
 		select {
-		case <-n.GameStateToSend.self:
-			self = true
-		default:
-		}
-		select {
-		case <-n.GameStateToSend.prey:
-			prey = true
-		default:
-		}
-		if self && prey {
+		// TODO: right now it just encompasses self-move, prey needs to be accounted for
+		case <-n.GameStateToSend:
 			n.PlayerNode.pixelInterface.SendPlayerGameState(n.PlayerNode.GameState)
 		}
 	}
@@ -457,7 +444,7 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
-			n.GameStateToSend.prey <- move
+			n.GameStateToSend <- true
 			return nil
 		}
 	}
