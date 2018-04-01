@@ -83,6 +83,7 @@ func monitor(pubKeyStr string, heartBeatInterval time.Duration) {
 	for {
 		allPlayers.Lock()
 		if time.Now().UnixNano() - allPlayers.all[pubKeyStr].RecentHB > int64(heartBeatInterval) {
+			fmt.Printf("Disconnected and deleted: %s\n", allPlayers.all[pubKeyStr].Address.String())
 			delete(allPlayers.all, pubKeyStr)
 			allPlayers.Unlock()
 			return

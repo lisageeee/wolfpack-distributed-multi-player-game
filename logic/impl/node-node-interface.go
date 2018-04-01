@@ -106,9 +106,9 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodesToDelete: make(chan string, 5),
 		NodesToAdd: make(chan *OtherNode, 10),
 		ACKSReceived: make(chan *ACKMessage, 30),
-		MovesToSend: make(chan *PendingMoveUpdates, 2),
+		MovesToSend: make(chan *PendingMoveUpdates, 30),
 		Strikes:StrikeLockMap{StrikeCount:make(map[string]int)},
-		GameStateToSend: make(chan bool),
+		GameStateToSend: make(chan bool, 30),
 		}
 }
 
@@ -188,28 +188,33 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 func (n *NodeCommInterface) ManageAcks() {
 	collectAcks := make(map[uint64][]string)
 	for {
+		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
+			fmt.Println("In the ACKS Received case")
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
+				fmt.Printf("Are we in the n.MovesToSend branch, move to send %v\n", moveToSend)
 				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
 				// if the # of acks > # of connected nodes (majority consensus)
-				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
+				fmt.Printf("len(collectAcks[moveToSend.Seq] %d\n", len(collectAcks[moveToSend.Seq]))
+				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
 					n.GameStateToSend <- true
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
+						fmt.Println("In Rejection branch")
 						// no majority; so add this back to channel
 						moveToSend.Rejected++
 						n.MovesToSend <- moveToSend
+						fmt.Println("do we get here after we put back the moves to send to chan?")
 					}
 				}
 			}
-			// no more acks coming through
-		case <-time.After(250 * time.Millisecond):
-			if len(n.OtherNodes) <= 1 {
+		default:
+			if lenOfOtherNodes <= 2 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -233,6 +238,7 @@ func (n *NodeCommInterface) ManageAcks() {
 							n.Strikes.StrikeCount[id]++
 							if n.Strikes.StrikeCount[id] > STRIKE_OUT {
 								n.NodesToDelete <- id
+								fmt.Printf("Deleting this id: %s\n", id)
 								delete(n.Strikes.StrikeCount, id)
 							}
 						} else {
@@ -349,10 +355,9 @@ func (n *NodeCommInterface) SendHeartbeat() {
 			if err != nil {
 				fmt.Printf("DEBUG - Heartbeat err: [%s]\n", err)
 				n.Config = n.Reregister()
-
 			}
 			boop := n.Config.GlobalServerHB
-			time.Sleep(time.Duration(boop)*time.Microsecond)
+			time.Sleep(time.Duration(boop/2)*time.Microsecond)
 		}
 	}
 }
@@ -442,7 +447,8 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
-			n.GameStateToSend <- true
+			// TODO: Note: I've commented this out to slow down the game
+			// n.GameStateToSend <- true
 			return nil
 		}
 	}
@@ -460,7 +466,8 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
-		n.GameStateToSend <- true
+		// TODO: Note: I've commented this out to slow down the game
+		// n.GameStateToSend <- true
 
 		n.SendACK(identifier, seq)
 		return nil
