@@ -9,6 +9,7 @@ import (
 	"../shared"
 	"image"
 	"image/color"
+	"time"
 )
 
 var nodeAddr string // must store as global to get it into run function
@@ -84,22 +85,32 @@ func run() {
 
 	win.Update()
 
+	keyStroke := ""
+
+	// Send keystrokes periodically, don't stream
+	go func(){
+		for {
+			select {
+				case  <- time.After(time.Millisecond*200):
+					if keyStroke != "" {
+						node.SendMove(keyStroke)
+						keyStroke = ""
+					}
+			}
+		}
+	}()
+
 	for !win.Closed() {
-		// Listens for keypress
-		keyStroke := ""
 		if win.Pressed(pixelgl.KeyLeft) {
 			keyStroke = "left"
-		} else if win.Pressed(pixelgl.KeyRight)  {
+		} else if win.Pressed(pixelgl.KeyRight) {
 			keyStroke = "right"
 		} else if win.Pressed(pixelgl.KeyUp) {
 			keyStroke = "up"
 		} else if win.Pressed(pixelgl.KeyDown) {
 			keyStroke = "down"
 		}
-		if keyStroke != "" {
-			node.SendMove(keyStroke)
-			keyStroke = ""
-		}
+
 		// Update game state
 		if len(node.NewGameStates) > 0 {
 			curState := <- node.NewGameStates
