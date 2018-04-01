@@ -195,8 +195,6 @@ func (n *NodeCommInterface) ManageAcks() {
 				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
 
 				// if the # of acks > # of connected nodes (majority consensus)
-				fmt.Printf("DEBUG: LENGTH OF ACKS = %d. Values %v\n", len(collectAcks[moveToSend.Seq]), collectAcks[moveToSend.Seq])
-				fmt.Printf("DEBUG: LENGTH OF OTHER NODES / 2 = %d. OtherNodes %v\n", len(n.OtherNodes)/2, n.OtherNodes)
 				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
@@ -211,7 +209,7 @@ func (n *NodeCommInterface) ManageAcks() {
 			}
 
 			// no more acks coming through
-		case <- time.After(5 * time.Second):
+		case <- time.After(1 * time.Second):
 			// convert array associated with seq to a map
 			if len(collectAcks) != 0 {
 				addresses := make(map[string]string)
