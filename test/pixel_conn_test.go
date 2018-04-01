@@ -56,6 +56,9 @@ func TestPixelNodeCanRun(t *testing.T) {
 		t.Fail()
 	}
 
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 	// Note: you can close the pixel window after this test finishes (sorry, killing it crashes the next test)
 }
 
@@ -106,6 +109,10 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs.Data[n.Identifier].Y {
 		t.Fail()
 	}
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+
 }
 
 // Tests that the pixel node can send messages to the logic node

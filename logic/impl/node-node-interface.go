@@ -209,7 +209,7 @@ func (n *NodeCommInterface) ManageAcks() {
 			}
 			// no more acks coming through
 		case <-time.After(250 * time.Millisecond):
-			if len(n.OtherNodes) > 1 {
+			if len(n.OtherNodes) <= 1 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
 					n.PlayerNode.GameState.PlayerLocs.Lock()
