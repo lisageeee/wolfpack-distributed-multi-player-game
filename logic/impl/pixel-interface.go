@@ -32,7 +32,7 @@ func (pi *PixelInterface) waitForGameStates() {
 		state := <-pi.playerSendChannel
 		// Create the player map without without this node or prey node
 		otherPlayers := make(map[string]shared.Coord)
-		state.PlayerLocs.RLock()
+		state.PlayerLocs.Lock()
 		for key, value := range state.PlayerLocs.Data {
 			if key != pi.Id && key != "prey" {
 				otherPlayers[key] = value
@@ -45,8 +45,6 @@ func (pi *PixelInterface) waitForGameStates() {
 			OtherPlayers: otherPlayers,
 		}
 
-		state.PlayerLocs.RUnlock()
-
 		toSend, err := json.Marshal(renderState)
 		if err != nil {
 			fmt.Println(err)
@@ -54,6 +52,7 @@ func (pi *PixelInterface) waitForGameStates() {
 			// Send position to player node
 			pi.pixelWriter.Write(toSend)
 		}
+		state.PlayerLocs.Unlock()
 	}
 }
 // Sends a game state to the player's pixel interface for rendering

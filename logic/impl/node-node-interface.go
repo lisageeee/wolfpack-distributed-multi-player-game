@@ -43,6 +43,12 @@ type NodeCommInterface struct {
 	ACKSReceived		chan *ACKMessage
 	MovesToSend			chan *PendingMoveUpdates
 	Strikes				StrikeLockMap // Heartbeat protocol between nodes
+	GameStateToSend		GameStateReady
+}
+
+type GameStateReady struct {
+	prey chan *shared.Coord
+	self chan *shared.Coord
 }
 
 type StrikeLockMap struct {
@@ -135,7 +141,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				// Currently only planning to do the lockstep protocol with prey node
 				// In the future, may include players close to prey node
 				// I.e. check move commits
-				n.PlayerNode.pixelInterface.SendPlayerGameState(n.PlayerNode.GameState)
 				if message.Identifier == "prey" {
 					err := n.HandleReceivedMoveL(message.Identifier, message.Move)
 					if err != nil {
@@ -198,6 +203,7 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
+					n.GameStateToSend.self <- moveToSend.Coord
 				} else {
 					if moveToSend.Rejected < REJECTION_MAX {
 						// no majority; so add this back to channel
@@ -233,6 +239,35 @@ func (n *NodeCommInterface) ManageAcks() {
 				n.Strikes.Unlock()
 				collectAcks = make(map[uint64][]string)
 			}
+		default:
+			if len(n.OtherNodes) <= 1 {
+				if len(n.MovesToSend) != 0 {
+					moveToSend := <-n.MovesToSend
+					n.PlayerNode.GameState.PlayerLocs.Lock()
+					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
+					n.PlayerNode.GameState.PlayerLocs.Unlock()
+				}
+			}
+		}
+	}
+}
+
+func (n *NodeCommInterface) SendGameStateToPixel() {
+	for {
+		self := false
+		prey := false
+		select {
+		case <-n.GameStateToSend.self:
+			self = true
+		default:
+		}
+		select {
+		case <-n.GameStateToSend.prey:
+			prey = true
+		default:
+		}
+		if self && prey {
+			n.PlayerNode.pixelInterface.SendPlayerGameState(n.PlayerNode.GameState)
 		}
 	}
 }
@@ -422,6 +457,7 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
+			n.GameStateToSend.prey <- move
 			return nil
 		}
 	}
