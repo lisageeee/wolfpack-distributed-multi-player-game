@@ -217,4 +217,8 @@ func TestPruningNodes(t *testing.T) {
 		fmt.Printf("This node id should not be in the other nodes map: %s\n", node2.Identifier)
 		t.Fail()
 	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }
