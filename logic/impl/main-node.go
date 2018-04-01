@@ -5,6 +5,7 @@ import (
 	"../../geometry"
 	"fmt"
 	"crypto/ecdsa"
+	"time"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -74,6 +75,53 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	nodeInterface.PlayerNode = &pn
 
 	return pn
+}
+
+
+// Runs a bot game
+func (pn * PlayerNode) RunBotGame(playerListener string) {
+	for {
+		myState := pn.GameState.PlayerLocs.Data[pn.Identifier]
+		prey := pn.GameState.PlayerLocs.Data["prey"]
+		command := "still"
+		fmt.Println(prey)
+		minVal := abs(myState.X-prey.X)+ abs(myState.Y-prey.Y)
+		for _,i:= range []int{-1,1}{
+			val := abs(myState.X+i-prey.X)+ abs(myState.Y-prey.Y)
+			if val < minVal && pn.geo.IsValidMove(shared.Coord{myState.X+i, myState.Y}) {
+				minVal = val
+				if i == -1{
+					command = "left"
+				}else{
+					command = "right"
+				}
+			}
+		}
+		for _,j:= range []int{-1,1}{
+			val := abs(myState.X-prey.X)+ abs(myState.Y+j-prey.Y)
+			if val < minVal &&  pn.geo.IsValidMove(shared.Coord{myState.X, myState.Y+j}) {
+				minVal = val
+				if j == -1{
+					command = "down"
+				}else{
+					command = "up"
+				}
+			}
+		}
+		move := pn.movePlayer(command)
+		pn.nodeInterface.SendMoveToNodes(&move)
+		fmt.Println("movin' bot", command)
+		fmt.Println(move)
+		time.Sleep(time.Second)
+	}
+}
+
+func abs(num int)int {
+	if num <0{
+		return -num
+	}else{
+		return num
+	}
 }
 
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
