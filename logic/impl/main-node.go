@@ -90,9 +90,11 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 		case "quit":
 			break
 		default:
-			move := pn.movePlayer(message)
+			move, didMove := pn.movePlayer(message)
+			if didMove {
+				pn.nodeInterface.SendMoveToNodes(&move)
+			}
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
-			pn.nodeInterface.SendMoveToNodes(&move)
 		}
 	}
 
@@ -100,7 +102,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 
 // Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
 // (not into a wall, out of bounds)
-func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
+func (pn * PlayerNode) movePlayer(move string) (newPos shared.Coord, changed bool) {
 	// Get current player state
 	pn.GameState.PlayerLocs.RLock()
 	playerLoc := pn.GameState.PlayerLocs.Data[pn.Identifier]
@@ -124,9 +126,9 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 		//pn.GameState.PlayerLocs.Lock()
 		//pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
 		//pn.GameState.PlayerLocs.Unlock()
-		return newPosition
+		return newPosition, true
 	}
-	return playerLoc
+	return playerLoc, false
 }
 
 // GETTERS
