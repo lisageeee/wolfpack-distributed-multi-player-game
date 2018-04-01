@@ -195,24 +195,24 @@ func TestPruningNodes(t *testing.T) {
 	_ = node3.GetNodeInterface()
 	_ = node4.GetNodeInterface()
 
-	n1.Strikes.StrikeCount[n2.PlayerNode.Identifier] = l.STRIKE_OUT
 	time.Sleep(1 * time.Second)
 
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7, 7}
 	n1.SendMoveToNodes(&testCoord)
+	n1.Strikes.StrikeCount[n2.PlayerNode.Identifier] = l.STRIKE_OUT
 
 	time.Sleep(10 * time.Second)
 
 	fmt.Printf("Here is the Strike Count map for n1: %v\n", n1.Strikes.StrikeCount)
 
 	if _, ok := n1.Strikes.StrikeCount[node2.Identifier]; ok {
-		fmt.Printf("This node id should not be in the strikes map: %s", node2.Identifier)
+		fmt.Printf("This node id should not be in the strikes map: %s\n", node2.Identifier)
 		t.Fail()
 	}
 
 	if _, ok := n1.OtherNodes[node2.Identifier]; ok {
-		fmt.Printf("This node id should not be in the other nodes map: %s", node2.Identifier)
+		fmt.Printf("This node id should not be in the other nodes map: %s\n", node2.Identifier)
 		t.Fail()
 	}
 }
