@@ -186,7 +186,6 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
 	collectAcks := make(map[uint64][]string)
-
 	for {
 		select {
 		case ack := <-n.ACKSReceived:
@@ -232,7 +231,7 @@ func (n *NodeCommInterface) ManageAcks() {
 					}
 				}
 				n.Strikes.Unlock()
-				collectAcks = nil
+				collectAcks = make(map[uint64][]string)
 			}
 		}
 	}

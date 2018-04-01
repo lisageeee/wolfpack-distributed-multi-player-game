@@ -200,9 +200,11 @@ func TestPruningNodes(t *testing.T) {
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7, 7}
 	n1.SendMoveToNodes(&testCoord)
+
+	time.Sleep(500 * time.Millisecond)
 	n1.Strikes.StrikeCount[n2.PlayerNode.Identifier] = l.STRIKE_OUT
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	fmt.Printf("Here is the Strike Count map for n1: %v\n", n1.Strikes.StrikeCount)
 
