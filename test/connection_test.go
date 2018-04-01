@@ -9,7 +9,6 @@ import (
 	"context"
 	"os/exec"
 	"syscall"
-	_"os"
 	"os"
 )
 
@@ -158,13 +157,13 @@ func TestServerDies(t *testing.T) {
 	time.Sleep(4 * time.Second) // give server time to start
 
 	fmt.Println("Testing that the ID's increment")
-	udp_addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2123")
+	udp_addr1, _ := net.ResolveUDPAddr("udp", ":2123")
 	pubKey, privKey := key_helpers.GenerateKeys()
 	node := n.CreateNodeCommInterface(pubKey, privKey, ":" +serverPort)
 	node.LocalAddr = udp_addr1
 	res1 := node.ServerRegister()
 
-	udp_addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:2023")
+	udp_addr2, _ := net.ResolveUDPAddr("udp", ":2023")
 	pubKey, privKey = key_helpers.GenerateKeys()
 	node2 := n.CreateNodeCommInterface(pubKey, privKey, ":"+serverPort)
 	node2.LocalAddr = udp_addr2
