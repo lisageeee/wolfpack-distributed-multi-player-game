@@ -29,7 +29,6 @@ type PixelNode struct {
 	Sender            *net.TCPConn
 	playerPosition    shared.Coord
 	Geom              geometry.PixelManager
-	GameState         shared.GameRenderState
 	NewGameStates     chan shared.GameRenderState
 	PlayerSprite      *pixel.Sprite
 	WallSprite        *pixel.Sprite
@@ -76,8 +75,7 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 }
 
 //
-func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
-	curState := pn.GameState
+func (pn * PixelNode) RenderNewState (win * pixelgl.Window, curState shared.GameRenderState) {
 
 	// Clear current render
 	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff})

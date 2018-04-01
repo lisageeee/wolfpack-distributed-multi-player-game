@@ -193,7 +193,6 @@ func (n *NodeCommInterface) ManageAcks() {
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
 				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
-
 				// if the # of acks > # of connected nodes (majority consensus)
 				if len(collectAcks[moveToSend.Seq]) > len(n.OtherNodes)/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -208,10 +207,9 @@ func (n *NodeCommInterface) ManageAcks() {
 					}
 				}
 			}
-
 			// no more acks coming through
-		case <-time.After(500 * time.Millisecond):
-			if len(n.OtherNodes) <= 1 {
+		case <-time.After(250 * time.Millisecond):
+			if len(n.OtherNodes) > 1 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -462,6 +460,8 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
+		n.GameStateToSend <- true
+
 		n.SendACK(identifier, seq)
 		return nil
 	}

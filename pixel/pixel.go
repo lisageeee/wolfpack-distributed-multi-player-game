@@ -49,7 +49,7 @@ func run() {
 	sprite := pixel.NewSprite(pic, pic.Bounds())
 
 	node.PlayerSprite = sprite
-	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{3,3}) // starting position of sprite on grid
+	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{1,1}) // starting position of sprite on grid
 
 	// Create prey sprite
 	pic, err = LoadPicture("../sprites/prey.jpg")
@@ -103,9 +103,8 @@ func run() {
 		// Update game state
 		if len(node.NewGameStates) > 0 {
 			curState := <- node.NewGameStates
-			node.GameState = curState // set current state to the new state
 			// Now, update the rendering
-			node.RenderNewState(win)
+			node.RenderNewState(win, curState)
 		}
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}

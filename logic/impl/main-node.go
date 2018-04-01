@@ -51,7 +51,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs["prey"] = shared.Coord{5,5}
-	playerLocs[uniqueId] = shared.Coord{3,3}
+	playerLocs[uniqueId] = shared.Coord{1,1}
 
 	playerMap := shared.PlayerLockMap{Data:playerLocs}
 
@@ -91,7 +91,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			break
 		default:
 			move := pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameState)
+			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 			pn.nodeInterface.SendMoveToNodes(&move)
 		}
 	}
@@ -121,9 +121,9 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		pn.GameState.PlayerLocs.Lock()
-		pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
-		pn.GameState.PlayerLocs.Unlock()
+		//pn.GameState.PlayerLocs.Lock()
+		//pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
+		//pn.GameState.PlayerLocs.Unlock()
 		return newPosition
 	}
 	return playerLoc
