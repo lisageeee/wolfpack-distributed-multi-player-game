@@ -103,14 +103,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		case "moveCommit":
 			n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 		case "move":
-			// Currently only planning to do the lockstep protocol with prey node
-			// In the future, may include players close to prey node
-			// I.e. check move commits
-			if message.Identifier == "prey" {
-				n.HandleReceivedMoveL(message.Identifier, message.Move)
-			} else {
-				n.HandleReceivedMoveNL(message.Identifier, message.Move)
-			}
+			n.HandleReceivedMoveNL(message.Identifier, message.Move)
 		case "connect":
 			n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 		case "connected":

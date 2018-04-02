@@ -56,6 +56,9 @@ func TestPixelNodeCanRun(t *testing.T) {
 		t.Fail()
 	}
 
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 	// Note: you can close the pixel window after this test finishes (sorry, killing it crashes the next test)
 }
 
@@ -106,6 +109,10 @@ func TestLogicNodeToPixelComm(t *testing.T) {
 	if pixelGameState.PlayerLoc.Y != gameState.PlayerLocs.Data[n.Identifier].Y {
 		t.Fail()
 	}
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+
 }
 
 // Tests that the pixel node can send messages to the logic node
@@ -136,7 +143,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pixel.SendMove("up")
 
 	// Wait a tick for the move to be sent
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	// Check that the player has moved up
 	newState := n.GameState
@@ -156,7 +163,7 @@ func TestPixelNodeMove(t *testing.T) {
 	pixel.SendMove("down")
 
 	// Wait a tick for the move to be sent
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	// Check that the player has moved down
 	newState = n.GameState

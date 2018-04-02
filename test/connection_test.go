@@ -145,7 +145,6 @@ func TestServerCommandLineArgs(t *testing.T) {
 	serverStart.Process.Kill()
 }
 
-
 func TestServerDies(t *testing.T) {
 	const serverPort = "8008"
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)

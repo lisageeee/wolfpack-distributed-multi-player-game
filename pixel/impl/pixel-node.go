@@ -34,9 +34,6 @@ type PixelNode struct {
 	// The PixelManager used to convert incoming coordinates to Pixel-understandable vectors
 	Geom              geometry.PixelManager
 
-	// The current gamestate on this node
-	GameState         shared.GameRenderState
-
 	// Incoming game states that have not yet been rendered
 	NewGameStates     chan shared.GameRenderState
 
@@ -97,9 +94,9 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 	return node
 }
 
-// Renders the current gamestate
-func (pn * PixelNode) RenderNewState (win * pixelgl.Window) {
-	curState := pn.GameState
+//
+func (pn * PixelNode) RenderNewState (win * pixelgl.Window, curState shared.GameRenderState) {
+
 
 	// Clear current render
 	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff})

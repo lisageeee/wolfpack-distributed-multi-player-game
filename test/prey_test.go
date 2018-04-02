@@ -93,4 +93,8 @@ func TestMovePrey(t *testing.T) {
 	if loc.X != 5 && loc.Y != 5 {
 		t.Fail()
 	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
 }

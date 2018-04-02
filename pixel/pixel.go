@@ -9,6 +9,7 @@ import (
 	"../shared"
 	"image"
 	"image/color"
+	"time"
 )
 
 var nodeAddr string // must store as global to get it into run function
@@ -51,7 +52,7 @@ func run() {
 	sprite := pixel.NewSprite(pic, pic.Bounds())
 
 	node.PlayerSprite = sprite
-	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{3,3}) // starting position of sprite on grid
+	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{1,1}) // starting position of sprite on grid
 
 	// Create prey sprite
 	pic, err = LoadPicture("../sprites/prey.jpg")
@@ -86,28 +87,37 @@ func run() {
 
 	win.Update()
 
+	keyStroke := ""
+
+	// Send keystrokes periodically, don't stream
+	go func(){
+		for {
+			select {
+				case  <- time.After(time.Millisecond*200):
+					if keyStroke != "" {
+						node.SendMove(keyStroke)
+						keyStroke = ""
+					}
+			}
+		}
+	}()
+
 	for !win.Closed() {
-		// Listens for keypress
-		keyStroke := ""
 		if win.Pressed(pixelgl.KeyLeft) {
 			keyStroke = "left"
-		} else if win.Pressed(pixelgl.KeyRight)  {
+		} else if win.Pressed(pixelgl.KeyRight) {
 			keyStroke = "right"
 		} else if win.Pressed(pixelgl.KeyUp) {
 			keyStroke = "up"
 		} else if win.Pressed(pixelgl.KeyDown) {
 			keyStroke = "down"
 		}
-		if keyStroke != "" {
-			node.SendMove(keyStroke)
-			keyStroke = ""
-		}
+
 		// Update game state
 		if len(node.NewGameStates) > 0 {
 			curState := <- node.NewGameStates
-			node.GameState = curState // set current state to the new state
 			// Now, update the rendering
-			node.RenderNewState(win)
+			node.RenderNewState(win, curState)
 		}
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
