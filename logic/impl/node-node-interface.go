@@ -170,6 +170,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
 			case "connected":
 			// Do nothing
+			case "captured":
+				n.HandleCapturedPreyRequest(message.Move)
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -336,6 +338,22 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
+func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord) {
+	if move == nil {
+		return
+	}
+
+	message := NodeMessage{
+		MessageType: "captured",
+		Identifier: n.PlayerNode.Identifier,
+		Move:	move,
+		Addr: n.LocalAddr.String(),
+	}
+
+	toSend := sendMessage(n.Log, message)
+	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+}
+
 // Takes in a node ID and sends this node's gamestate to that node
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	message := NodeMessage{
@@ -438,6 +456,18 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
 }
 
+func (n* NodeCommInterface) HandleCapturedPreyRequest(move *shared.Coord) (err error) {
+	err = n.CheckGotPrey(*move)
+	if err != nil {
+		return err
+	}
+	err = n.CheckMoveIsValid(*move)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Initiates a connection to another node by sending it a "connect" message
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
@@ -506,4 +536,12 @@ func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
 		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 	}
 	return nil
+}
+
+func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
+	if move.X == n.PlayerNode.GameState.PlayerLocs.Data["prey"].X &&
+		move.Y == n.PlayerNode.GameState.PlayerLocs.Data["prey"].Y {
+		return nil
+	}
+	return wolferrors.InvalidPreyCaptureError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }

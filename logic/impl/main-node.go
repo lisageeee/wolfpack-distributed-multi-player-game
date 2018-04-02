@@ -108,6 +108,10 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			move := pn.movePlayer(message)
 			pn.pixelInterface.SendPlayerGameState(pn.GameState)
 			pn.nodeInterface.SendMoveToNodes(&move)
+			if pn.nodeInterface.CheckGotPrey(move) == nil {
+				fmt.Println("YAS GIRL")
+				pn.nodeInterface.SendPreyCaptureToNodes(&move)
+			}
 		}
 	}
 

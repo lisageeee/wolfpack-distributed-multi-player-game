@@ -44,7 +44,7 @@ func run() {
 	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff} )
 
 	// Create player sprite
-	pic, err := LoadPicture("../sprites/wolf.jpg")
+	pic, err := LoadPicture("./sprites/wolf.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func run() {
 	spritePos := node.Geom.GetVectorFromCoords(shared.Coord{3,3}) // starting position of sprite on grid
 
 	// Create prey sprite
-	pic, err = LoadPicture("../sprites/prey.jpg")
+	pic, err = LoadPicture("./sprites/prey.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func run() {
 	preyPos := node.Geom.GetVectorFromCoords(shared.Coord{5,5})
 
 	// Create other player sprite
-	pic, err = LoadPicture("../sprites/other-player.jpg")
+	pic, err = LoadPicture("./sprites/other-player.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ func run() {
 	node.OtherPlayerSprite = otherPlayerSprite
 
 	// Create wall sprite
-	pic, err = LoadPicture("../sprites/wall.jpg")
+	pic, err = LoadPicture("./sprites/wall.jpg")
 	if err != nil {
 		panic(err)
 	}
