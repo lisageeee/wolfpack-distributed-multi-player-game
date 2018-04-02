@@ -9,13 +9,30 @@ import (
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
 type PlayerNode struct {
+
+	// The interface that deals with incoming and outgoing messages from the associated Pixel node
 	pixelInterface	  PixelInterface
+
+	// The interface that deals with incoming and outgoing messages from other logic nodes
 	nodeInterface 	  *NodeCommInterface
+
+	// Channel on which incoming player moves will be passed from the pixelInterface to the logic node
 	playerCommChannel chan string
+
+	// Channel on which outgoing player states will be passed from this playerNode to the pixelInterface for sending
+	// to the player
 	playerSendChannel chan shared.GameState
+
+	// The current gamestate, represented as a map of player identifiers to locations
 	GameState		  shared.GameState
+
+	// The grid manager for the current game, which determines valid moves
 	geo        geometry.GridManager
+
+	// This logic node's identifier, assigned upon registration with the server
 	Identifier string
+
+	// The game configuration provided upon registration from the server. Includes wall locations and board size.
 	GameConfig shared.InitialState
 }
 
@@ -96,8 +113,8 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 
 }
 
-// Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
-// (not into a wall, out of bounds)
+// Given a string "up"/"down"/"left"/"right", returns the new player coordinates given that move. Also moves the player
+// in current gamestate and triggers a send of the new gamestate to the pixel node.
 func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	// Get current player state
 	pn.GameState.PlayerLocs.RLock()
@@ -128,11 +145,11 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 }
 
 // GETTERS
-
+// Returns the pixel interface; mainly of use for testing
 func (pn *PlayerNode) GetPixelInterface() (PixelInterface) {
 	return pn.pixelInterface
 }
-
+// Returns nothe node interface; mainly of use for testing
 func (pn *PlayerNode) GetNodeInterface() (*NodeCommInterface) {
 	return pn.nodeInterface
 }

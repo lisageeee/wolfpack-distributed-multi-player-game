@@ -20,6 +20,7 @@ func StartListenerUDP(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	return local_udp, client
 }
 
+// Get the public IP of the current connection
 func GetOutboundIP() net.IP {
 	// https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go
 	conn, err := net.Dial("udp", "8.8.8.8:80")

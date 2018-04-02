@@ -13,15 +13,17 @@ import (
 
 var nodeAddr string // must store as global to get it into run function
 
+// Main entrypoint, takes command line arguments to start the Pixel NOde
 func main() {
 	if len(os.Args) < 2 {
-		nodeAddr = "127.0.0.1:12345" // use port 12345 on localhost for remote node if no input provided
+		nodeAddr = ":12345" // use port 12345 on localhost for remote node if no input provided
 	} else {
 		nodeAddr = os.Args[1]
 	}
 	pixelgl.Run(run)
 }
 
+// This function is required to run pixel; it creates the pixel node and then runs pixel's game library in a loop
 func run() {
 	node := impl.CreatePixelNode(nodeAddr)
 	go node.RunRemoteNodeListener()
@@ -111,6 +113,7 @@ func run() {
 	}
 }
 
+// Checks to see if a win condition is met
 func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
 	if sprite.X == prey.X && sprite.Y == prey.Y {
 		return true
@@ -118,6 +121,7 @@ func checkForWin(sprite pixel.Vec, prey pixel.Vec) (bool) {
 	return false
 }
 
+// Helper function to load a picture as a sprite
 func LoadPicture(path string) (pixel.Picture, error) {
 	file, err := os.Open(path)
 	if err != nil {
