@@ -111,6 +111,9 @@ type NodeMessage struct {
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
 
+	// a score, included if the message is a preyCapture
+	Score int
+
 	// the address to connect to the sending node over
 	Addr        string
 }
@@ -171,7 +174,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "connected":
 			// Do nothing
 			case "captured":
-				n.HandleCapturedPreyRequest(message.Move)
+				n.HandleCapturedPreyRequest(message.Identifier, message.Move, message.Score)
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -338,7 +341,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
-func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord) {
+func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int) {
 	if move == nil {
 		return
 	}
@@ -347,6 +350,7 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord) {
 		MessageType: "captured",
 		Identifier: n.PlayerNode.Identifier,
 		Move:	move,
+		Score: score,
 		Addr: n.LocalAddr.String(),
 	}
 
@@ -456,7 +460,7 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(move *shared.Coord) (err error) {
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int) (err error) {
 	err = n.CheckGotPrey(*move)
 	if err != nil {
 		return err
@@ -465,6 +469,11 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(move *shared.Coord) (err e
 	if err != nil {
 		return err
 	}
+	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
+	if playerScore != playerScore + 1 {
+		return wolferrors.InvalidScoreUpdateError(string(score))
+	}
+	playerScore = playerScore + 1
 	return nil
 }
 
