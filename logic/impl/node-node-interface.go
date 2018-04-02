@@ -405,7 +405,6 @@ func (n *NodeCommInterface) GetNodes() {
 		nodeClient := n.GetClientFromAddrString(regInfo.Addr.String())
 		pubKey:= key.StringToPubKey(regInfo.PubKey)
 		node := OtherNode{Identifier: id, Conn: nodeClient, PubKey: &pubKey}
-		fmt.Println(node)
 		n.NodesToAdd <- &node
 		n.InitiateConnection(nodeClient)
 	}

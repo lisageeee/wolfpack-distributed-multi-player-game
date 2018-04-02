@@ -99,8 +99,6 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	defer allPlayers.Unlock()
 
 	pubKeyStr := keys.PubKeyToString(p.PubKey)
-	pubKey := keys.StringToPubKey(pubKeyStr)
-	fmt.Println(pubKey)
 
 	// TODO: This needs to be fixed
 	//if player, exists := allPlayers.all[pubKeyStr]; exists {
