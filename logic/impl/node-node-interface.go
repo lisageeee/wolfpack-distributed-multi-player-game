@@ -624,7 +624,7 @@ func (n *NodeCommInterface) SendACK(identifier string, seq uint64) {
 		Addr: n.LocalAddr.String(),
 	}
 
-	toSend := sendMessage(n.Log, message)
+	toSend := sendMessage(n.Log, message,  "Sendin' Ack")
 	n.MessagesToSend <- &PendingMessage{Recipient: identifier, Message: toSend}
 }
 
