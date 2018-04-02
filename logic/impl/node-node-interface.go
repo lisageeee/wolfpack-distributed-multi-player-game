@@ -47,11 +47,6 @@ type NodeCommInterface struct {
 	GameStateToSend       chan bool
 }
 
-type TrackId struct {
-	Id string
-	Tracked bool
-}
-
 type StrikeLockMap struct {
 	sync.RWMutex
 	StrikeCount map[string]int
@@ -195,14 +190,14 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
-	collectAcks := make(map[uint64][]TrackId)
+	collectAcks := make(map[uint64][]string)
 	for {
 		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
-				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], TrackId{ack.Identifier, false})
+				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack.Identifier)
 				// if the # of acks > # of connected nodes (majority consensus)
 				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -215,7 +210,7 @@ func (n *NodeCommInterface) ManageAcks() {
 				}
 			}
 		default:
-			// majority can't be achieved i.e. single player in network with prey
+			// TODO: adjust this when prey can handle acks
 			if lenOfOtherNodes <= 2 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
