@@ -10,11 +10,22 @@ import (
 
 // The interface with the player's Pixel GUI (pixel-node.go) from the logic node
 type PixelInterface struct {
+	// The TCP connection over which we wait for a pixel node to connect
 	pixelListener     *net.TCPListener
+
+	// The connection over which messages are sent after a connection is established
 	pixelWriter 	  *net.TCPConn
+
+	// The channel used to send player moves to the main node
 	playerCommChannel chan string
+
+	// The channel used to write new game states that should be sent to the pixel node to
 	playerSendChannel chan shared.GameState
+
+	// The gameconfig for this game
 	gameConfig		  shared.InitialGameSettings
+
+	// The ID of this logic node
 	Id string
 }
 
@@ -27,6 +38,8 @@ func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan 
 	return pi
 }
 
+// To be run in a goroutine; waits for the notification a gamestate should be rendered then sends that gamestate
+// to the pixel node
 func (pi *PixelInterface) waitForGameStates() {
 	for {
 		state := <-pi.playerSendChannel
@@ -62,7 +75,7 @@ func (pi *PixelInterface) SendPlayerGameState(state shared.GameState) {
 }
 
 // Given two local UDP addresses, initializes the ports for sending and receiving messages from the
-// pixel-node, respectively. Must be run in a goroutine (infinite loop_
+// pixel-node, respectively. Must be run in a goroutine (infinite loop)
 func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 
 	addr, _ := net.ResolveTCPAddr("tcp",receivingAddr)
@@ -90,6 +103,7 @@ func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 	}
 }
 
+// Listener function that waits for a pixel node to connect, returns the resulting TCPConn after connection.
 func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
 	// gets the initial TCP conn
 	player := pi.pixelListener

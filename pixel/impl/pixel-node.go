@@ -25,19 +25,39 @@ var MyAddr string
 const spriteStep = 30
 
 type PixelNode struct {
-	//Listener          *net.UDPConn
+	// The TCP connection with the associated logic node
 	Sender            *net.TCPConn
+
+	// This player's current position
 	playerPosition    shared.Coord
+
+	// The PixelManager used to convert incoming coordinates to Pixel-understandable vectors
 	Geom              geometry.PixelManager
+
+	// Incoming game states that have not yet been rendered
 	NewGameStates     chan shared.GameRenderState
+
+	// The sprite (graphic) that represents the player
 	PlayerSprite      *pixel.Sprite
+
+	// The sprite (graphic) that represents the walls
 	WallSprite        *pixel.Sprite
+
+	// The sprite (graphic) that represents the other players
 	OtherPlayerSprite *pixel.Sprite
+
+	// The sprite (graphic) that represents the prey
 	PreySprite        *pixel.Sprite
+
+	// The sprite (graphic) that represents scoreboard background
 	ScoreboardBg 	  *imdraw.IMDraw
+
+	// The text atlas which is required to draw text with pixel
 	TextAtlas  		  *text.Atlas
 }
 
+// Creates a pixel node by setting up the TCP connection with the logic node, and getting the associated game settings.
+// Returns the created pixel node.
 func CreatePixelNode(nodeAddr string) (PixelNode) {
 
 	// Setup connection
@@ -77,6 +97,7 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 //
 func (pn * PixelNode) RenderNewState (win * pixelgl.Window, curState shared.GameRenderState) {
 
+
 	// Clear current render
 	win.Clear(color.RGBA{0x2d, 0x2d, 0x2d, 0xff})
 
@@ -104,10 +125,10 @@ func (pn * PixelNode) RenderNewState (win * pixelgl.Window, curState shared.Game
 
 }
 
+// Sends a move as inputted by the player to the logic node
 func (pn * PixelNode) SendMove (move string) {
 	pn.Sender.Write([]byte(move))
 }
-
 
 // Listens for new game states from pixel node
 func (pn * PixelNode) RunRemoteNodeListener() {
@@ -134,6 +155,7 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 	}
 }
 
+// Helper function to draw the scores on the board.
 func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
 	pn.ScoreboardBg.Draw(window)
 
@@ -168,7 +190,9 @@ func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
 	myScore.Draw(window, pixel.IM.Scaled(myScore.Orig, scoreMultiplier))
 }
 
-// Couldn't be bothered to figure this out myself
+// Helper function to take the score map and return a sorted list of all scores by player, formatted as a single string
+// for pixel to draw.
+// Couldn't be bothered to figure the sorting out myself, reference:
 // https://stackoverflow.com/questions/18695346/how-to-sort-a-mapstringint-by-its-values
 func SortScores (scoreMap map[string]int) (string) {
 	n := map[int][]string{}
@@ -193,12 +217,14 @@ func SortScores (scoreMap map[string]int) (string) {
 	return scoreString
 }
 
+// Helper function to draw all the walls on each render update
 func (pn * PixelNode ) DrawWalls(window *pixelgl.Window) {
 	for _, wall := range pn.Geom.GetWallVectors() {
 		pn.WallSprite.Draw(window, pixel.IM.Moved(wall))
 	}
 }
 
+// Helper function to create he scoreboard background based on the initial game settings
 func createScoreboard(gameWidth, gameHeight, scoreboardWidth float64) (*imdraw.IMDraw) {
 	// Create scoreboard background
 	scoreboardBg := imdraw.New(nil)
@@ -212,6 +238,7 @@ func createScoreboard(gameWidth, gameHeight, scoreboardWidth float64) (*imdraw.I
 	return scoreboardBg
 }
 
+// Function that sets up the TCP connection with the logic node
 func setupTCP(ip_addr string) (*net.TCPConn) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", ip_addr)
 	if err != nil {

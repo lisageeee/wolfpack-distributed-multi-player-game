@@ -40,22 +40,27 @@ func (gm *PixelManager) getWallVectors(walls []shared.Coord) {
 	gm.wallVectors = wallVecs
 }
 
+// Returns all wall vectors for rendering.
 func (gm *PixelManager) GetWallVectors() ([]pixel.Vec) {
 	return gm.wallVectors
 }
 
+// Returns the maximum gamespace X value (in pixels) as a float64
 func (gm *PixelManager) GetX() (float64) {
 	return gm.x
 }
 
+// Returns the maximum gamespace Y value (in pixels) as a float64
 func (gm *PixelManager) GetY() (float64) {
 	return gm.y
 }
 
+// Returns the width of the scoreboard (in pixels) as a float64
 func (gm *PixelManager) GetScoreboardWidth() (float64) {
 	return gm.scoreboardWidth
 }
 
+// Returns the width/height of a sprite, and thus the grid the game is played on, as a float64
 func (gm *PixelManager) GetSpriteSize() (float64)  {
 	return gm.spriteSize
 }

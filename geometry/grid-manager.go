@@ -13,7 +13,8 @@ type GridManager struct {
 
 const playerSize int = 30
 
-// x int, y int, walls []shared.Coord
+// Creates a new grid manager for use in a logic node. Can perform checks on proposed coordinates.
+// Returns the created grid manager
 func CreateNewGridManager(settings shared.InitialGameSettings) (GridManager) {
 	wallMap := make(map[string]shared.Coord)
 
@@ -31,6 +32,8 @@ func CreateNewGridManager(settings shared.InitialGameSettings) (GridManager) {
 	return gm
 }
 
+// Checks if a given coordinate is in bounds on the current game board
+// Returns true if the coordinate is in bounds, false otherwise.
 func (gm * GridManager) IsInBounds(coord shared.Coord) (bool) {
 	if coord.X >= 0 && coord.X < gm.x {
 		if coord.Y >= 0 && coord.Y < gm.y {
@@ -40,6 +43,8 @@ func (gm * GridManager) IsInBounds(coord shared.Coord) (bool) {
 	return false
 }
 
+// Checks if a given coordinate not the same as a wall coordinate on the current map
+// Returns true if the coordinate is not the same as a wall coordinate, false otherwise
 func (gm * GridManager) IsNotWall(coord shared.Coord) (bool) {
 	// Convert coord to string, check map
 	key := strconv.Itoa(coord.X) + " " + strconv.Itoa(coord.Y)
@@ -50,6 +55,9 @@ func (gm * GridManager) IsNotWall(coord shared.Coord) (bool) {
 	return !ok
 }
 
+// Checks that the two given coordinates could be valid new and original states; that is, ensures
+// the player isn't taking more than one step per move
+// Return true if the move is valid, false if the node has been "teleparting"
 func (gm * GridManager) IsNotTeleporting(origCoord shared.Coord, newCoord shared.Coord) (bool) {
 	x := origCoord.X - newCoord.X
 	y := origCoord.Y - newCoord.Y
@@ -63,6 +71,8 @@ func (gm * GridManager) IsNotTeleporting(origCoord shared.Coord, newCoord shared
 	}
 }
 
+// Checks that a given move is valid by checking if it is in bounds and also not a wall
+// Returns true of the move is valid, false otherwise.
 func (gm * GridManager) IsValidMove(coord shared.Coord) (bool) {
 	return gm.IsInBounds(coord) && gm.IsNotWall(coord)
 }

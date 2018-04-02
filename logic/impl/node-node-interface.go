@@ -23,27 +23,69 @@ import (
 	"sync"
 )
 
-// Node communication interface for communication with other player/logic nodes
+// Node communication interface for communication with other player/logic nodes as well as the server
 type NodeCommInterface struct {
+	// A reference back to this interface's "main" node
 	PlayerNode			*PlayerNode
-	PubKey                *ecdsa.PublicKey
-	PrivKey               *ecdsa.PrivateKey
-	Config                shared.GameConfig
-	ServerAddr            string
-	ServerConn            *rpc.Client
-	IncomingMessages      *net.UDPConn
-	LocalAddr             net.Addr
-	OtherNodes            map[string]*net.UDPConn
-	Log                   *govec.GoLog
-	HeartAttack           chan bool
-	MoveCommits           map[string]string
-	MessagesToSend        chan *PendingMessage
-	NodesToDelete         chan string // Nodes pending delete go here
-	NodesToAdd            chan *OtherNode // Nodes pending addition go here
+
+	// The public key of this nodes
+	PubKey 				*ecdsa.PublicKey
+
+	// The private key of this node, used to encrypt messages
+	PrivKey 			*ecdsa.PrivateKey
+
+	// The gameconfig for the game, primarily used here to form connections to the given nodes
+	Config 				shared.GameConfig
+
+	// The address of the server for this game
+	ServerAddr			string
+
+	// The RPC connection to the server
+	ServerConn 			*rpc.Client
+
+	// The UDP connection over which this node listens for messages from other logic nodes
+	IncomingMessages 	*net.UDPConn
+
+	// The address of this node's listener
+	LocalAddr			net.Addr
+
+	// The current map of identifiers to connections of nodes in play
+	OtherNodes 			map[string]*net.UDPConn
+
+	// The GoVector log
+	Log 				*govec.GoLog
+
+	// A channel that, when written to, will stop heartbeats. Primarily for testing
+	HeartAttack 		chan bool
+
+	// A map to store move commits in before receiving their associated moves
+	MoveCommits			map[string]string
+
+	// Channel that messages are written to so they can be handled by the goroutine that deals with sending messages
+	// and managing the player nodes
+	MessagesToSend		chan *PendingMessage
+
+	// Channel that the identifiers of nodes to delete are added to so they can be handled by the goroutine that deals
+	// with sending messages and managing the player nodes
+	NodesToDelete		chan string
+
+	// Channel that the identifiers and connections of nodes to add to other nodes are sent to so they can be handled
+	// by the goroutine that deals with sending messages and managing the player nodes
+	NodesToAdd			chan *OtherNode
+
+	// A channel for received acks to be written to
 	ACKSReceived          chan *ACKMessage
+
+	// A channel to write nodes that appear to have been shut down to
 	NodesWriteConnRefused chan string
+
+	// Pending moves go in this gannel
 	MovesToSend           chan *PendingMoveUpdates
+
+	// Keeps track of the number of failed messages between nodes
 	Strikes               StrikeLockMap // Heartbeat protocol between nodes
+
+	// Write to this channel to trigger a gamestate send to the pixel node
 	GameStateToSend       chan bool
 }
 
@@ -52,48 +94,69 @@ type StrikeLockMap struct {
 	StrikeCount map[string]int
 }
 
+
+// A message for another node with a recipient and a byte-encoded message. If the recipient is "all", the message is
+// sent to every node in OtherNodes.
 type PendingMessage struct {
 	Recipient string
 	Message []byte
 }
 
+// A struct to hold pending moves
 type PendingMoveUpdates struct {
 	Seq	uint64
 	Coord *shared.Coord
 	Rejected int
 }
 
+// A struct to form an ACK message
 type ACKMessage struct {
 	Seq        uint64
 	Identifier string
 }
 
+// An othernode struct, used for storing node ids/conns before they are added to the OtherNodes map
 type OtherNode struct {
 	Identifier string
 	Conn *net.UDPConn
 }
 
+// A playerinfo struct, provides identification information about this node: the address and public key
 type PlayerInfo struct {
 	Address 			net.Addr
 	PubKey 				ecdsa.PublicKey
 }
 
-// The message struct that is sent for all node communcation
+// The message struct that is sent for all node communication
 type NodeMessage struct {
-	Identifier  string             // the id of the sending node
-	MessageType string             // identifies the type of message, can be: "move", "moveCommit", "gameState", "connect", "connected", "ack"
-	GameState   *shared.GameState  // a gamestate, included if MessageType is "gameState", else nil
-	Move        *shared.Coord      // a move, included if the message type is move
-	Seq			uint64			   // keep track of seq num for responding ACKs
-	MoveCommit  *shared.MoveCommit // a move commit, included if the message type is moveCommit
-	Addr        string             // the address to connect to this node over
+	// the id of the sending node
+	Identifier  string
+
+	// identifies the type of message
+	// can be: "move", "moveCommit", "gameState", "connect", "connected"
+	MessageType string
+
+	// a gamestate, included if MessageType is "gameState", else nil
+	GameState   *shared.GameState
+
+	// a move, included if the message type is move
+	Move        *shared.Coord
+
+	// a move commit, included if the message type is moveCommit
+	MoveCommit  *shared.MoveCommit
+
+	// the address to connect to the sending node over
+	Addr        string
+
+	// Keep track of sequence number for response ACKs
+	Seq			uint64
 }
 
 var sequenceNumber uint64 = 0
 
 const STRIKE_OUT = 3
 
-// Creates a node comm interface with initial empty arrays
+// Creates a node comm interface with initial empty arrays/maps
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
 	return NodeCommInterface {
 		PubKey:                pubKey,
@@ -114,6 +177,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
+// Unmarshalls received messages and dispatches them to the appropriate handler function
 func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr string) {
 	// Start the listener
 	listener.SetReadBuffer(1048576)
@@ -159,8 +223,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 	}
 }
 
-// Routine that handles all reads and writes of the OtherNodes map; single thread preventing concurrent modification
-// exception
+// Routine that handles all reads and writes of the OtherNodes map; single thread preventing concurrent iteration and write
+// exception. This routine therefore handles all sending of messages as well as that requires iteration over OtherNodes.
 func (n *NodeCommInterface) ManageOtherNodes() {
 	for {
 		select {
@@ -256,6 +320,8 @@ func (n *NodeCommInterface) SendGameStateToPixel() {
 	}
 }
 
+// Helper function that unpacks the GoVector message tooling
+// Returns the unmarshalled NodeMessage, ready for reading
 func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// Just removes the golog headers from each message
 	// TODO: set up error handling
@@ -264,13 +330,15 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	return message
 }
 
+// Helper function that packs the GoVector message tooling
+// Returns the byte-encoded message, ready to send
 func sendMessage(goLog *govec.GoLog, message NodeMessage) []byte{
 	newMessage := goLog.PrepareSend("SendMessageToOtherNode", message)
 	return newMessage
 
 }
-// Registers the node with the server, receiving the gameconfig (and connections)
-// TODO: maybe move this into node.go?
+// Registers the node with the server, receiving the game config (and connections)
+// Returns the unique id of this node assigned by the server
 func (n *NodeCommInterface) ServerRegister() (id string) {
 	gob.Register(&net.UDPAddr{})
 	gob.Register(&elliptic.CurveParams{})
@@ -290,6 +358,8 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 
 	return strconv.Itoa(n.Config.Identifier)
 }
+
+// Another server registration function, used to deal with server disconnection.
 func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 	// fmt.Printf("DEBUG - ServerRegister() n.ServerConn [%s] should be nil\n", n.ServerConn)
 	// Connect to server with RPC, port is always :8081
@@ -311,6 +381,7 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 	return response, nil
 }
 
+// Requests the list of currently connected nodes from the server, and initiates a connection with them
 func (n *NodeCommInterface) GetNodes() {
 	var response map[string]net.Addr
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
@@ -327,6 +398,7 @@ func (n *NodeCommInterface) GetNodes() {
 	}
 }
 
+// Takes in an address string and makes a UDP connection to the client specified by the string. Returns the connection.
 func (n *NodeCommInterface) GetClientFromAddrString(addr string) (*net.UDPConn) {
 	nodeUdp, _ := net.ResolveUDPAddr("udp", addr)
 	// Connect to other node
@@ -337,6 +409,7 @@ func (n *NodeCommInterface) GetClientFromAddrString(addr string) (*net.UDPConn) 
 	return nodeClient
 }
 
+// Sends a heartbeat to the server at the interval specificed at server registration
 func (n *NodeCommInterface) SendHeartbeat() {
 	var _ignored bool
 	for {
@@ -355,6 +428,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 	}
 }
 
+// Function that is started when the server dies; will continue to reregister until the server comes back up
 func (n* NodeCommInterface) Reregister() shared.GameConfig {
 	response, register_failed_err := DialAndRegister(n)
 	for register_failed_err != nil {
@@ -366,6 +440,7 @@ func (n* NodeCommInterface) Reregister() shared.GameConfig {
 }
 
 // TODO: Only trying out the sending of ACKS here for now
+// Takes in a new coordinate for this node and sends it to all other nodes.
 func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	if move == nil {
 		return
@@ -386,6 +461,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }
 
+// Takes in a node ID and sends this node's gamestate to that node
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	message := NodeMessage{
 		MessageType: "gameState",
@@ -398,6 +474,7 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	n.MessagesToSend <- &PendingMessage{Recipient: otherNodeId, Message: toSend}
 }
 
+// Sends a move commit to all other nodes, for lockstep protocol
 func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
 	message := NodeMessage {
 		MessageType: "moveCommit",
@@ -410,7 +487,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 	n.MessagesToSend <- &PendingMessage{Recipient:"all", Message: toSend}
 }
 
-// Helper function to send message to other nodes
+// Helper function to send message to other nodes; do not call directly; instead write to the messagesTosend channel
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	for id, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
@@ -421,12 +498,14 @@ func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	}
 }
 
+// Handles a gamestate received from another node.
 func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState *shared.GameState) {
 	//TODO: don't just wholesale replace this
 	n.PlayerNode.GameState = *gameState
 }
 
 // Handle moves that require a move commit check (lockstep)
+// Returns an InvalidMoveError if the move does not match a received commit
 func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
 	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
@@ -450,6 +529,8 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 }
 
 // Handle moves that does not require a move commit check
+// Returns InvalidMoveError if the received move is not valid
+
 func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord, seq uint64) (err error) {
 	// Need nil check for bad move
 	if move != nil {
@@ -469,6 +550,8 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
+// Handles received move commits from other nodes by storing them in anticipation of receiving a move
+// Returns IncorrectPlayerError if the player that send the message is not the player they are claiming to be
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
 	// if the move is authentic
 	if n.CheckAuthenticityOfMoveCommit(moveCommit) {
@@ -486,11 +569,13 @@ func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
 	n.ACKSReceived <- &ACKMessage{Seq: seq, Identifier: identifier}
 }
 
+// Handles "connect" messages received by other nodes by adding the incoming node to this node's OtherNodes
 func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
 	node := n.GetClientFromAddrString(addr)
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
 }
 
+// Initiates a connection to another node by sending it a "connect" message
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
 		MessageType: "connect",
@@ -571,12 +656,9 @@ func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move s
 	return false
 }
 
-// Check move to see if it's valid based on this node's game state
+// Check move to see if it's valid based on the gameplay grid
 func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
 	gridManager := geometry.CreateNewGridManager(n.PlayerNode.GameConfig.Settings)
-	if !gridManager.IsInBounds(move) {
-		return wolferrors.OutOfBoundsError("[" + string(move.X) + ", " + string(move.Y) + "]")
-	}
 	if !gridManager.IsValidMove(move) {
 		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 	}
