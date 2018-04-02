@@ -149,6 +149,9 @@ type NodeMessage struct {
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
 
+	// A string representing th epublic key if this is a connect message
+	PubKey 	string
+
 	// the address to connect to the sending node over
 	Addr        string
 
@@ -217,7 +220,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					n.HandleReceivedMoveNL(message.Identifier, message.Move, message.Seq)
 				}
 			case "connect":
-				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
+				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
 			case "connected":
 			// Do nothing
 			case "ack":
@@ -580,9 +583,10 @@ func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
 }
 
 // Handles "connect" messages received by other nodes by adding the incoming node to this node's OtherNodes
-func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
+func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string, pubKeyString string) {
 	node := n.GetClientFromAddrString(addr)
-	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
+	pubKey := key.StringToPubKey(pubKeyString)
+	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
 // Initiates a connection to another node by sending it a "connect" message
@@ -593,6 +597,7 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		GameState:   nil,
 		Addr:        n.LocalAddr.String(),
 		Move:        nil,
+		PubKey: 	 key.PubKeyToString(*n.PubKey),
 	}
 	toSend := sendMessage(n.Log, message)
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}

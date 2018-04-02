@@ -236,21 +236,32 @@ func TestPubKey(t *testing.T) {
 	addr2, nodeConn2 := n.StartListenerUDP(":2150")
 	node2.LocalAddr = addr2
 	go node2.RunListener(nodeConn2, addr2.String())
-	_ = node2.ServerRegister()
+	node2Id := node2.ServerRegister()
 
 	time.Sleep(2*time.Second)
-	fmt.Println(node2.NodeKeys, pubKey1, "THGJFLDKGJF", nodeId)
 
 	if pubKey1.X.Cmp(node2.NodeKeys[nodeId].X) != 0 {
-		fmt.Printf("Fail, node 1 does not have node 1's public key")
+		fmt.Printf("Fail, node 2 does not have node 1's public key")
 	}
 
 	if pubKey1.Y.Cmp(node2.NodeKeys[nodeId].Y) != 0 {
-		fmt.Printf("Fail, node 1 does not have node 1's public key")
+		fmt.Printf("Fail, node 2 does not have node 1's public key")
 	}
 
 	if pubKey1.Curve != node2.NodeKeys[nodeId].Curve {
-		fmt.Printf("Fail, node 1 does not have node 1's public key")
+		fmt.Printf("Fail, node 2 does not have node 1's public key")
+	}
+
+	if pubKey2.X.Cmp(node.NodeKeys[node2Id].X) != 0 {
+		fmt.Printf("Fail, node 1 does not have node 2's public key")
+	}
+
+	if pubKey2.Y.Cmp(node.NodeKeys[node2Id].Y) != 0 {
+		fmt.Printf("Fail, node 1 does not have node 2's public key")
+	}
+
+	if pubKey2.Curve != node.NodeKeys[node2Id].Curve {
+		fmt.Printf("Fail, node 1 does not have node 2's public key")
 	}
 
 	// Kill after done + all children
