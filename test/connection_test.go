@@ -207,6 +207,57 @@ func TestServerDies(t *testing.T) {
 	serverStart2.Process.Kill()
 }
 
+func TestPubKey(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(2 * time.Second) // give server time to start
+
+	fmt.Println("Testing public key transmission")
+	pubKey1, privKey1 := key_helpers.GenerateKeys()
+	node := n.CreateNodeCommInterface(pubKey1, privKey1, ":8081")
+	go node.ManageOtherNodes()
+
+	addr1, nodeConn := n.StartListenerUDP(":2140")
+	node.LocalAddr = addr1
+	go node.RunListener(nodeConn, addr1.String())
+
+	nodeId := node.ServerRegister()
+	go node.SendHeartbeat()
+
+	pubKey2, privKey2 := key_helpers.GenerateKeys()
+	node2 := n.CreateNodeCommInterface(pubKey2, privKey2, ":8081")
+	go node2.ManageOtherNodes()
+
+	addr2, nodeConn2 := n.StartListenerUDP(":2150")
+	node2.LocalAddr = addr2
+	go node2.RunListener(nodeConn2, addr2.String())
+	_ = node2.ServerRegister()
+
+	time.Sleep(2*time.Second)
+	fmt.Println(node2.NodeKeys, pubKey1, "THGJFLDKGJF", nodeId)
+
+	if pubKey1.X.Cmp(node2.NodeKeys[nodeId].X) != 0 {
+		fmt.Printf("Fail, node 1 does not have node 1's public key")
+	}
+
+	if pubKey1.Y.Cmp(node2.NodeKeys[nodeId].Y) != 0 {
+		fmt.Printf("Fail, node 1 does not have node 1's public key")
+	}
+
+	if pubKey1.Curve != node2.NodeKeys[nodeId].Curve {
+		fmt.Printf("Fail, node 1 does not have node 1's public key")
+	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+}
+
 // TODO: Test node re-joins and has been assigned an identifier - cannot assume that it's
 // connecting from the same IP address
 

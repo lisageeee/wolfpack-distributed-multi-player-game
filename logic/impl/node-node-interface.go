@@ -52,6 +52,9 @@ type NodeCommInterface struct {
 	// The current map of identifiers to connections of nodes in play
 	OtherNodes 			map[string]*net.UDPConn
 
+	// The current map of identifiers to public keys of nodes in play
+	NodeKeys		    map[string]*ecdsa.PublicKey
+
 	// The GoVector log
 	Log 				*govec.GoLog
 
@@ -119,6 +122,7 @@ type ACKMessage struct {
 type OtherNode struct {
 	Identifier string
 	Conn *net.UDPConn
+	PubKey *ecdsa.PublicKey
 }
 
 // A playerinfo struct, provides identification information about this node: the address and public key
@@ -158,11 +162,12 @@ const STRIKE_OUT = 3
 
 // Creates a node comm interface with initial empty arrays/maps
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
-	return NodeCommInterface {
+	return NodeCommInterface{
 		PubKey:                pubKey,
 		PrivKey:               privKey,
-		ServerAddr :           serverAddr,
+		ServerAddr:           serverAddr,
 		OtherNodes:            make(map[string]*net.UDPConn),
+		NodeKeys:               make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
 		MessagesToSend:        make(chan *PendingMessage, 30),
@@ -173,7 +178,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MovesToSend:           make(chan *PendingMoveUpdates, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
-		}
+	}
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
@@ -240,11 +245,14 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			}
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
+			n.NodeKeys[toAdd.Identifier] = toAdd.PubKey
+			fmt.Println("Node keys:", n.NodeKeys)
 		case toDelete := <-n.NodesToDelete:
 			fmt.Printf("To delete: %s\n", toDelete)
 			delete(n.OtherNodes, toDelete)
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			delete(n.PlayerNode.GameState.PlayerLocs.Data, toDelete)
+			delete(n.NodeKeys, toDelete)
 			fmt.Printf("PlayerLocs.Data %v\n", n.PlayerNode.GameState.PlayerLocs.Data)
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			n.GameStateToSend <- true
@@ -383,16 +391,18 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 
 // Requests the list of currently connected nodes from the server, and initiates a connection with them
 func (n *NodeCommInterface) GetNodes() {
-	var response map[string]net.Addr
+	var response map[string]shared.NodeRegistrationInfo
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
 		panic(err)
 		log.Fatal(err)
 	}
 
-	for id, addr := range response {
-		nodeClient := n.GetClientFromAddrString(addr.String())
-		node := OtherNode{Identifier: id, Conn: nodeClient}
+	for id, regInfo := range response {
+		nodeClient := n.GetClientFromAddrString(regInfo.Addr.String())
+		pubKey:= key.StringToPubKey(regInfo.PubKey)
+		node := OtherNode{Identifier: id, Conn: nodeClient, PubKey: &pubKey}
+		fmt.Println(node)
 		n.NodesToAdd <- &node
 		n.InitiateConnection(nodeClient)
 	}

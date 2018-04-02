@@ -3,6 +3,7 @@ package shared
 import (
 	_ "crypto/ecdsa"
 	"sync"
+	"net"
 )
 
 // Coordinates of an element in game
@@ -70,4 +71,12 @@ type MoveCommit struct {
 type MoveOp struct {
 	PlayerLoc     		Coord
 	PlayerId			string
+}
+
+// A struct to communicate between the server and other nodes and also between nodes the identification details of
+// a player node; includes identifier, public key, and address
+type NodeRegistrationInfo struct {
+	Id string
+	Addr net.Addr
+	PubKey string
 }
