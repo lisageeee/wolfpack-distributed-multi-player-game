@@ -86,3 +86,10 @@ func GenerateKeys() (*ecdsa.PublicKey, *ecdsa.PrivateKey){
 func PubKeyToString(key ecdsa.PublicKey) string {
 	return string(elliptic.Marshal(key.Curve, key.X, key.Y))
 }
+
+// Decodes keys the way they are encoded by the above function
+func StringToPubKey(keyString string) ecdsa.PublicKey {
+	x, y := elliptic.Unmarshal(elliptic.P384(), []byte(keyString))
+	key := ecdsa.PublicKey{elliptic.P384(), x, y}
+	return key
+}

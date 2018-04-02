@@ -54,6 +54,9 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
 	go nodeInterface.ManageOtherNodes()
+	go nodeInterface.ManageAcks()
+	go nodeInterface.PruneNodes()
+	go nodeInterface.SendGameStateToPixel()
 
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
@@ -66,7 +69,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	//// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
 	playerLocs["prey"] = shared.Coord{5,5}
-	playerLocs[uniqueId] = shared.Coord{3,3}
+	playerLocs[uniqueId] = shared.Coord{1,1}
 
 	playerScores := make(map[string]int)
 	playerScores[uniqueId] = 0
@@ -109,23 +112,25 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 		case "quit":
 			break
 		default:
-			move := pn.movePlayer(message)
-			pn.pixelInterface.SendPlayerGameState(pn.GameState)
-			pn.nodeInterface.SendMoveToNodes(&move)
+			move, didMove := pn.movePlayer(message)
+			if didMove {
+				pn.nodeInterface.SendMoveToNodes(&move)
+			}
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
 				fmt.Println("YAS GIRL")
 				playerScore := pn.GameState.PlayerScores[pn.Identifier]
 				playerScore = playerScore + 1
 				pn.nodeInterface.SendPreyCaptureToNodes(&move, playerScore)
 			}
+			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
 	}
 
 }
 
-// Given a string "up"/"down"/"left"/"right", returns the new player coordinates given that move. Also moves the player
-// in current gamestate and triggers a send of the new gamestate to the pixel node.
-func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
+// Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
+// (not into a wall, out of bounds)
+func (pn * PlayerNode) movePlayer(move string) (newPos shared.Coord, changed bool) {
 	// Get current player state
 	pn.GameState.PlayerLocs.RLock()
 	playerLoc := pn.GameState.PlayerLocs.Data[pn.Identifier]
@@ -146,12 +151,12 @@ func (pn * PlayerNode) movePlayer(move string) (shared.Coord) {
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		pn.GameState.PlayerLocs.Lock()
-		pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
-		pn.GameState.PlayerLocs.Unlock()
-		return newPosition
+		//pn.GameState.PlayerLocs.Lock()
+		//pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
+		//pn.GameState.PlayerLocs.Unlock()
+		return newPosition, true
 	}
-	return playerLoc
+	return playerLoc, false
 }
 
 // GETTERS
