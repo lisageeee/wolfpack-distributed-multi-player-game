@@ -211,8 +211,14 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 
 // Helper function that packs the GoVector message tooling
 // Returns the byte-encoded message, ready to send
-func sendMessage(goLog *govec.GoLog, message NodeMessage) []byte{
-	newMessage := goLog.PrepareSend("SendMessageToOtherNode", message)
+func sendMessage(goLog *govec.GoLog, message NodeMessage, tag string) []byte{
+	var newMessage []byte
+	if tag == ""{
+		newMessage = goLog.PrepareSend("SendMessageToOtherNode", message)
+	}else{
+		newMessage = goLog.PrepareSend(tag, message)
+	}
+
 	return newMessage
 
 }
@@ -332,7 +338,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr:        n.LocalAddr.String(),
 		}
 
-	toSend := sendMessage(n.Log, message)
+	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
@@ -345,7 +351,7 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 		Addr: n.LocalAddr.String(),
 	}
 
-	toSend := sendMessage(n.Log, message)
+	toSend := sendMessage(n.Log, message, "Sendin' gamestate")
 	n.MessagesToSend <- &PendingMessage{Recipient: otherNodeId, Message: toSend}
 }
 
@@ -358,7 +364,7 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 		Addr:        n.LocalAddr.String(),
 	}
 
-	toSend := sendMessage(n.Log, message)
+	toSend := sendMessage(n.Log, message, "Sendin' move commit")
 	n.MessagesToSend <- &PendingMessage{Recipient:"all", Message: toSend}
 }
 
@@ -447,7 +453,7 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		Addr:        n.LocalAddr.String(),
 		Move:        nil,
 	}
-	toSend := sendMessage(n.Log, message)
+	toSend := sendMessage(n.Log, message, "Initiating connection")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
