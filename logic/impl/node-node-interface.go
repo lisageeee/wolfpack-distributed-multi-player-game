@@ -64,6 +64,8 @@ type NodeCommInterface struct {
 	// A map to store move commits in before receiving their associated moves
 	MoveCommits			map[string]string
 
+	PlayerScores		map[string]int
+
 	// Channel that messages are written to so they can be handled by the goroutine that deals with sending messages
 	// and managing the player nodes
 	MessagesToSend		chan *PendingMessage
@@ -176,6 +178,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodeKeys:               make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
+		PlayerScores:          make(map[string]int),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
@@ -625,11 +628,10 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
-	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
-	if playerScore != playerScore + 1 {
-		return wolferrors.InvalidScoreUpdateError(string(score))
+	err = n.CheckScore(identifier, score)
+	if err != nil {
+		return err
 	}
-	playerScore = playerScore + 1
 	return nil
 }
 
@@ -730,4 +732,19 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 		return nil
 	}
 	return wolferrors.InvalidPreyCaptureError("[" + string(move.X) + ", " + string(move.Y) + "]")
+}
+
+func (n *NodeCommInterface) CheckScore(identifier string, score int) (err error) {
+	_, exists := n.PlayerScores[identifier]
+	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
+	if !exists && playerScore == 1 {
+		n.PlayerScores[identifier] = score
+		return nil
+	}
+
+	if exists && playerScore != n.PlayerScores[identifier] + 1 {
+		return wolferrors.InvalidScoreUpdateError(string(score))
+	}
+	n.PlayerScores[identifier] += 1
+	return nil
 }
