@@ -239,11 +239,13 @@ func (n *NodeCommInterface) PruneNodes() {
 	for {
 		select {
 		case id := <-n.NodesWriteConnRefused:
-			n.Strikes.StrikeCount[id]++
-			if n.Strikes.StrikeCount[id] > STRIKE_OUT {
-				n.NodesToDelete <- id
-				fmt.Printf("Deleting this id: %s\n", id)
-				delete(n.Strikes.StrikeCount, id)
+			if id != "prey" {
+				n.Strikes.StrikeCount[id]++
+				if n.Strikes.StrikeCount[id] > STRIKE_OUT {
+					n.NodesToDelete <- id
+					fmt.Printf("Deleting this id: %s\n", id)
+					delete(n.Strikes.StrikeCount, id)
+				}
 			}
 		}
 	}
