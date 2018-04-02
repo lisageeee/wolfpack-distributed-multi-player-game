@@ -96,7 +96,6 @@ type NodeMessage struct {
 
 var sequenceNumber uint64 = 0
 
-const REJECTION_MAX = 3
 const STRIKE_OUT = 3
 
 // Creates a node comm interface with initial empty arrays
@@ -183,10 +182,11 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 		case toDelete := <-n.NodesToDelete:
-			fmt.Println("Do we get into the toDelete case")
+			fmt.Printf("To delete: %s\n", toDelete)
 			delete(n.OtherNodes, toDelete)
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			delete(n.PlayerNode.GameState.PlayerLocs.Data, toDelete)
+			fmt.Printf("PlayerLocs.Data %v\n", n.PlayerNode.GameState.PlayerLocs.Data)
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			n.GameStateToSend <- true
 		}
@@ -200,24 +200,18 @@ func (n *NodeCommInterface) ManageAcks() {
 		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
-			fmt.Println("In the ACKS Received case")
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
-				fmt.Printf("Are we in the n.MovesToSend branch, move to send %v\n", moveToSend)
 				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], TrackId{ack.Identifier, false})
 				// if the # of acks > # of connected nodes (majority consensus)
-				fmt.Printf("len(collectAcks[moveToSend.Seq] %d\n", len(collectAcks[moveToSend.Seq]))
 				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
 					n.GameStateToSend <- true
 				} else {
-					//if moveToSend.Rejected < REJECTION_MAX {
-					//	// no majority; so add this back to channel
-						moveToSend.Rejected++
-						n.MovesToSend <- moveToSend
-					//}
+					moveToSend.Rejected++
+					n.MovesToSend <- moveToSend
 				}
 			}
 		default:
@@ -231,37 +225,11 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.GameStateToSend <- true
 				}
 			} else {
-				// convert array associated with seq to a map
-					//addresses := make(map[string]string)
-					for k := range collectAcks {
-						if len(collectAcks[k]) > lenOfOtherNodes/2 {
-							delete(collectAcks, k)
-							//} else {
-							//	for _, ack := range collectAcks[k] {
-							//		if !ack.Tracked {
-							//			n.NodesWriteConnRefused <- ack.Id
-							//			ack.Tracked = true
-							//		}
-							//	}
-							//}
-							//n.Strikes.Lock()
-							//for id := range n.OtherNodes {
-							//	// if you don't find the id in the addresses array, they did not send an ACK
-							//	if _, ok := addresses[id]; !ok {
-							//		n.Strikes.StrikeCount[id]++
-							//		if n.Strikes.StrikeCount[id] > STRIKE_OUT {
-							//			n.NodesToDelete <- id
-							//			fmt.Printf("Deleting this id: %s\n", id)
-							//			delete(n.Strikes.StrikeCount, id)
-							//		}
-							//	} else {
-							//		n.Strikes.StrikeCount[id] = 0
-							//	}
-							//}
-							//n.Strikes.Unlock()
-							// collectAcks = make(map[uint64][]string)
-						}
+				for k := range collectAcks {
+					if len(collectAcks[k]) > lenOfOtherNodes/2 {
+						delete(collectAcks, k)
 					}
+				}
 			}
 		}
 	}
