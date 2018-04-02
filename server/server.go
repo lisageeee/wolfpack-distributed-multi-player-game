@@ -133,7 +133,7 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	return nil
 }
 
-func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]net.Addr) error {
+func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]shared.NodeRegistrationInfo) error {
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()
 
@@ -144,13 +144,14 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]net.Addr)
 		return wolferrors.UnknownKeyError(pubKeyStr)
 	}
 
-	playerAddresses := make(map[string]net.Addr)
+	playerAddresses := make(map[string]shared.NodeRegistrationInfo)
 
 	for k, player := range allPlayers.all {
 		if k == pubKeyStr {
 			continue
 		}
-		playerAddresses[strconv.Itoa(player.Identifier)] = player.Address
+		idString := strconv.Itoa(player.Identifier)
+		playerAddresses[idString] = shared.NodeRegistrationInfo{Id: idString, Addr: player.Address, PubKey: k}
 	}
 
 	*addrSet = playerAddresses

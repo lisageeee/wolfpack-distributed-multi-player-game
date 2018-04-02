@@ -52,6 +52,9 @@ type NodeCommInterface struct {
 	// The current map of identifiers to connections of nodes in play
 	OtherNodes 			map[string]*net.UDPConn
 
+	// The current map of identifiers to public keys of nodes in play
+	NodeKeys		    map[string]*ecdsa.PublicKey
+
 	// The GoVector log
 	Log 				*govec.GoLog
 
@@ -119,6 +122,7 @@ type ACKMessage struct {
 type OtherNode struct {
 	Identifier string
 	Conn *net.UDPConn
+	PubKey *ecdsa.PublicKey
 }
 
 // A playerinfo struct, provides identification information about this node: the address and public key
@@ -145,6 +149,9 @@ type NodeMessage struct {
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
 
+	// A string representing th epublic key if this is a connect message
+	PubKey 	string
+
 	// the address to connect to the sending node over
 	Addr        string
 
@@ -158,11 +165,12 @@ const STRIKE_OUT = 3
 
 // Creates a node comm interface with initial empty arrays/maps
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
-	return NodeCommInterface {
+	return NodeCommInterface{
 		PubKey:                pubKey,
 		PrivKey:               privKey,
-		ServerAddr :           serverAddr,
+		ServerAddr:           serverAddr,
 		OtherNodes:            make(map[string]*net.UDPConn),
+		NodeKeys:               make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
 		MessagesToSend:        make(chan *PendingMessage, 30),
@@ -173,7 +181,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MovesToSend:           make(chan *PendingMoveUpdates, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
-		}
+	}
 }
 
 // Runs listener for messages from other nodes, should be run in a goroutine
@@ -212,7 +220,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					n.HandleReceivedMoveNL(message.Identifier, message.Move, message.Seq)
 				}
 			case "connect":
-				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr)
+				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
 			case "connected":
 			// Do nothing
 			case "ack":
@@ -240,11 +248,14 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			}
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
+			n.NodeKeys[toAdd.Identifier] = toAdd.PubKey
+			fmt.Println("Node keys:", n.NodeKeys)
 		case toDelete := <-n.NodesToDelete:
 			fmt.Printf("To delete: %s\n", toDelete)
 			delete(n.OtherNodes, toDelete)
 			n.PlayerNode.GameState.PlayerLocs.Lock()
 			delete(n.PlayerNode.GameState.PlayerLocs.Data, toDelete)
+			delete(n.NodeKeys, toDelete)
 			fmt.Printf("PlayerLocs.Data %v\n", n.PlayerNode.GameState.PlayerLocs.Data)
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			n.GameStateToSend <- true
@@ -383,16 +394,17 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 
 // Requests the list of currently connected nodes from the server, and initiates a connection with them
 func (n *NodeCommInterface) GetNodes() {
-	var response map[string]net.Addr
+	var response map[string]shared.NodeRegistrationInfo
 	err := n.ServerConn.Call("GServer.GetNodes", *n.PubKey, &response)
 	if err != nil {
 		panic(err)
 		log.Fatal(err)
 	}
 
-	for id, addr := range response {
-		nodeClient := n.GetClientFromAddrString(addr.String())
-		node := OtherNode{Identifier: id, Conn: nodeClient}
+	for id, regInfo := range response {
+		nodeClient := n.GetClientFromAddrString(regInfo.Addr.String())
+		pubKey:= key.StringToPubKey(regInfo.PubKey)
+		node := OtherNode{Identifier: id, Conn: nodeClient, PubKey: &pubKey}
 		n.NodesToAdd <- &node
 		n.InitiateConnection(nodeClient)
 	}
@@ -570,9 +582,10 @@ func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
 }
 
 // Handles "connect" messages received by other nodes by adding the incoming node to this node's OtherNodes
-func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string) {
+func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, addr string, pubKeyString string) {
 	node := n.GetClientFromAddrString(addr)
-	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node}
+	pubKey := key.StringToPubKey(pubKeyString)
+	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
 // Initiates a connection to another node by sending it a "connect" message
@@ -583,6 +596,7 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		GameState:   nil,
 		Addr:        n.LocalAddr.String(),
 		Move:        nil,
+		PubKey: 	 key.PubKeyToString(*n.PubKey),
 	}
 	toSend := sendMessage(n.Log, message)
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
