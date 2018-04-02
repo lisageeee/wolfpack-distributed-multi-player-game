@@ -159,16 +159,6 @@ func TestPruningNodes(t *testing.T) {
 
 	time.Sleep(10*time.Second)
 
-	n1.Strikes.RLock()
-	fmt.Printf("Here is the Strike Count map for n1: %v\n", n1.Strikes.StrikeCount)
-	for _, v := range n1.Strikes.StrikeCount {
-		if v > l.STRIKE_OUT {
-			fmt.Println("There's a node with a strike out greater than 3")
-			t.Fail()
-		}
-	}
-	n1.Strikes.RUnlock()
-
 	n1.PlayerNode.GameState.PlayerLocs.RLock()
 	if n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier] != testCoord {
 		fmt.Println("n1's node has not been updated")
