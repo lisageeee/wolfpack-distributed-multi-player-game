@@ -249,7 +249,6 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 			n.NodeKeys[toAdd.Identifier] = toAdd.PubKey
-			fmt.Println("Node keys:", n.NodeKeys)
 		case toDelete := <-n.NodesToDelete:
 			fmt.Printf("To delete: %s\n", toDelete)
 			delete(n.OtherNodes, toDelete)
