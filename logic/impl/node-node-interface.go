@@ -26,24 +26,30 @@ import (
 // Node communication interface for communication with other player/logic nodes
 type NodeCommInterface struct {
 	PlayerNode			*PlayerNode
-	PubKey 				*ecdsa.PublicKey
-	PrivKey 			*ecdsa.PrivateKey
-	Config 				shared.GameConfig
-	ServerAddr			string
-	ServerConn 			*rpc.Client
-	IncomingMessages 	*net.UDPConn
-	LocalAddr			net.Addr
-	OtherNodes 			map[string]*net.UDPConn
-	Log 				*govec.GoLog
-	HeartAttack 		chan bool
-	MoveCommits			map[string]string
-	MessagesToSend		chan *PendingMessage
-	NodesToDelete		chan string // Nodes pending delete go here
-	NodesToAdd			chan *OtherNode // Nodes pending addition go here
-	ACKSReceived		chan *ACKMessage
-	MovesToSend			chan *PendingMoveUpdates
-	Strikes				StrikeLockMap // Heartbeat protocol between nodes
-	GameStateToSend		chan bool
+	PubKey                *ecdsa.PublicKey
+	PrivKey               *ecdsa.PrivateKey
+	Config                shared.GameConfig
+	ServerAddr            string
+	ServerConn            *rpc.Client
+	IncomingMessages      *net.UDPConn
+	LocalAddr             net.Addr
+	OtherNodes            map[string]*net.UDPConn
+	Log                   *govec.GoLog
+	HeartAttack           chan bool
+	MoveCommits           map[string]string
+	MessagesToSend        chan *PendingMessage
+	NodesToDelete         chan string // Nodes pending delete go here
+	NodesToAdd            chan *OtherNode // Nodes pending addition go here
+	ACKSReceived          chan *ACKMessage
+	NodesWriteConnRefused chan string
+	MovesToSend           chan *PendingMoveUpdates
+	Strikes               StrikeLockMap // Heartbeat protocol between nodes
+	GameStateToSend       chan bool
+}
+
+type TrackId struct {
+	Id string
+	Tracked bool
 }
 
 type StrikeLockMap struct {
@@ -96,19 +102,20 @@ const STRIKE_OUT = 3
 // Creates a node comm interface with initial empty arrays
 func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, serverAddr string) (NodeCommInterface) {
 	return NodeCommInterface {
-		PubKey: pubKey,
-		PrivKey: privKey,
-		ServerAddr : serverAddr,
-		OtherNodes: make(map[string]*net.UDPConn),
-		HeartAttack: make(chan bool),
-		MoveCommits: make(map[string]string),
-		MessagesToSend: make(chan *PendingMessage, 30),
-		NodesToDelete: make(chan string, 5),
-		NodesToAdd: make(chan *OtherNode, 10),
-		ACKSReceived: make(chan *ACKMessage, 30),
-		MovesToSend: make(chan *PendingMoveUpdates, 30),
-		Strikes:StrikeLockMap{StrikeCount:make(map[string]int)},
-		GameStateToSend: make(chan bool, 30),
+		PubKey:                pubKey,
+		PrivKey:               privKey,
+		ServerAddr :           serverAddr,
+		OtherNodes:            make(map[string]*net.UDPConn),
+		HeartAttack:           make(chan bool),
+		MoveCommits:           make(map[string]string),
+		MessagesToSend:        make(chan *PendingMessage, 30),
+		NodesToDelete:         make(chan string, 5),
+		NodesToAdd:            make(chan *OtherNode, 10),
+		ACKSReceived:          make(chan *ACKMessage, 30),
+		NodesWriteConnRefused: make(chan string, 30),
+		MovesToSend:           make(chan *PendingMoveUpdates, 30),
+		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
+		GameStateToSend:       make(chan bool, 30),
 		}
 }
 
@@ -176,17 +183,19 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 		case toDelete := <-n.NodesToDelete:
+			fmt.Println("Do we get into the toDelete case")
 			delete(n.OtherNodes, toDelete)
-			n.Strikes.Lock()
-			delete(n.Strikes.StrikeCount, toDelete)
-			n.Strikes.Unlock()
+			n.PlayerNode.GameState.PlayerLocs.Lock()
+			delete(n.PlayerNode.GameState.PlayerLocs.Data, toDelete)
+			n.PlayerNode.GameState.PlayerLocs.Unlock()
+			n.GameStateToSend <- true
 		}
 	}
 }
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
-	collectAcks := make(map[uint64][]string)
+	collectAcks := make(map[uint64][]TrackId)
 	for {
 		lenOfOtherNodes := len(n.OtherNodes)
 		select {
@@ -195,7 +204,7 @@ func (n *NodeCommInterface) ManageAcks() {
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
 				fmt.Printf("Are we in the n.MovesToSend branch, move to send %v\n", moveToSend)
-				collectAcks[moveToSend.Seq] = append(collectAcks[moveToSend.Seq], ack.Identifier)
+				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], TrackId{ack.Identifier, false})
 				// if the # of acks > # of connected nodes (majority consensus)
 				fmt.Printf("len(collectAcks[moveToSend.Seq] %d\n", len(collectAcks[moveToSend.Seq]))
 				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
@@ -204,16 +213,15 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
 					n.GameStateToSend <- true
 				} else {
-					if moveToSend.Rejected < REJECTION_MAX {
-						fmt.Println("In Rejection branch")
-						// no majority; so add this back to channel
+					//if moveToSend.Rejected < REJECTION_MAX {
+					//	// no majority; so add this back to channel
 						moveToSend.Rejected++
 						n.MovesToSend <- moveToSend
-						fmt.Println("do we get here after we put back the moves to send to chan?")
-					}
+					//}
 				}
 			}
 		default:
+			// majority can't be achieved i.e. single player in network with prey
 			if lenOfOtherNodes <= 2 {
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
@@ -224,30 +232,50 @@ func (n *NodeCommInterface) ManageAcks() {
 				}
 			} else {
 				// convert array associated with seq to a map
-				if len(collectAcks) != 0 {
-					addresses := make(map[string]string)
+					//addresses := make(map[string]string)
 					for k := range collectAcks {
-						for _, ack := range collectAcks[k] {
-							addresses[ack] = ""
+						if len(collectAcks[k]) > lenOfOtherNodes/2 {
+							delete(collectAcks, k)
+							//} else {
+							//	for _, ack := range collectAcks[k] {
+							//		if !ack.Tracked {
+							//			n.NodesWriteConnRefused <- ack.Id
+							//			ack.Tracked = true
+							//		}
+							//	}
+							//}
+							//n.Strikes.Lock()
+							//for id := range n.OtherNodes {
+							//	// if you don't find the id in the addresses array, they did not send an ACK
+							//	if _, ok := addresses[id]; !ok {
+							//		n.Strikes.StrikeCount[id]++
+							//		if n.Strikes.StrikeCount[id] > STRIKE_OUT {
+							//			n.NodesToDelete <- id
+							//			fmt.Printf("Deleting this id: %s\n", id)
+							//			delete(n.Strikes.StrikeCount, id)
+							//		}
+							//	} else {
+							//		n.Strikes.StrikeCount[id] = 0
+							//	}
+							//}
+							//n.Strikes.Unlock()
+							// collectAcks = make(map[uint64][]string)
 						}
 					}
-					n.Strikes.Lock()
-					for id := range n.OtherNodes {
-						// if you don't find the id in the addresses array, they did not send an ACK
-						if _, ok := addresses[id]; !ok {
-							n.Strikes.StrikeCount[id]++
-							if n.Strikes.StrikeCount[id] > STRIKE_OUT {
-								n.NodesToDelete <- id
-								fmt.Printf("Deleting this id: %s\n", id)
-								delete(n.Strikes.StrikeCount, id)
-							}
-						} else {
-							n.Strikes.StrikeCount[id] = 0
-						}
-					}
-					n.Strikes.Unlock()
-					collectAcks = make(map[uint64][]string)
-				}
+			}
+		}
+	}
+}
+
+func (n *NodeCommInterface) PruneNodes() {
+	for {
+		select {
+		case id := <-n.NodesWriteConnRefused:
+			n.Strikes.StrikeCount[id]++
+			if n.Strikes.StrikeCount[id] > STRIKE_OUT {
+				n.NodesToDelete <- id
+				fmt.Printf("Deleting this id: %s\n", id)
+				delete(n.Strikes.StrikeCount, id)
 			}
 		}
 	}
@@ -419,10 +447,11 @@ func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit)
 
 // Helper function to send message to other nodes
 func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
-	for _, val := range n.OtherNodes{
+	for id, val := range n.OtherNodes{
 		_, err := val.Write(toSend)
 		if err != nil{
 			fmt.Println(err)
+			n.NodesWriteConnRefused <- id
 		}
 	}
 }

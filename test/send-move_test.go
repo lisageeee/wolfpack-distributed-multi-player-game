@@ -106,68 +106,6 @@ func TestNodeToNodeSendingNilMove(t *testing.T) {
 	serverStart.Process.Kill()
 }
 
-func TestNodeToNodeValidSelfMove(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
-	defer cancel()
-	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
-	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	serverStart.Dir = "../server"
-	serverStart.Start()
-
-	time.Sleep(3*time.Second) // wait for server to get started
-	// Create player node and get pixel interface
-	pub, priv := key.GenerateKeys()
-	node1 := l.CreatePlayerNode(":12830", ":12831", pub, priv, ":8081")
-
-	pub, priv = key.GenerateKeys()
-	node2 := l.CreatePlayerNode(":12940", ":12941", pub, priv, ":8081")
-
-	pub, priv = key.GenerateKeys()
-	node3 := l.CreatePlayerNode(":12950", ":12951", pub, priv, ":8081")
-
-	pub, priv = key.GenerateKeys()
-	node4 := l.CreatePlayerNode(":12960", ":12961", pub, priv, ":8081")
-
-	n1 := node1.GetNodeInterface()
-	n2 := node2.GetNodeInterface()
-	n3 := node3.GetNodeInterface()
-	n4 := node4.GetNodeInterface()
-
-	time.Sleep(1*time.Second)
-
-	// Test sending a move from one node to another
-	testCoord := shared.Coord{7,7}
-	n1.SendMoveToNodes(&testCoord)
-	time.Sleep(3*time.Second)
-
-	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
-		fmt.Println("Should have updated n1's location in n2's game state")
-		t.Fail()
-	}
-
-	if n3.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
-		fmt.Println("Should have updated n1's location in n2's game state")
-		t.Fail()
-	}
-
-	if n4.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
-		fmt.Println("Should have updated n1's location in n2's game state")
-		t.Fail()
-	}
-
-	time.Sleep(5*time.Second)
-
-	if n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier] != testCoord {
-		fmt.Printf("Should have updated n1's coords to %v, instead it's %v\n", testCoord,
-			n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier])
-		t.Fail()
-	}
-
-	// Kill after done + all children
-	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
-	serverStart.Process.Kill()
-}
-
 func TestPruningNodes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -197,26 +135,50 @@ func TestPruningNodes(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
+	fmt.Printf("Length of other nodes: %d\n", len(n1.OtherNodes))
+
 	// Test sending a move from one node to another
-	testCoord := shared.Coord{7, 7}
+	testCoord := shared.Coord{3, 7}
+	n2.SendMoveToNodes(&testCoord)
+	time.Sleep(3*time.Second)
+
+	n1.PlayerNode.GameState.PlayerLocs.RLock()
+	if _, ok := n1.PlayerNode.GameState.PlayerLocs.Data[n2.PlayerNode.Identifier]; !ok {
+		fmt.Println("n2's loc has not been captured")
+		t.Fail()
+	}
+	n1.PlayerNode.GameState.PlayerLocs.RUnlock()
+
+	// Test sending a move from one node to another
+	testCoord = shared.Coord{7, 7}
+	n1.SendMoveToNodes(&testCoord)
+	n1.SendMoveToNodes(&testCoord)
 	n1.SendMoveToNodes(&testCoord)
 
-	time.Sleep(500 * time.Millisecond)
-	n1.Strikes.StrikeCount[n2.PlayerNode.Identifier] = l.STRIKE_OUT
+	n2.HeartAttack <- true
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(10*time.Second)
 
+	n1.Strikes.RLock()
 	fmt.Printf("Here is the Strike Count map for n1: %v\n", n1.Strikes.StrikeCount)
+	for _, v := range n1.Strikes.StrikeCount {
+		if v > l.STRIKE_OUT {
+			fmt.Println("There's a node with a strike out greater than 3")
+			t.Fail()
+		}
+	}
+	n1.Strikes.RUnlock()
 
-	if _, ok := n1.Strikes.StrikeCount[node2.Identifier]; ok {
-		fmt.Printf("This node id should not be in the strikes map: %s\n", node2.Identifier)
+	n1.PlayerNode.GameState.PlayerLocs.RLock()
+	if n1.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier] != testCoord {
+		fmt.Println("n1's node has not been updated")
 		t.Fail()
 	}
-
-	if _, ok := n1.OtherNodes[node2.Identifier]; ok {
-		fmt.Printf("This node id should not be in the other nodes map: %s\n", node2.Identifier)
+	if _, ok := n1.PlayerNode.GameState.PlayerLocs.Data[n2.PlayerNode.Identifier]; !ok {
+		fmt.Println("n2's loc has not been deleted")
 		t.Fail()
 	}
+	n1.PlayerNode.GameState.PlayerLocs.RUnlock()
 
 	// Kill after done + all children
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
