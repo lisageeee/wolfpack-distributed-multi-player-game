@@ -118,9 +118,9 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			}
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
 				fmt.Println("YAS GIRL")
-				playerScore := pn.GameState.PlayerScores[pn.Identifier]
-				playerScore = playerScore + 1
-				pn.nodeInterface.SendPreyCaptureToNodes(&move, playerScore)
+				pn.GameState.PlayerScores[pn.Identifier] += 1
+				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores[pn.Identifier])
+				fmt.Println(pn.GameState.PlayerScores[pn.Identifier])
 			}
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
