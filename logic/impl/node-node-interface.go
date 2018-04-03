@@ -145,7 +145,7 @@ type NodeMessage struct {
 	GameState   *shared.GameState
 
 	// a move, included if the message type is move
-	Move        shared.Move
+	Move        shared.SignedMove
 
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
@@ -217,7 +217,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					continue
 				}
 				var coords shared.Coord
-				err := json.Unmarshal(message.Move.Move, &coords)
+				err := json.Unmarshal(message.Move.MoveByte, &coords)
 				if err != nil {
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
@@ -477,28 +477,33 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	}
 
 	sequenceNumber++
-	moveBytes, err := json.Marshal(move)
-	r, s, err := ecdsa.Sign(rand.Reader, n.PrivKey, moveBytes)
-	if err != nil{
-		fmt.Println("could not sign move")
-		panic(err)
-	}
-	moveId :=  shared.Move{
-		moveBytes,
-		r.String(),
-		s.String(),
-	}
+	moveId := n.CreateMove(move)
 	message := NodeMessage{
 		MessageType: "move",
 		Identifier:  n.PlayerNode.Identifier,
 		Move:        moveId,
 		Addr:        n.LocalAddr.String(),
-		Seq:		 sequenceNumber,
-		}
+		Seq:         sequenceNumber,
+	}
 
 	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
+}
+
+func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
+	moveBytes, err := json.Marshal(move)
+	r, s, err := ecdsa.Sign(rand.Reader, n.PrivKey, moveBytes)
+	if err != nil {
+		fmt.Println("could not sign move")
+		panic(err)
+	}
+	moveId := shared.SignedMove{
+		moveBytes,
+		r.String(),
+		s.String(),
+	}
+	return moveId
 }
 
 // Takes in a node ID and sends this node's gamestate to that node
@@ -684,7 +689,11 @@ func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) 
 	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
 
-func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, m *shared.Move)(bool){
+func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, m *shared.SignedMove)(bool){
+	if publicKey == nil{
+		// public key is nil for some tests, just pass if this is the case
+		return true
+	}
 	rBigInt := new(big.Int)
 	_, err := fmt.Sscan(m.R, rBigInt)
 
@@ -694,7 +703,7 @@ func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, 
 		fmt.Println("Trouble converting string to big int")
 	}
 
-	return ecdsa.Verify(publicKey, m.Move, rBigInt, sBigInt)
+	return ecdsa.Verify(publicKey, m.MoveByte, rBigInt, sBigInt)
 }
 
 

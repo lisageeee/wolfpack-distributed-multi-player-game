@@ -73,8 +73,8 @@ type MoveOp struct {
 	PlayerId			string
 }
 
-type Move struct{
-	Move			    []byte
+type SignedMove struct{
+	MoveByte		    []byte
 	R					string
 	S					string
 }
