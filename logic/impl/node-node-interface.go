@@ -218,7 +218,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				// In the future, may include players close to prey node
 				// I.e. check move commits
 				authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
-				if authentic == false {
+				if !authentic{
 					fmt.Println("False coordinates")
 					continue
 				}
@@ -242,7 +242,18 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "connected":
 			// Do nothing
 			case "captured":
-				n.HandleCapturedPreyRequest(message.Identifier, message.Move, message.Score)
+				var coords shared.Coord
+				authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
+				if !authentic{
+					fmt.Println("False coordinates")
+					continue
+				}
+				err := json.Unmarshal(message.Move.MoveByte, &coords)
+				if err != nil {
+					fmt.Println("Could not unmarshal")
+					fmt.Println(err)
+				}
+				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
 			default:
@@ -517,11 +528,11 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int)
 	if move == nil {
 		return
 	}
-
+	moveId := n.CreateMove(move)
 	message := NodeMessage{
 		MessageType: "captured",
 		Identifier: n.PlayerNode.Identifier,
-		Move:	move,
+		Move:	moveId,
 		Score: score,
 		Addr: n.LocalAddr.String(),
 	}
