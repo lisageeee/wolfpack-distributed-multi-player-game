@@ -137,8 +137,8 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 	node := pn.Sender
 
 	i := 0
-	var playerPos shared.GameRenderState
 	for {
+		var playerPos shared.GameRenderState
 		i++
 		buf := make([]byte, 1024)
 		rlen, err := node.Read(buf)
