@@ -134,22 +134,22 @@ func TestNodeToNodeSendingInvalidScore(t *testing.T) {
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7,1}
 	n1.SendPreyCaptureToNodes(&testCoord, 1)
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(200*time.Millisecond)
 
 	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 4)
 	if err == nil {
-		fmt.Println("Error in sending an invalid prey & score")
+		fmt.Println("Error in sending an invalid prey & score 1")
 		fmt.Println(err)
 		t.Fail()
 	}
 
 	testCoord = shared.Coord{5,5}
 	n1.SendPreyCaptureToNodes(&testCoord, 3)
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	err = n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 3)
 	if err == nil {
-		fmt.Println("Error in sending an invalid prey & score")
+		fmt.Println("Error in sending an invalid prey & score 2")
 		fmt.Println(err)
 		t.Fail()
 	}
