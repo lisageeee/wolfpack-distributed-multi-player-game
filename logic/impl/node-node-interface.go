@@ -736,7 +736,7 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
 	_, exists := n.PlayerScores[identifier]
 	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
-	if !exists && playerScore == 1 {
+	if !exists && playerScore == n.PlayerNode.GameConfig.CatchWorth {
 		n.PlayerScores[identifier] = score
 		return nil
 	}
