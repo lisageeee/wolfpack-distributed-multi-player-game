@@ -18,7 +18,6 @@ import (
 	"math/big"
 	key "../../key-helpers"
 	"../../wolferrors"
-	"../../geometry"
 	"../../shared"
 	"sync"
 )
@@ -677,7 +676,7 @@ func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move s
 
 // Check move to see if it's valid based on the gameplay grid
 func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
-	gridManager := geometry.CreateNewGridManager(n.PlayerNode.GameConfig.Settings)
+	gridManager := n.PlayerNode.GetGridManager()
 	if !gridManager.IsValidMove(move) {
 		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 	}

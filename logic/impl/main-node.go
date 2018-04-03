@@ -83,7 +83,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 		pixelInterface:    pixelInterface,
 		nodeInterface:     &nodeInterface,
 		playerCommChannel: playerCommChannel,
-		playerSendChannel:playerSendChannel,
+		playerSendChannel: playerSendChannel,
 		geo:               geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
 		GameState:         gameState,
 		Identifier:        uniqueId,
@@ -157,4 +157,8 @@ func (pn *PlayerNode) GetPixelInterface() (PixelInterface) {
 // Returns nothe node interface; mainly of use for testing
 func (pn *PlayerNode) GetNodeInterface() (*NodeCommInterface) {
 	return pn.nodeInterface
+}
+
+func (pn *PlayerNode) GetGridManager() (*geometry.GridManager) {
+	return &pn.geo
 }
