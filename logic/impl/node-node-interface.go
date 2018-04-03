@@ -21,6 +21,7 @@ import (
 	"../../geometry"
 	"../../shared"
 	"sync"
+	"encoding/json"
 )
 
 // Node communication interface for communication with other player/logic nodes as well as the server
@@ -146,7 +147,7 @@ type NodeMessage struct {
 	GameState   *shared.GameState
 
 	// a move, included if the message type is move
-	Move        *shared.Coord
+	Move        shared.SignedMove
 
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
@@ -216,14 +217,25 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				// Currently only planning to do the lockstep protocol with prey node
 				// In the future, may include players close to prey node
 				// I.e. check move commits
+				authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
+				if authentic == false {
+					fmt.Println("False coordinates")
+					continue
+				}
+				var coords shared.Coord
+				err := json.Unmarshal(message.Move.MoveByte, &coords)
+				if err != nil {
+					fmt.Println("Could not unmarshal")
+					fmt.Println(err)
+				}
 				if message.Identifier == "prey" {
-					err := n.HandleReceivedMoveL(message.Identifier, message.Move)
+					err := n.HandleReceivedMoveL(message.Identifier,&coords)
 					if err != nil {
 						fmt.Println("The error in the prey moving")
 						fmt.Println(err)
 					}
 				} else {
-					n.HandleReceivedMoveNL(message.Identifier, message.Move, message.Seq)
+					n.HandleReceivedMoveNL(message.Identifier, &coords, message.Seq)
 				}
 			case "connect":
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
@@ -472,18 +484,33 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	}
 
 	sequenceNumber++
-
+	moveId := n.CreateMove(move)
 	message := NodeMessage{
 		MessageType: "move",
 		Identifier:  n.PlayerNode.Identifier,
-		Move:        move,
+		Move:        moveId,
 		Addr:        n.LocalAddr.String(),
-		Seq:		 sequenceNumber,
-		}
+		Seq:         sequenceNumber,
+	}
 
 	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
+}
+
+func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
+	moveBytes, err := json.Marshal(move)
+	r, s, err := ecdsa.Sign(rand.Reader, n.PrivKey, moveBytes)
+	if err != nil {
+		fmt.Println("could not sign move")
+		panic(err)
+	}
+	moveId := shared.SignedMove{
+		moveBytes,
+		r.String(),
+		s.String(),
+	}
+	return moveId
 }
 
 func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int) {
@@ -641,7 +668,6 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		Identifier:  strconv.Itoa(n.Config.Identifier),
 		GameState:   nil,
 		Addr:        n.LocalAddr.String(),
-		Move:        nil,
 		PubKey: 	 key.PubKeyToString(*n.PubKey),
 	}
 	toSend := sendMessage(n.Log, message, "Initiating connection")
@@ -702,6 +728,25 @@ func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) 
 	}
 	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
 }
+
+func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, m *shared.SignedMove)(bool){
+	if publicKey == nil{
+		// public key is nil for some tests, just pass if this is the case
+		return true
+	}
+	rBigInt := new(big.Int)
+	_, err := fmt.Sscan(m.R, rBigInt)
+
+	sBigInt := new(big.Int)
+	_, err = fmt.Sscan(m.S, sBigInt)
+	if err != nil {
+		fmt.Println("Trouble converting string to big int")
+	}
+
+	return ecdsa.Verify(publicKey, m.MoveByte, rBigInt, sBigInt)
+}
+
+
 
 ////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
 

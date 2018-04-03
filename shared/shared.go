@@ -74,6 +74,12 @@ type MoveOp struct {
 	PlayerId			string
 }
 
+type SignedMove struct{
+	MoveByte		    []byte
+	R					string
+	S					string
+}
+
 // A struct to communicate between the server and other nodes and also between nodes the identification details of
 // a player node; includes identifier, public key, and address
 type NodeRegistrationInfo struct {
