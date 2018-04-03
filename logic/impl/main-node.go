@@ -118,7 +118,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			}
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
 				fmt.Println("Got the prey")
-				pn.GameState.PlayerScores[pn.Identifier] += 1
+				pn.GameState.PlayerScores[pn.Identifier] += pn.GameConfig.CatchWorth
 				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores[pn.Identifier])
 				fmt.Println(pn.GameState.PlayerScores[pn.Identifier])
 			}

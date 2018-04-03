@@ -627,7 +627,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
-	err = n.CheckScore(identifier, score)
+	err = n.CheckAndUpdateScore(identifier, score)
 	if err != nil {
 		return err
 	}
@@ -733,7 +733,7 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 	return wolferrors.InvalidPreyCaptureError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
-func (n *NodeCommInterface) CheckScore(identifier string, score int) (err error) {
+func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
 	_, exists := n.PlayerScores[identifier]
 	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
 	if !exists && playerScore == 1 {
@@ -741,9 +741,9 @@ func (n *NodeCommInterface) CheckScore(identifier string, score int) (err error)
 		return nil
 	}
 
-	if exists && playerScore != n.PlayerScores[identifier] + 1 {
+	if exists && playerScore != n.PlayerScores[identifier] + n.PlayerNode.GameConfig.CatchWorth {
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
-	n.PlayerScores[identifier] += 1
+	n.PlayerScores[identifier] += n.PlayerNode.GameConfig.CatchWorth
 	return nil
 }
