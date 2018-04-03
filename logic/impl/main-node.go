@@ -71,11 +71,15 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	playerLocs["prey"] = shared.Coord{5,5}
 	playerLocs[uniqueId] = shared.Coord{1,1}
 
+	playerScores := make(map[string]int)
+	playerScores[uniqueId] = 0
+
 	playerMap := shared.PlayerLockMap{Data:playerLocs}
 
 	// Make a gameState
 	gameState := shared.GameState{
 		PlayerLocs: playerMap,
+		PlayerScores: playerScores,
 	}
 
 	// Create player node
@@ -111,6 +115,12 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			move, didMove := pn.movePlayer(message)
 			if didMove {
 				pn.nodeInterface.SendMoveToNodes(&move)
+			}
+			if pn.nodeInterface.CheckGotPrey(move) == nil {
+				fmt.Println("Got the prey")
+				pn.GameState.PlayerScores[pn.Identifier] += pn.GameConfig.CatchWorth
+				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores[pn.Identifier])
+				fmt.Println(pn.GameState.PlayerScores[pn.Identifier])
 			}
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}

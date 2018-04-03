@@ -44,6 +44,7 @@ type PlayerState struct {
 // Game state to communciate between nodes
 type GameState struct {
 	PlayerLocs PlayerLockMap
+	PlayerScores	map[string]int
 	// scores TODO
 }
 

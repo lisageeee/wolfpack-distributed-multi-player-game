@@ -64,6 +64,8 @@ type NodeCommInterface struct {
 	// A map to store move commits in before receiving their associated moves
 	MoveCommits			map[string]string
 
+	PlayerScores		map[string]int
+
 	// Channel that messages are written to so they can be handled by the goroutine that deals with sending messages
 	// and managing the player nodes
 	MessagesToSend		chan *PendingMessage
@@ -149,6 +151,9 @@ type NodeMessage struct {
 	// a move commit, included if the message type is moveCommit
 	MoveCommit  *shared.MoveCommit
 
+	// a score, included if the message is a preyCapture
+	Score int
+
 	// A string representing th epublic key if this is a connect message
 	PubKey 	string
 
@@ -173,6 +178,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodeKeys:               make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
+		PlayerScores:          make(map[string]int),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
@@ -223,6 +229,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
 			case "connected":
 			// Do nothing
+			case "captured":
+				n.HandleCapturedPreyRequest(message.Identifier, message.Move, message.Score)
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
 			default:
@@ -478,6 +486,23 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }
 
+func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int) {
+	if move == nil {
+		return
+	}
+
+	message := NodeMessage{
+		MessageType: "captured",
+		Identifier: n.PlayerNode.Identifier,
+		Move:	move,
+		Score: score,
+		Addr: n.LocalAddr.String(),
+	}
+
+	toSend := sendMessage(n.Log, message, "Sendin' capturedPreyUpdate")
+	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+}
+
 // Takes in a node ID and sends this node's gamestate to that node
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	message := NodeMessage{
@@ -593,6 +618,22 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int) (err error) {
+	err = n.CheckGotPrey(*move)
+	if err != nil {
+		return err
+	}
+	err = n.CheckMoveIsValid(*move)
+	if err != nil {
+		return err
+	}
+	err = n.CheckAndUpdateScore(identifier, score)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Initiates a connection to another node by sending it a "connect" message
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 	message := NodeMessage{
@@ -681,5 +722,28 @@ func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
 	if !gridManager.IsValidMove(move) {
 		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 	}
+	return nil
+}
+
+func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
+	if move.X == n.PlayerNode.GameState.PlayerLocs.Data["prey"].X &&
+		move.Y == n.PlayerNode.GameState.PlayerLocs.Data["prey"].Y {
+		return nil
+	}
+	return wolferrors.InvalidPreyCaptureError("[" + string(move.X) + ", " + string(move.Y) + "]")
+}
+
+func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
+	_, exists := n.PlayerScores[identifier]
+	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
+	if !exists && score == n.PlayerNode.GameConfig.CatchWorth {
+		n.PlayerScores[identifier] = score
+		return nil
+	}
+
+	if exists && playerScore != n.PlayerScores[identifier] + n.PlayerNode.GameConfig.CatchWorth {
+		return wolferrors.InvalidScoreUpdateError(string(score))
+	}
+	n.PlayerScores[identifier] += n.PlayerNode.GameConfig.CatchWorth
 	return nil
 }
