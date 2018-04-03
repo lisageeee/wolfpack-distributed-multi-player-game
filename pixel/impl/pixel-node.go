@@ -104,7 +104,7 @@ func (pn * PixelNode) RenderNewState (win * pixelgl.Window, curState shared.Game
 	// Render walls, first
 	pn.DrawWalls(win)
 
-	pn.DrawScore(win)
+	pn.DrawScore(win, curState)
 
 	// Render prey
 	preyPos := pn.Geom.GetVectorFromCoords(curState.Prey)
@@ -156,13 +156,15 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 }
 
 // Helper function to draw the scores on the board.
-func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
+func (pn * PixelNode) DrawScore (window *pixelgl.Window, curState shared.GameRenderState) {
 	pn.ScoreboardBg.Draw(window)
 
-	fakeScoreMap := make(map[string]int)
-	fakeScoreMap["1"] = 100
-	fakeScoreMap["2"] = 300
-	fakeScoreMap["3"] = 50
+	scoreMap := curState.Scores
+
+	//scoreMap := make(map[string]int)
+	//scoreMap["1"] = 100
+	//scoreMap["2"] = 300
+	//scoreMap["3"] = 50
 
 	const textHeight = 10
 	const titleMultiplier = 3
@@ -176,14 +178,14 @@ func (pn * PixelNode) DrawScore (window *pixelgl.Window) {
 	title.Draw(window, pixel.IM.Scaled(title.Orig, titleMultiplier))
 
 	// Render the scores
-	scoreString := SortScores(fakeScoreMap) // sort 'em
+	scoreString := SortScores(scoreMap) // sort 'em
 	scoresPos := pixel.V(pn.Geom.GetX() + padding, pn.Geom.GetY() - (titleMultiplier + 2) * textHeight)
 	scores := text.New(scoresPos, pn.TextAtlas)
 	fmt.Fprintln(scores, scoreString)
 	scores.Draw(window, pixel.IM)
 
 	// Render my score
-	myScoreString := fmt.Sprintf("SCORE: %10d", fakeScoreMap["2"])
+	myScoreString := fmt.Sprintf("SCORE: %10d", scoreMap["ME"])
 	myScorePos := pixel.V(pn.Geom.GetX() + padding, textHeight * scoreMultiplier)
 	myScore := text.New(myScorePos, pn.TextAtlas)
 	fmt.Fprintln(myScore, myScoreString)

@@ -64,7 +64,7 @@ type NodeCommInterface struct {
 	// A map to store move commits in before receiving their associated moves
 	MoveCommits			map[string]string
 
-	PlayerScores		map[string]int
+	//PlayerScores		map[string]int
 
 	// Channel that messages are written to so they can be handled by the goroutine that deals with sending messages
 	// and managing the player nodes
@@ -178,7 +178,6 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodeKeys:              make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
-		PlayerScores:          make(map[string]int),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
@@ -789,16 +788,21 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 }
 
 func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
-	_, exists := n.PlayerScores[identifier]
-	playerScore := n.PlayerNode.GameState.PlayerScores[identifier]
+	_, exists := n.PlayerNode.GameState.PlayerScores.Data[identifier]
+	playerScore := n.PlayerNode.GameState.PlayerScores.Data[identifier]
+
 	if !exists && score == n.PlayerNode.GameConfig.CatchWorth {
-		n.PlayerScores[identifier] = score
+		n.PlayerNode.GameState.PlayerScores.Lock()
+		defer n.PlayerNode.GameState.PlayerScores.Unlock()
+		n.PlayerNode.GameState.PlayerScores.Data[identifier] = score
 		return nil
 	}
 
-	if exists && playerScore != n.PlayerScores[identifier] + n.PlayerNode.GameConfig.CatchWorth {
+	if exists && playerScore != n.PlayerNode.GameState.PlayerScores.Data[identifier] + n.PlayerNode.GameConfig.CatchWorth {
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
-	n.PlayerScores[identifier] += n.PlayerNode.GameConfig.CatchWorth
+	n.PlayerNode.GameState.PlayerScores.Lock()
+	defer n.PlayerNode.GameState.PlayerScores.Unlock()
+	n.PlayerNode.GameState.PlayerScores.Data[identifier] += n.PlayerNode.GameConfig.CatchWorth
 	return nil
 }

@@ -79,7 +79,6 @@ func run() {
 	wallSprite := pixel.NewSprite(pic, pic.Bounds())
 	node.WallSprite = wallSprite
 
-	node.DrawScore(win)
 	node.DrawWalls(win) // call this to draw walls every update
 
 	sprite.Draw(win, pixel.IM.Moved(spritePos))

@@ -43,9 +43,8 @@ type PlayerState struct {
 
 // Game state to communciate between nodes
 type GameState struct {
-	PlayerLocs PlayerLockMap
-	PlayerScores	map[string]int
-	// scores TODO
+	PlayerLocs 		PlayerLockMap
+	PlayerScores	ScoresLockMap
 }
 
 type PlayerLockMap struct {
@@ -53,11 +52,17 @@ type PlayerLockMap struct {
 	Data map[string]Coord
 }
 
+type ScoresLockMap struct {
+	sync.RWMutex
+	Data map[string]int
+}
+
 // Game state sent from logic node to pixel for rendering
 type GameRenderState struct {
 	PlayerLoc Coord
 	Prey Coord
 	OtherPlayers map[string]Coord
+	Scores map[string]int
 }
 
 // Move commitment sent by player, must be ACK'ed by all other players in game
