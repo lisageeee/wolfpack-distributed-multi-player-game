@@ -37,6 +37,10 @@ type PlayerNode struct {
 	GameConfig shared.InitialState
 }
 
+
+
+
+
 // Creates the main logic node and required interfaces with the arguments passed in logic-node.go
 // nodeListenerAddr = where we expect to receive messages from other nodes
 // playerListenerAddr = where we expect to receive messages from the pixel-node
@@ -101,7 +105,43 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	return pn
 }
 
+type QAgent interface{
+	f()
+	actions_in_state()
+	update_state()
+	call()
+}
 
+type State struct {
+	loc shared.Coord
+	prey shared.Coord
+	distance int
+
+}
+type Agent struct{
+	gamma float32
+	terminal State
+	action []shared.Coord
+	Ne int
+	Rplus int
+	iteration_limit int
+	Q map[State]float32
+	Nsa map[State]float32
+	s State
+	a shared.Coord
+	r int
+	alpha func(int)(float32)
+}
+
+func NewAgent()(Agent){
+	var actions []shared.Coord
+	actions = append(actions, shared.Coord{-1, 0})
+	actions = append(actions, shared.Coord{1, 0})
+	actions = append(actions, shared.Coord{0, 1})
+	actions = append(actions, shared.Coord{0, -1})
+	return Agent{gamma:0.9, terminal:nil, action:actions,  Ne:2, Rplus:2,
+	Q: make(map[State]float32), Nsa: make(map[State]float32), alpha: func(n int)float32{return float32(60/59+n)}}
+}
 // Runs a bot game
 func (pn * PlayerNode) RunBotGame(playerListener string) {
 	for {
@@ -132,7 +172,7 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 				}
 			}
 		}
-		move := pn.movePlayer(command)
+		move,_ := pn.movePlayer(command)
 		pn.nodeInterface.SendMoveToNodes(&move)
 		fmt.Println("movin' bot", command)
 		fmt.Println(move)
