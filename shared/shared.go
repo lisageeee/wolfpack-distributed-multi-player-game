@@ -45,7 +45,6 @@ type PlayerState struct {
 type GameState struct {
 	PlayerLocs PlayerLockMap
 	PlayerScores	map[string]int
-	// scores TODO
 }
 
 type PlayerLockMap struct {
