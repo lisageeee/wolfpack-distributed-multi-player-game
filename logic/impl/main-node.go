@@ -172,6 +172,12 @@ func (pn *PlayerNode) GetNodeInterface() (*NodeCommInterface) {
 	return pn.nodeInterface
 }
 
+// Return the grid manager of this player node
 func (pn *PlayerNode) GetGridManager() (*geometry.GridManager) {
 	return &pn.geo
+}
+
+// Return the comm channel used to communicate with the pixel interface, mostly for testing
+func (pn *PlayerNode) GetPlayerCommChannel() (chan string) {
+	return pn.playerCommChannel
 }

@@ -91,6 +91,7 @@ func TestNodeToNodeSendScore(t *testing.T) {
 
 	// Test sending a score from one node to another
 	testCoord := shared.Coord{5,5}
+	node2.GameState.PlayerLocs.Data["prey"] = shared.Coord{5, 5}
 
 	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 1)
 	if err != nil {

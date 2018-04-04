@@ -51,7 +51,7 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 	}
 
 	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PlayerNode.GameState.PlayerLocs.Data) + 1 {
-		fmt.Println("P2 should have player 1's gamestate + its own gamestate")
+		fmt.Println("P2 should have player 1's gamestate + its own location")
 		t.Fail()
 	}
 
