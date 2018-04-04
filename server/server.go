@@ -133,45 +133,6 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	return nil
 }
 
-func (foo *GServer) RegisterPrey(p PlayerInfo, response *shared.GameConfig) error {
-	allPlayers.Lock()
-	defer allPlayers.Unlock()
-
-	pubKeyStr := keys.PubKeyToString(p.PubKey)
-
-	// TODO: This needs to be fixed
-	//if player, exists := allPlayers.all[pubKeyStr]; exists {
-	//	fmt.Printf("DEBUG - Key Already Registered Error [%s]\n",
-	//		player.Address.String())
-	//	return wolferrors.KeyAlreadyRegisteredError(player.Address.String())
-	//}
-
-	for _, player := range allPlayers.all {
-		if player.Address.Network() == p.Address.Network() && player.Address.String() == p.Address.String() {
-			fmt.Printf("DEBUG - Address Already Registered Error [%s], [%s]\n",
-				player.Address.Network(), player.Address.String())
-			return wolferrors.AddressAlreadyRegisteredError(p.Address.String())
-		}
-	}
-
-	// once all checks are made to ensure that this connecting player has not already been registered,
-	// add this player to allPlayers struct
-	allPlayers.all[pubKeyStr] = &Player {
-		Address: p.Address,
-		RecentHB: time.Now().UnixNano(),
-		Identifier: -1,
-	}
-
-	fmt.Printf("DEBUG - [%s] Connected\n", p.Address.String())
-
-	go monitor(pubKeyStr, time.Duration(heartBeat)*time.Millisecond)
-
-	settings := getSettingsByConfigString(foo.SelectConfig)
-	*response = settings
-
-	return nil
-}
-
 func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]shared.NodeRegistrationInfo) error {
 	allPlayers.RLock()
 	defer allPlayers.RUnlock()

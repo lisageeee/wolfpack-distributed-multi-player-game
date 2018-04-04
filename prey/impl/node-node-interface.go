@@ -380,7 +380,7 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 	var response shared.GameConfig
 	// Register with server
 	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
-	err = serverConn.Call("GServer.RegisterPrey", playerInfo, &response)
+	err = serverConn.Call("GServer.Register", playerInfo, &response)
 	if err != nil {
 		return shared.GameConfig{}, err
 	}
