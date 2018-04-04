@@ -41,7 +41,7 @@ func TestPreyNodeToNodeInterface(t *testing.T) {
 
 	// Test sending gamestate from one node to another
 	n1.SendGameStateToNode(node2.Identifier)
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(300*time.Millisecond)
 
 	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data["prey"]
 	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PreyNode.GameState.PlayerLocs)
