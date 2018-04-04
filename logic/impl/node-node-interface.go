@@ -821,9 +821,11 @@ func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move s
 
 // Check move to see if it's valid based on the gameplay grid
 func (n *NodeCommInterface) CheckMoveIsValid(move shared.Coord) (err error) {
-	gridManager := n.PlayerNode.GetGridManager()
-	if !gridManager.IsValidMove(move) {
-		return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+	if n.PlayerNode != nil {
+		gridManager := n.PlayerNode.GetGridManager()
+		if !gridManager.IsValidMove(move) {
+			return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
+		}
 	}
 	return nil
 }

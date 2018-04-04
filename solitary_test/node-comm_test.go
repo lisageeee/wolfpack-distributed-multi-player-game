@@ -1,4 +1,4 @@
-package test
+package solitary
 
 import (
 	"os/exec"
@@ -41,7 +41,7 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 
 	// Test sending gamestate from one node to another
 	n1.SendGameStateToNode(node2.Identifier)
-	time.Sleep(300*time.Millisecond)
+	time.Sleep(500*time.Millisecond)
 
 	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier]
 	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PlayerNode.GameState.PlayerLocs)
