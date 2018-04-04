@@ -60,9 +60,13 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 	playerLocs[uniqueId] = shared.Coord{5,5}
 	playerMap := shared.PlayerLockMap{Data:playerLocs}
 
+	playerScores := make(map[string]int)
+	playerScoreMap := shared.ScoresLockMap{Data:playerScores}
+
 	// Make a gameState
 	gameState := shared.GameState{
 		PlayerLocs: playerMap,
+		PlayerScores: playerScoreMap,
 	}
 
 	// Create Prey node
