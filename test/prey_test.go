@@ -24,17 +24,21 @@ func TestPreyNodeToNodeInterface(t *testing.T) {
 	// Create player node and get pixel interface
 	pub, priv := key.GenerateKeys()
 	node1 := l.CreatePreyNode(":17700", ":17701", pub, priv, ":8081")
+	go node1.RunGame(":17701")
 
 	pub, priv = key.GenerateKeys()
 	node2 := l2.CreatePlayerNode(":17900", ":17901", pub, priv, ":8081")
+	go node2.RunGame(":17901")
 
 	n1 := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
+
 
 	time.Sleep(1*time.Second)
 
 	// Check nodes are connected to each other
 	if len(n2.OtherNodes) != len(n1.OtherNodes) {
+		fmt.Println(n2.OtherNodes, n1.OtherNodes)
 		fmt.Println("Nodes do not have a mutual connection, fail")
 		t.Fail()
 	}

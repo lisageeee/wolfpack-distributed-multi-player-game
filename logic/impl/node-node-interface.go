@@ -441,7 +441,7 @@ func (n *NodeCommInterface) GetNodes() {
 		log.Fatal(err)
 	}
 
-	// If 1 or 0 nodes, it is only us and the prey, don't need to update gamestate
+	// If 0, it is only us, don't need to update gamestate
 	if len(response) < 1 {
 		fmt.Println("no other nodes")
 		// This node is the only node in gameplay, doesn't need to get gamestate from other nodes
@@ -697,6 +697,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	return nil
 }
 
+// If we are requested to send a gamestate, send it
 func (n* NodeCommInterface) HandleGameStateConnReq(id string) {
 	if n.PlayerNode != nil {
 		n.SendGameStateToNode(id)
@@ -840,7 +841,6 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	playerScore := n.PlayerNode.GameState.PlayerScores.Data[identifier]
 
 	if !exists && score == n.PlayerNode.GameConfig.CatchWorth {
-		fmt.Println("New score", score)
 		n.PlayerNode.GameState.PlayerScores.Lock()
 		defer n.PlayerNode.GameState.PlayerScores.Unlock()
 		n.PlayerNode.GameState.PlayerScores.Data[identifier] = score
@@ -848,7 +848,6 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	}
 
 	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
-		fmt.Println("score isn't what'd expected, wanted", n.PlayerNode.GameState.PlayerScores.Data[identifier], "got", score)
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
 	n.PlayerNode.GameState.PlayerScores.Lock()
