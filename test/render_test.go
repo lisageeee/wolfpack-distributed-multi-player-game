@@ -21,6 +21,7 @@ func TestGetNewRenderState(t *testing.T) {
 	serverStart.Dir = "../server"
 	serverStart.Start()
 
+	time.Sleep(3*time.Second)
 	pub, priv := keys.GenerateKeys()
 	logic := l.CreatePlayerNode(":0", ":7060", pub, priv, ":9099")
 	logicPoint := &logic
