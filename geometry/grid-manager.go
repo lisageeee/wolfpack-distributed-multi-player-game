@@ -57,7 +57,7 @@ func (gm * GridManager) IsNotWall(coord shared.Coord) (bool) {
 
 // Checks that the two given coordinates could be valid new and original states; that is, ensures
 // the player isn't taking more than one step per move
-// Return true if the move is valid, false if the node has been "teleparting"
+// Return true if the move is valid, false if the node has been "teleporting"
 func (gm * GridManager) IsNotTeleporting(origCoord shared.Coord, newCoord shared.Coord) (bool) {
 	x := origCoord.X - newCoord.X
 	y := origCoord.Y - newCoord.Y

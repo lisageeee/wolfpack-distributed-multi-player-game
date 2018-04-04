@@ -92,6 +92,9 @@ type NodeCommInterface struct {
 
 	// Write to this channel to trigger a gamestate send to the pixel node
 	GameStateToSend       chan bool
+
+	// A boolean set to false before this node has reconciled the gamestate when joining
+	HasGameState		  bool
 }
 
 type StrikeLockMap struct {
@@ -186,6 +189,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MovesToSend:           make(chan *PendingMoveUpdates, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
+		HasGameState: 		   false,
 	}
 }
 
@@ -209,6 +213,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		switch message.MessageType {
 			case "gameState":
 				n.HandleReceivedGameState(message.Identifier, message.GameState)
+			case "gamestateReq":
+				n.HandleGameStateConnReq(message.Identifier)
 			case "moveCommit":
 				n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 			case "move":
@@ -435,12 +441,19 @@ func (n *NodeCommInterface) GetNodes() {
 		log.Fatal(err)
 	}
 
+	// If 1 or 0 nodes, it is only us and the prey, don't need to update gamestate
+	if len(response) < 1 {
+		fmt.Println("no other nodes")
+		// This node is the only node in gameplay, doesn't need to get gamestate from other nodes
+		n.HasGameState = true
+	}
+
 	for id, regInfo := range response {
 		nodeClient := n.GetClientFromAddrString(regInfo.Addr.String())
 		pubKey:= key.StringToPubKey(regInfo.PubKey)
 		node := OtherNode{Identifier: id, Conn: nodeClient, PubKey: &pubKey}
 		n.NodesToAdd <- &node
-		n.InitiateConnection(nodeClient)
+		n.InitiateConnection(nodeClient, id)
 	}
 }
 
@@ -579,7 +592,21 @@ func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 // Handles a gamestate received from another node.
 func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState *shared.GameState) {
 	//TODO: don't just wholesale replace this
-	n.PlayerNode.GameState = *gameState
+	if !n.HasGameState {
+		n.PlayerNode.GameState.PlayerLocs.Lock()
+		defer n.PlayerNode.GameState.PlayerLocs.Unlock()
+
+		for id, pos := range gameState.PlayerLocs.Data {
+			n.PlayerNode.GameState.PlayerLocs.Data[id] = pos
+		}
+
+		n.PlayerNode.GameState.PlayerScores.Lock()
+		defer n.PlayerNode.GameState.PlayerScores.Unlock()
+		for id, score := range gameState.PlayerScores.Data {
+			n.PlayerNode.GameState.PlayerScores.Data[id] = score
+		}
+		n.HasGameState = true
+	}
 }
 
 // Handle moves that require a move commit check (lockstep)
@@ -670,8 +697,14 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	return nil
 }
 
+func (n* NodeCommInterface) HandleGameStateConnReq(id string) {
+	if n.PlayerNode != nil {
+		n.SendGameStateToNode(id)
+	}
+}
+
 // Initiates a connection to another node by sending it a "connect" message
-func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
+func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn, id string) {
 	message := NodeMessage{
 		MessageType: "connect",
 		Identifier:  strconv.Itoa(n.Config.Identifier),
@@ -680,16 +713,31 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
 		PubKey: 	 key.PubKeyToString(*n.PubKey),
 	}
 	toSend := sendMessage(n.Log, message, "Initiating connection")
-	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+	n.MessagesToSend <- &PendingMessage{Recipient: id, Message: toSend}
+
+	if !n.HasGameState {
+		n.RequestGameState(id)
+	}
+}
+
+// Requests a gamestate from another node, used on joining
+func (n* NodeCommInterface) RequestGameState(id string) {
+	message := NodeMessage {
+		MessageType: "gamestateReq",
+		Identifier:  strconv.Itoa(n.Config.Identifier),
+		Addr:        n.LocalAddr.String(),
+	}
+	toSend := sendMessage(n.Log, message, "Requesting gamestate")
+	n.MessagesToSend <- &PendingMessage{Recipient: id, Message: toSend}
 }
 
 // Sends connection message to connections after receiving from server
-func (n *  NodeCommInterface) FloodNodes() {
-	for _, node := range n.OtherNodes {
-		// Exchange messages with other node
-		n.InitiateConnection(node)
-	}
-}
+//func (n *  NodeCommInterface) FloodNodes() {
+//	for _, node := range n.OtherNodes {
+//		// Exchange messages with other node
+//		n.InitiateConnection(node)
+//	}
+//}
 
 func (n *NodeCommInterface) SendACK(identifier string, seq uint64) {
 	message := NodeMessage {
@@ -792,13 +840,15 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	playerScore := n.PlayerNode.GameState.PlayerScores.Data[identifier]
 
 	if !exists && score == n.PlayerNode.GameConfig.CatchWorth {
+		fmt.Println("New score", score)
 		n.PlayerNode.GameState.PlayerScores.Lock()
 		defer n.PlayerNode.GameState.PlayerScores.Unlock()
 		n.PlayerNode.GameState.PlayerScores.Data[identifier] = score
 		return nil
 	}
 
-	if exists && playerScore != n.PlayerNode.GameState.PlayerScores.Data[identifier] + n.PlayerNode.GameConfig.CatchWorth {
+	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
+		fmt.Println("score isn't what'd expected, wanted", n.PlayerNode.GameState.PlayerScores.Data[identifier], "got", score)
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
 	n.PlayerNode.GameState.PlayerScores.Lock()
