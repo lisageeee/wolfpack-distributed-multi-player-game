@@ -30,38 +30,15 @@ func TestPreyNodeToNodeInterface(t *testing.T) {
 	node2 := l2.CreatePlayerNode(":17900", ":17901", pub, priv, ":8081")
 	go node2.RunGame(":17901")
 
-	n1 := node1.GetNodeInterface()
+	prey := node1.GetNodeInterface()
 	n2 := node2.GetNodeInterface()
 
-
-	time.Sleep(1*time.Second)
-
-	// Check nodes are connected to each other
-	if len(n2.OtherNodes) != len(n1.OtherNodes) {
-		fmt.Println(n2.OtherNodes, n1.OtherNodes)
-		fmt.Println("Nodes do not have a mutual connection, fail")
+	if prey.PreyNode.GameState.PlayerLocs.Data["prey"] != n2.PlayerNode.GameState.PlayerLocs.Data["prey"] {
+		fmt.Println("Initial prey coords does not match up in n2")
+		fmt.Printf("Prey node GameState PlayerLocs: %v, Node 2 Gamestate PlayerLocs: %v\n",
+			prey.PreyNode.GameState.PlayerLocs, n2.PlayerNode.GameState.PlayerLocs)
 		t.Fail()
 	}
-
-	// Test sending gamestate from one node to another
-	n1.SendGameStateToNode(node2.Identifier)
-	time.Sleep(300*time.Millisecond)
-
-	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data["prey"]
-	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PreyNode.GameState.PlayerLocs)
-	if !ok {
-		fmt.Println("Gamestate not sent from 1 to 2, fail")
-		t.Fail()
-	}
-
-	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PreyNode.GameState.PlayerLocs.Data) {
-		fmt.Println("Gamestates not equal length (so not equal), fail")
-		t.Fail()
-	}
-
-	n1.SendGameStateToNode(node2.Identifier)
-	time.Sleep(100*time.Millisecond)
-
 	// Kill after done + all children
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 	serverStart.Process.Kill()
