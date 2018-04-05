@@ -110,6 +110,7 @@ func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 		buf := make([]byte, 1024)
 		rlen, err := player.Read(buf)
 		if err != nil {
+			fmt.Println(err)
 			log.Fatal("Pixel node disconnected")
 		} else if string(buf[0:rlen]) == "getgameconfig"{
 			SendGameConfig(pi, player)
