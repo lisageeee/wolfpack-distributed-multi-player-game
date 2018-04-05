@@ -134,6 +134,7 @@ type OtherNode struct {
 type PlayerInfo struct {
 	Address 			net.Addr
 	PubKey 				ecdsa.PublicKey
+	Prey				bool
 }
 
 // The message struct that is sent for all node communication
@@ -423,7 +424,7 @@ func DialAndRegister(n *NodeCommInterface) (shared.GameConfig, error) {
 	n.ServerConn = serverConn
 	var response shared.GameConfig
 	// Register with server
-	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey}
+	playerInfo := PlayerInfo{n.LocalAddr, *n.PubKey, false}
 	// fmt.Printf("DEBUG - PlayerInfo Struct [%v]\n", playerInfo)
 	err = serverConn.Call("GServer.Register", playerInfo, &response)
 	if err != nil {

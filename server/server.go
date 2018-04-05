@@ -25,7 +25,7 @@ type GServer struct {
 type Player struct {
 	Address net.Addr
 	RecentHB int64
-	Identifier int
+	Identifier string
 }
 
 type AllPlayers struct {
@@ -43,6 +43,7 @@ var (
 type PlayerInfo struct {
 	Address net.Addr
 	PubKey ecdsa.PublicKey
+	Prey bool
 }
 
 func main() {
@@ -95,6 +96,7 @@ func monitor(pubKeyStr string, heartBeatInterval time.Duration) {
 
 func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	id++
+	idStr := strconv.Itoa(id)
 	allPlayers.Lock()
 	defer allPlayers.Unlock()
 
@@ -115,12 +117,16 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 		}
 	}
 
+	if p.Prey {
+		idStr = "prey"
+	}
+
 	// once all checks are made to ensure that this connecting player has not already been registered,
 	// add this player to allPlayers struct
 	allPlayers.all[pubKeyStr] = &Player {
 		Address: p.Address,
 		RecentHB: time.Now().UnixNano(),
-		Identifier: id,
+		Identifier: idStr,
 	}
 
 	fmt.Printf("DEBUG - [%s] Connected\n", p.Address.String())
@@ -128,6 +134,7 @@ func (foo *GServer) Register(p PlayerInfo, response *shared.GameConfig) error {
 	go monitor(pubKeyStr, time.Duration(heartBeat)*time.Millisecond)
 
 	settings := getSettingsByConfigString(foo.SelectConfig)
+	settings.Identifier = idStr
 	*response = settings
 
 	return nil
@@ -150,7 +157,7 @@ func (foo *GServer) GetNodes(key ecdsa.PublicKey, addrSet * map[string]shared.No
 		if k == pubKeyStr {
 			continue
 		}
-		idString := strconv.Itoa(player.Identifier)
+		idString := player.Identifier
 		playerAddresses[idString] = shared.NodeRegistrationInfo{Id: idString, Addr: player.Address, PubKey: k}
 	}
 
@@ -225,7 +232,6 @@ func getSettingsByConfigString(configString string) (shared.GameConfig) {
 
 		response = shared.GameConfig {
 			InitState: 	initState,
-			Identifier: id,
 			GlobalServerHB: heartBeat,
 			Ping: 		ping,
 		}
@@ -244,14 +250,10 @@ func getSettingsByConfigString(configString string) (shared.GameConfig) {
 
 		response = shared.GameConfig {
 			InitState: 	initState,
-			Identifier: id,
 			GlobalServerHB: heartBeat,
 			Ping: 		ping,
 		}
 	}
 
 	return response
-}
-func pubKeyToString(key ecdsa.PublicKey) string {
-	return string(elliptic.Marshal(key.Curve, key.X, key.Y))
 }
