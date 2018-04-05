@@ -102,3 +102,28 @@ func TestMovePrey(t *testing.T) {
 	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
 	serverStart.Process.Kill()
 }
+
+func TestPreyId(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go")
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Dir = "../server"
+	serverStart.Start()
+
+	time.Sleep(3*time.Second) // wait for server to get started
+
+	pub, priv := key.GenerateKeys()
+	preyNode := l.CreatePreyNode(":13510", ":13511", pub, priv, ":8081")
+
+	time.Sleep(3*time.Second) // wait for server to get started
+
+	if preyNode.Identifier != "prey" {
+		fmt.Println("Not registered as prey", preyNode.Identifier)
+		t.Fail()
+	}
+
+	// Kill after done + all children
+	syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+	serverStart.Process.Kill()
+}

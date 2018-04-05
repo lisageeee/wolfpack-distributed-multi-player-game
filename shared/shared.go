@@ -14,7 +14,7 @@ type Coord struct {
 
 type GameConfig struct {
 	InitState			InitialState
-	Identifier 			int
+	Identifier 			string
 	GlobalServerHB		uint32
 	// Number of times we ping another player before we drop them
 	Ping				uint32
@@ -41,7 +41,7 @@ type PlayerState struct {
 	HighestScore 		uint32
 }
 
-// Game state to communciate between nodes
+// Game state to communiciate between nodes
 type GameState struct {
 	PlayerLocs 		PlayerLockMap
 	PlayerScores	ScoresLockMap
