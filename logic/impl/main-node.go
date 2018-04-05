@@ -111,6 +111,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 		message := <-pn.playerCommChannel
 		switch message {
 		case "quit":
+			fmt.Println("QUITTING")
 			break
 		default:
 			move, didMove := pn.movePlayer(message)
@@ -128,6 +129,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
 	}
+	fmt.Println("QUITTING")
 
 }
 

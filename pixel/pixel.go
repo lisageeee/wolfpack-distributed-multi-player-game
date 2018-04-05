@@ -92,7 +92,7 @@ func run() {
 	go func(){
 		for {
 			select {
-				case  <- time.After(time.Millisecond*200):
+				case  <- time.After(time.Millisecond*1000):
 					if keyStroke != "" {
 						node.SendMove(keyStroke)
 						keyStroke = ""
