@@ -75,11 +75,12 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	playerScores[uniqueId] = 0
 
 	playerMap := shared.PlayerLockMap{Data:playerLocs}
+	scoreMap := shared.ScoresLockMap{Data:playerScores}
 
 	// Make a gameState
 	gameState := shared.GameState{
 		PlayerLocs: playerMap,
-		PlayerScores: playerScores,
+		PlayerScores: scoreMap,
 	}
 
 	// Create player node
@@ -118,9 +119,11 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 			}
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
 				fmt.Println("Got the prey")
-				pn.GameState.PlayerScores[pn.Identifier] += pn.GameConfig.CatchWorth
-				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores[pn.Identifier])
-				fmt.Println(pn.GameState.PlayerScores[pn.Identifier])
+				pn.GameState.PlayerScores.Lock()
+				pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
+				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores.Data[pn.Identifier])
+				fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
+				pn.GameState.PlayerScores.Unlock()
 			}
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
@@ -169,6 +172,12 @@ func (pn *PlayerNode) GetNodeInterface() (*NodeCommInterface) {
 	return pn.nodeInterface
 }
 
+// Return the grid manager of this player node
 func (pn *PlayerNode) GetGridManager() (*geometry.GridManager) {
 	return &pn.geo
+}
+
+// Return the comm channel used to communicate with the pixel interface, mostly for testing
+func (pn *PlayerNode) GetPlayerCommChannel() (chan string) {
+	return pn.playerCommChannel
 }

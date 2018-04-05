@@ -43,12 +43,25 @@ func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan 
 func (pi *PixelInterface) waitForGameStates() {
 	for {
 		state := <-pi.playerSendChannel
+
+
+		state.PlayerLocs.Lock()
+		state.PlayerScores.Lock()
+
 		// Create the player map without without this node or prey node
 		otherPlayers := make(map[string]shared.Coord)
-		state.PlayerLocs.Lock()
 		for key, value := range state.PlayerLocs.Data {
 			if key != pi.Id && key != "prey" {
 				otherPlayers[key] = value
+			}
+		}
+
+		otherScores := make(map[string]int)
+		for key, value := range state.PlayerScores.Data {
+			if key != pi.Id {
+				otherScores[key] = value
+			} else {
+				otherScores["ME"] = value
 			}
 		}
 
@@ -56,8 +69,10 @@ func (pi *PixelInterface) waitForGameStates() {
 			PlayerLoc:    state.PlayerLocs.Data[pi.Id],
 			Prey:         state.PlayerLocs.Data["prey"],
 			OtherPlayers: otherPlayers,
+			Scores: otherScores,
 		}
 
+		state.PlayerScores.Unlock()
 		state.PlayerLocs.Unlock()
 
 		toSend, err := json.Marshal(renderState)

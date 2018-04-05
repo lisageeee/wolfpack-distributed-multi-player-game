@@ -62,6 +62,9 @@ type NodeCommInterface struct {
 
 	// Write to this channel to trigger a gamestate send to the pixel node
 	GameStateToSend       chan bool
+
+	// Whether this node has a gamestate yet or not
+	HasGameState		  bool
 }
 
 type StrikeLockMap struct {
@@ -146,7 +149,6 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodeKeys:              make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
 		MoveCommits:           make(map[string]string),
-		PlayerScores:          make(map[string]int),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
@@ -155,6 +157,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MovesToSend:           make(chan *PendingMoveUpdates, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
+		HasGameState:		   false,
 	}
 }
 
@@ -178,6 +181,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		switch message.MessageType {
 		case "gameState":
 			n.HandleReceivedGameState(message.Identifier, message.GameState)
+		case "gamestateReq":
+			n.HandleGameStateConnReq(message.Identifier)
 		case "moveCommit":
 			n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 		case "move":
@@ -391,6 +396,13 @@ func (n *NodeCommInterface) GetNodes() {
 		log.Fatal(err)
 	}
 
+	// If 0 nodes, it is only us, don't need to update gamestate
+	if len(response) < 1 {
+		fmt.Println("no other nodes")
+		// This node is the only node in gameplay, doesn't need to get gamestate from other nodes
+		n.HasGameState = true
+	}
+
 	for id, regInfo := range response {
 		nodeClient := n.GetClientFromAddrString(regInfo.Addr.String())
 		pubKey:= key.StringToPubKey(regInfo.PubKey)
@@ -455,6 +467,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }
 
 func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
@@ -524,9 +537,24 @@ func (n *NodeCommInterface) sendMessageToNodes(toSend []byte) {
 	}
 }
 
+// Handles a gamestate received from another node.
 func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState *shared.GameState) {
 	//TODO: don't just wholesale replace this
-	n.PreyNode.GameState = *gameState
+	if !n.HasGameState {
+		n.PreyNode.GameState.PlayerLocs.Lock()
+		defer n.PreyNode.GameState.PlayerLocs.Unlock()
+
+		for id, pos := range gameState.PlayerLocs.Data {
+			n.PreyNode.GameState.PlayerLocs.Data[id] = pos
+		}
+
+		n.PreyNode.GameState.PlayerScores.Lock()
+		defer n.PreyNode.GameState.PlayerScores.Unlock()
+		for id, score := range gameState.PlayerScores.Data {
+			n.PreyNode.GameState.PlayerScores.Data[id] = score
+		}
+		n.HasGameState = true
+	}
 }
 
 func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
@@ -605,6 +633,12 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 		return err
 	}
 	return nil
+}
+
+func (n* NodeCommInterface) HandleGameStateConnReq(id string) {
+	if n.PreyNode != nil {
+		n.SendGameStateToNode(id)
+	}
 }
 
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn) {
@@ -726,16 +760,22 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 }
 
 func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
-	_, exists := n.PlayerScores[identifier]
-	playerScore := n.PreyNode.GameState.PlayerScores[identifier]
+	_, exists := n.PreyNode.GameState.PlayerScores.Data[identifier]
+	playerScore := n.PreyNode.GameState.PlayerScores.Data[identifier]
+
 	if !exists && score == n.PreyNode.GameConfig.CatchWorth {
-		n.PlayerScores[identifier] = score
+		n.PreyNode.GameState.PlayerScores.Lock()
+		defer n.PreyNode.GameState.PlayerScores.Unlock()
+		n.PreyNode.GameState.PlayerScores.Data[identifier] = score
 		return nil
 	}
 
-	if exists && playerScore != n.PlayerScores[identifier] + n.PreyNode.GameConfig.CatchWorth {
+	if exists && score != playerScore + n.PreyNode.GameConfig.CatchWorth {
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
-	n.PlayerScores[identifier] += n.PreyNode.GameConfig.CatchWorth
+	n.PreyNode.GameState.PlayerScores.Lock()
+	defer n.PreyNode.GameState.PlayerScores.Unlock()
+	n.PreyNode.GameState.PlayerScores.Data[identifier] += n.PreyNode.GameConfig.CatchWorth
 	return nil
 }
+

@@ -1,4 +1,4 @@
-package test
+package solitary
 
 import (
 	"os/exec"
@@ -41,7 +41,7 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 
 	// Test sending gamestate from one node to another
 	n1.SendGameStateToNode(node2.Identifier)
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(500*time.Millisecond)
 
 	_, ok := n2.PlayerNode.GameState.PlayerLocs.Data[n1.PlayerNode.Identifier]
 	fmt.Println(n2.PlayerNode.GameState.PlayerLocs, n1.PlayerNode.GameState.PlayerLocs)
@@ -50,8 +50,9 @@ func TestNodeToNodeSendGameState(t *testing.T) {
 		t.Fail()
 	}
 
-	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PlayerNode.GameState.PlayerLocs.Data) {
-		fmt.Println("Gamestates not equal length (so not equal), fail")
+	if len(n2.PlayerNode.GameState.PlayerLocs.Data) != len(n1.PlayerNode.GameState.PlayerLocs.Data) + 1 {
+		fmt.Println("P2 should have player 1's gamestate + its own location:", n2.PlayerNode.GameState.PlayerLocs.Data,
+			n1.PlayerNode.GameState.PlayerLocs.Data)
 		t.Fail()
 	}
 
