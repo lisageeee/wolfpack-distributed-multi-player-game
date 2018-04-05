@@ -12,11 +12,11 @@ func StartListenerUDP(ip_addr string) (*net.UDPAddr, *net.UDPConn) {
 	// starts Listener
 	udp_addr, _ := net.ResolveUDPAddr("udp", ip_addr)
 	client, err := net.ListenUDP("udp", udp_addr)
-	local_udp := client.LocalAddr().(*net.UDPAddr)
-	local_udp.IP = GetOutboundIP()
 	if err != nil {
 		panic(err)
 	}
+	local_udp := client.LocalAddr().(*net.UDPAddr)
+	local_udp.IP = GetOutboundIP()
 	return local_udp, client
 }
 

@@ -12,6 +12,9 @@ import (
 	"syscall"
 	key "../key-helpers"
 	"regexp"
+	"net"
+	"os"
+	"encoding/json"
 )
 
 // Reference for killing exec.Command processes + childen:
@@ -19,6 +22,9 @@ import (
 var serverStart *exec.Cmd
 // This test will fail if you make a breaking change that keeps pixel.go from running
 // Inspiration: the breaking change I added that prevented pixel.go from running (wrong image path)
+
+
+
 func TestPixelNodeCanRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
 	defer cancel()
@@ -185,4 +191,51 @@ func TestPixelSortsScores(t *testing.T) {
 		fmt.Println("Score order incorrect, fail - third is after last")
 		t.Fail()
 	}
+}
+func TestGetGameConfigCall(t *testing.T) {
+	// Start running server
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
+	serverStart := exec.CommandContext(ctx, "go", "run", "server.go", "8080", "1") // run with the alt gamestate
+	serverStart.Dir = "../server"
+	serverStart.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	serverStart.Start()
+	defer syscall.Kill(-serverStart.Process.Pid, syscall.SIGKILL)
+
+	time.Sleep(3 * time.Second) // wait for server to get started
+
+	// Create player node, run it and get pixel interface
+	pub, priv := key.GenerateKeys()
+	n := l.CreatePlayerNode(":11505", ":11555", pub, priv, ":9090")
+	go n.RunGame(":11555")
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", ":11555")
+	if err != nil {
+		fmt.Println("Invalid TCP address")
+		os.Exit(1)
+	}
+	time.Sleep(1 * time.Second)
+	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+	}
+	buf := make([]byte, 2048)
+	rlen, err := tcpConn.Read(buf)
+	var settings shared.InitialGameSettings
+	err = json.Unmarshal(buf[0:rlen], &settings)
+	if err != nil{
+		fmt.Println(err)
+		t.Fail()
+	}
+	buf2 := make([]byte, 2048)
+	tcpConn.Write([]byte("getgameconfig"))
+	rlen, err = tcpConn.Read(buf2)
+	err = json.Unmarshal(buf2[0:rlen], &settings)
+	if err != nil{
+		fmt.Println(string(buf2[0:rlen]))
+		fmt.Println(err)
+		t.Fail()
+	}
+
 }

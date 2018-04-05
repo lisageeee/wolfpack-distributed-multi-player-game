@@ -111,6 +111,8 @@ func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 		rlen, err := player.Read(buf)
 		if err != nil {
 			log.Fatal("Pixel node disconnected")
+		} else if string(buf[0:rlen]) == "getgameconfig"{
+			SendGameConfig(pi, player)
 		} else {
 			// Write to comm channel for node to receive
 			pi.playerCommChannel <- string(buf[0:rlen])
@@ -126,6 +128,11 @@ func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
 	if err != nil {
 		fmt.Println(err)
 	}
+	SendGameConfig(pi, conn)
+	return conn
+}
+
+func SendGameConfig(pi *PixelInterface, conn *net.TCPConn) {
 	// Send the pixel node gameConfig immediately
 	marshalledConfig, err := json.Marshal(&pi.gameConfig)
 	if err != nil {
@@ -133,5 +140,4 @@ func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
 	} else {
 		conn.Write(marshalledConfig)
 	}
-	return conn
 }
