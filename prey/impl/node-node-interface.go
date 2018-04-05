@@ -243,7 +243,10 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			if toSend.Recipient != "all" {
 				// Send to the single node
 				if _, ok := n.OtherNodes[toSend.Recipient]; ok {
-					n.OtherNodes[toSend.Recipient].Write(toSend.Message)
+					_, err := n.OtherNodes[toSend.Recipient].Write(toSend.Message)
+					if err != nil {
+						fmt.Println(err)
+					}
 				}
 			} else {
 				// Send the message to all nodes

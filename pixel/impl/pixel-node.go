@@ -66,13 +66,18 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 	// Get initial game state (first message after tcp setup)
 	var buf = make([]byte, 2048)
 	var settings shared.InitialGameSettings
-
-	// Get initial game state
-	rlen, err := remote.Read(buf)
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		json.Unmarshal(buf[0:rlen], &settings)
+	for {
+		// Get initial game state
+		rlen, err := remote.Read(buf)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			err := json.Unmarshal(buf[0:rlen], &settings)
+			if err == nil{
+				break
+			}
+		}
+		_, err = remote.Write([]byte("getgameconfig"))
 	}
 
 	// Init walls
@@ -140,7 +145,7 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 	for {
 		var playerPos shared.GameRenderState
 		i++
-		buf := make([]byte, 1024)
+		buf := make([]byte, 2048)
 		rlen, err := node.Read(buf)
 		if err != nil {
 			fmt.Println(err)
@@ -148,7 +153,7 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 		err = json.Unmarshal(buf[0:rlen], &playerPos)
 		if err != nil {
 			fmt.Println("Error receiving new GameRenderState on PixelNode:", err)
-
+			fmt.Println(string(buf[0:rlen]))
 		} else {
 			pn.NewGameStates <- playerPos
 		}
