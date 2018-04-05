@@ -22,9 +22,6 @@ import (
 var serverStart *exec.Cmd
 // This test will fail if you make a breaking change that keeps pixel.go from running
 // Inspiration: the breaking change I added that prevented pixel.go from running (wrong image path)
-
-
-
 func TestPixelNodeCanRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
 	defer cancel()
