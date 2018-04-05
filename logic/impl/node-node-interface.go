@@ -206,7 +206,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case <-ch:
 				fmt.Println("Read from ch")
 				n.GameStateToSend<-true
-			case <-time.After(time.Millisecond*500):
+			case <-time.After(1 * time.Second):
 				fmt.Println("Timed out")
 				n.GameStateToSend<-true
 			}
@@ -327,7 +327,7 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
-					//n.GameStateToSend <- true
+					n.GameStateToSend <- true
 				} else {
 					moveToSend.Rejected++
 					n.MovesToSend <- moveToSend
