@@ -88,7 +88,7 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 // Runs the main node (listens for incoming messages from pixel interface) in a loop, must be called at the
 // end of main (or alternatively, in a goroutine)
 func (pn * PreyNode) RunGame(playerListener string) {
-	ticker := time.NewTicker(time.Millisecond * 250)
+	ticker := time.NewTicker(time.Millisecond * 500)
 	for _ = range ticker.C {
 		var dir string
 

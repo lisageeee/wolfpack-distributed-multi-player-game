@@ -95,6 +95,8 @@ type NodeCommInterface struct {
 
 	// A boolean set to false before this node has reconciled the gamestate when joining
 	HasGameState		  bool
+
+	MoveToSend 			  chan bool
 }
 
 type StrikeLockMap struct {
@@ -190,15 +192,32 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
 		HasGameState: 		   false,
+		MoveToSend: 		   make(chan bool, 40),
 	}
 }
 
+var t time.Time
 // Runs listener for messages from other nodes, should be run in a goroutine
 // Unmarshalls received messages and dispatches them to the appropriate handler function
 func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr string) {
 	// Start the listener
 	listener.SetReadBuffer(1048576)
+	t = time.Now()
+	ch := make(chan bool, 40)
+	defer close(ch)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				fmt.Println("Read from ch")
+				n.GameStateToSend<-true
+			case <-time.After(1 * time.Second):
+				fmt.Println("Timed out")
+				n.GameStateToSend<-true
+			}
 
+		}
+	}()
 	i := 0
 	for {
 		i++
@@ -233,6 +252,11 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println(err)
 				}
 				if message.Identifier == "prey" {
+					elapsed := time.Since(t)
+					fmt.Println(elapsed.Seconds())
+					fmt.Println(message.Seq)
+					t = time.Now()
+					ch<-true
 					err := n.HandleReceivedMoveL(message.Identifier,&coords)
 					if err != nil {
 						fmt.Println("The error in the prey moving")
@@ -269,7 +293,10 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 // Routine that handles all reads and writes of the OtherNodes map; single thread preventing concurrent iteration and write
 // exception. This routine therefore handles all sending of messages as well as that requires iteration over OtherNodes.
 func (n *NodeCommInterface) ManageOtherNodes() {
+
 	for {
+		<-n.MoveToSend
+		fmt.Println("Sendin' Gamestate")
 		select {
 		case toSend := <-n.MessagesToSend :
 			if toSend.Recipient != "all" {
@@ -301,6 +328,8 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 func (n *NodeCommInterface) ManageAcks() {
 	collectAcks := make(map[uint64][]string)
 	for {
+		//<-n.GameStateToSend
+		//fmt.Println("Sendin' Acks")
 		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
@@ -312,7 +341,6 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
-					n.GameStateToSend <- true
 				} else {
 					moveToSend.Rejected++
 					n.MovesToSend <- moveToSend
