@@ -198,7 +198,21 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr string) {
 	// Start the listener
 	listener.SetReadBuffer(1048576)
+	ch := make(chan bool, 2)
+	defer close(ch)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				fmt.Println("Read from ch")
+				n.GameStateToSend<-true
+			case <-time.After(time.Millisecond*500):
+				fmt.Println("Timed out")
+				n.GameStateToSend<-true
+			}
 
+		}
+	}()
 	i := 0
 	for {
 		i++
@@ -233,6 +247,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println(err)
 				}
 				if message.Identifier == "prey" {
+					ch<-true
 					err := n.HandleReceivedMoveL(message.Identifier,&coords)
 					if err != nil {
 						fmt.Println("The error in the prey moving")
@@ -312,7 +327,7 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
-					n.GameStateToSend <- true
+					//n.GameStateToSend <- true
 				} else {
 					moveToSend.Rejected++
 					n.MovesToSend <- moveToSend
