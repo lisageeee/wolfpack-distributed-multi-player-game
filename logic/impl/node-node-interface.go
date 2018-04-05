@@ -401,14 +401,14 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		if err != nil {
 			os.Exit(1)
 		}
-		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+strconv.Itoa(response.Identifier),
+		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+response.Identifier,
 			"LogicNodeFile")
 
 		n.Config = response
 	}
 	n.GetNodes()
 
-	return strconv.Itoa(n.Config.Identifier)
+	return n.Config.Identifier
 }
 
 // Another server registration function, used to deal with server disconnection.
@@ -709,7 +709,7 @@ func (n* NodeCommInterface) HandleGameStateConnReq(id string) {
 func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn, id string) {
 	message := NodeMessage{
 		MessageType: "connect",
-		Identifier:  strconv.Itoa(n.Config.Identifier),
+		Identifier:  n.Config.Identifier,
 		GameState:   nil,
 		Addr:        n.LocalAddr.String(),
 		PubKey: 	 key.PubKeyToString(*n.PubKey),
@@ -726,7 +726,7 @@ func (n* NodeCommInterface) InitiateConnection(nodeClient *net.UDPConn, id strin
 func (n* NodeCommInterface) RequestGameState(id string) {
 	message := NodeMessage {
 		MessageType: "gamestateReq",
-		Identifier:  strconv.Itoa(n.Config.Identifier),
+		Identifier:  n.Config.Identifier,
 		Addr:        n.LocalAddr.String(),
 	}
 	toSend := sendMessage(n.Log, message, "Requesting gamestate")
