@@ -2,7 +2,7 @@ package geometry
 
 import (
 	"github.com/faiface/pixel"
-	"../shared"
+	"shared"
 )
 
 type PixelManager struct {

@@ -6,7 +6,7 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel"
 	"fmt"
-	"../shared"
+	"shared"
 	"image"
 	"image/color"
 	"time"

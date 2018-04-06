@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 	"../geometry"
-	"../shared"
+	"shared"
 	)
 
 const sizeX  = 300
