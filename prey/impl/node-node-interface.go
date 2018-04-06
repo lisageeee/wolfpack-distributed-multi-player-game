@@ -649,6 +649,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
+	delete(n.PreyNode.GameState.PlayerLocs.Data, "prey")
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
 		return err

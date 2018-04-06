@@ -685,6 +685,7 @@ func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
 }
 
 func (n* NodeCommInterface) HandleResetPreyMove(identifier string, move *shared.Coord) (err error){
+	fmt.Println("I am in the reset prey function")
 	if move != nil {
 		err := n.CheckMoveIsValid(*move)
 		if err != nil {
@@ -713,6 +714,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
+	delete(n.PlayerNode.GameState.PlayerLocs.Data, "prey")
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
 		return err
