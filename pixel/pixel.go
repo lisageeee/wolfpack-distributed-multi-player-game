@@ -11,8 +11,8 @@ import (
 	"image/color"
 	"time"
 )
-
 var nodeAddr string // must store as global to get it into run function
+
 
 // Main entrypoint, takes command line arguments to start the Pixel NOde
 func main() {
@@ -21,6 +21,7 @@ func main() {
 	} else {
 		nodeAddr = os.Args[1]
 	}
+
 	pixelgl.Run(run)
 }
 
@@ -104,12 +105,16 @@ func run() {
 	for !win.Closed() {
 		if win.Pressed(pixelgl.KeyLeft) {
 			keyStroke = "left"
+			fmt.Println("send ", time.Now())
 		} else if win.Pressed(pixelgl.KeyRight) {
 			keyStroke = "right"
+			fmt.Println("send ", time.Now())
 		} else if win.Pressed(pixelgl.KeyUp) {
 			keyStroke = "up"
+			fmt.Println("send ", time.Now())
 		} else if win.Pressed(pixelgl.KeyDown) {
 			keyStroke = "down"
+			fmt.Println("send ", time.Now())
 		}
 
 		// Update game state
@@ -117,6 +122,7 @@ func run() {
 			curState := <- node.NewGameStates
 			// Now, update the rendering
 			node.RenderNewState(win, curState)
+			fmt.Println("rendered ", time.Now())
 		}
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
