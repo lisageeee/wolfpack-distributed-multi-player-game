@@ -48,20 +48,12 @@ type NodeCommInterface struct {
 	MessagesToSend		chan *PendingMessage
 	NodesToDelete		chan string // Nodes pending delete go here
 	NodesToAdd			chan *OtherNode // Nodes pending addition go here
-	// A channel for received acks to be written to
-	ACKSReceived          chan *ACKMessage
 
 	// A channel to write nodes that appear to have been shut down to
 	NodesWriteConnRefused chan string
 
-	// Pending moves go in this gannel
-	MovesToSend           chan *PendingMoveUpdates
-
 	// Keeps track of the number of failed messages between nodes
 	Strikes               StrikeLockMap // Heartbeat protocol between nodes
-
-	// Write to this channel to trigger a gamestate send to the pixel node
-	GameStateToSend       chan bool
 
 	// Whether this node has a gamestate yet or not
 	HasGameState		  bool
@@ -153,11 +145,8 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
-		ACKSReceived:          make(chan *ACKMessage, 30),
 		NodesWriteConnRefused: make(chan string, 30),
-		MovesToSend:           make(chan *PendingMoveUpdates, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
-		GameStateToSend:       make(chan bool, 30),
 		HasGameState:		   false,
 	}
 }
@@ -200,13 +189,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			if err != nil {
 				fmt.Println("Could not unmarshal")
 				fmt.Println(err)
-			}
-			if message.Identifier == "prey" {
-				err := n.HandleReceivedMoveL(message.Identifier,&coords)
-				if err != nil {
-					fmt.Println("The error in the prey moving")
-					fmt.Println(err)
-				}
 			} else {
 				n.HandleReceivedMoveNL(message.Identifier, &coords, message.Seq)
 			}
@@ -225,10 +207,9 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			if err != nil {
 				fmt.Println("Could not unmarshal")
 				fmt.Println(err)
+			} else {
+				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 			}
-			n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
-		case "ack":
-			n.HandleReceivedAck(message.Identifier, message.Seq)
 		default:
 			fmt.Println("Message type is incorrect")
 		}
@@ -246,7 +227,7 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 				if _, ok := n.OtherNodes[toSend.Recipient]; ok {
 					_, err := n.OtherNodes[toSend.Recipient].Write(toSend.Message)
 					if err != nil {
-						fmt.Println(err)
+						n.NodesWriteConnRefused <- toSend.Recipient
 					}
 				}
 			} else {
@@ -264,49 +245,6 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			delete(n.NodeKeys, toDelete)
 			fmt.Printf("PlayerLocs.Data %v\n", n.PreyNode.GameState.PlayerLocs.Data)
 			n.PreyNode.GameState.PlayerLocs.Unlock()
-			n.GameStateToSend <- true
-		}
-	}
-}
-
-// Routine that handles the ACKs being received in response to a move message from this node
-func (n *NodeCommInterface) ManageAcks() {
-	collectAcks := make(map[uint64][]string)
-	for {
-		lenOfOtherNodes := len(n.OtherNodes)
-		select {
-		case ack := <-n.ACKSReceived:
-			if len(n.MovesToSend) != 0 {
-				moveToSend := <-n.MovesToSend
-				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack.Identifier)
-				// if the # of acks > # of connected nodes (majority consensus)
-				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
-					n.PreyNode.GameState.PlayerLocs.Lock()
-					n.PreyNode.GameState.PlayerLocs.Data[n.PreyNode.Identifier] = *moveToSend.Coord
-					n.PreyNode.GameState.PlayerLocs.Unlock()
-					n.GameStateToSend <- true
-				} else {
-					moveToSend.Rejected++
-					n.MovesToSend <- moveToSend
-				}
-			}
-		default:
-			// TODO: adjust this when prey can handle acks
-			if lenOfOtherNodes <= 2 {
-				if len(n.MovesToSend) != 0 {
-					moveToSend := <-n.MovesToSend
-					n.PreyNode.GameState.PlayerLocs.Lock()
-					n.PreyNode.GameState.PlayerLocs.Data[n.PreyNode.Identifier] = *moveToSend.Coord
-					n.PreyNode.GameState.PlayerLocs.Unlock()
-					n.GameStateToSend <- true
-				}
-			} else {
-				for k := range collectAcks {
-					if len(collectAcks[k]) > lenOfOtherNodes/2 {
-						delete(collectAcks, k)
-					}
-				}
-			}
 		}
 	}
 }
@@ -439,7 +377,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 				n.Config = n.Reregister()
 			}
 			boop := n.Config.GlobalServerHB
-			time.Sleep(time.Duration(boop/2)*time.Microsecond)
+			time.Sleep(time.Duration(boop/2)*time.Millisecond)
 		}
 	}
 }
@@ -471,10 +409,9 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 
 	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
-	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }
 
-func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
+func (n *NodeCommInterface) CreateMove(move *shared.Coord) shared.SignedMove {
 	moveBytes, err := json.Marshal(move)
 	r, s, err := ecdsa.Sign(rand.Reader, n.PrivKey, moveBytes)
 	if err != nil {
@@ -489,23 +426,6 @@ func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
 	return moveId
 }
 
-func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int) {
-	if move == nil {
-		return
-	}
-	moveId := n.CreateMove(move)
-	message := NodeMessage{
-		MessageType: "captured",
-		Identifier: n.PreyNode.Identifier,
-		Move:	moveId,
-		Score: score,
-		Addr: n.LocalAddr.String(),
-	}
-
-	toSend := sendMessage(n.Log, message, "Sendin' capturedPreyUpdate")
-	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
-}
-
 func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 	message := NodeMessage{
 		MessageType: "gameState",
@@ -516,18 +436,6 @@ func (n* NodeCommInterface) SendGameStateToNode(otherNodeId string){
 
 	toSend := sendMessage(n.Log, message, "Sendin' gamestate")
 	n.MessagesToSend <- &PendingMessage{Recipient: otherNodeId, Message: toSend}
-}
-
-func (n *NodeCommInterface) SendMoveCommitToNodes(moveCommit *shared.MoveCommit) {
-	message := NodeMessage {
-		MessageType: "moveCommit",
-		Identifier:  "prey",
-		MoveCommit:  moveCommit,
-		Addr:        n.LocalAddr.String(),
-	}
-
-	toSend := sendMessage(n.Log, message, "Sendin' move commit")
-	n.MessagesToSend <- &PendingMessage{Recipient:"all", Message: toSend}
 }
 
 // Helper function to send a json marshaled message to other nodes
@@ -601,7 +509,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
 	// if the move is authentic
-	if n.CheckAuthenticityOfMoveCommit(moveCommit) {
+	if n.CheckAuthenticityOfMoveCommit(identifier, moveCommit) {
 		// if identifier doesn't exist in map, add move commit to map
 		if _, ok := n.MoveCommits[identifier]; !ok {
 			n.MoveCommits[identifier] = hex.EncodeToString(moveCommit.MoveHash)
@@ -610,10 +518,6 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 		return wolferrors.IncorrectPlayerError(identifier)
 	}
 	return nil
-}
-
-func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
-	n.ACKSReceived <- &ACKMessage{Seq: seq, Identifier: identifier}
 }
 
 // Handles "connect" messages received by other nodes by adding the incoming node to this node's OtherNodes
@@ -701,8 +605,7 @@ func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r *big.Int, s *big.Int,
 }
 
 // Checks to see if the hash is legit
-func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) (bool) {
-	publicKey := key.PublicKeyStringToKey(m.PubKey)
+func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(identifier string, m *shared.MoveCommit) (bool) {
 	rBigInt := new(big.Int)
 	_, err := fmt.Sscan(m.R, rBigInt)
 
@@ -711,7 +614,7 @@ func (n *NodeCommInterface) CheckAuthenticityOfMoveCommit(m *shared.MoveCommit) 
 	if err != nil {
 		fmt.Println("Trouble converting string to big int")
 	}
-	return ecdsa.Verify(publicKey, m.MoveHash, rBigInt, sBigInt)
+	return ecdsa.Verify(n.NodeKeys[identifier], m.MoveHash, rBigInt, sBigInt)
 }
 
 func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, m *shared.SignedMove)(bool){
@@ -782,4 +685,3 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	n.PreyNode.GameState.PlayerScores.Data[identifier] += n.PreyNode.GameConfig.CatchWorth
 	return nil
 }
-

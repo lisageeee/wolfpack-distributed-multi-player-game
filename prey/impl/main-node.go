@@ -6,8 +6,6 @@ import (
 	"crypto/ecdsa"
 	"time"
 	"math/rand"
-	"fmt"
-	key "../../key-helpers"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -49,7 +47,6 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
 	go nodeInterface.ManageOtherNodes()
-	go nodeInterface.ManageAcks()
 	go nodeInterface.PruneNodes()
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
@@ -106,19 +103,6 @@ func (pn * PreyNode) RunGame(playerListener string) {
 				}
 
 				move := pn.MovePrey(dir)
-
-				hash := pn.nodeInterface.CalculateHash(move, "prey")
-				r, s, err := pn.nodeInterface.SignMoveCommit(hash)
-				if err != nil {
-					fmt.Println("Error signing move hash")
-					fmt.Println(err)
-				}
-
-				_, pubString := key.Encode(pn.nodeInterface.PrivKey, pn.nodeInterface.PubKey)
-
-				commit := shared.MoveCommit{MoveHash: hash, PubKey: pubString, R: r.String(), S: s.String()}
-				pn.nodeInterface.SendMoveCommitToNodes(&commit)
-
 				pn.nodeInterface.SendMoveToNodes(&move)
 		}()
 	}

@@ -232,13 +232,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				if err != nil {
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
-				}
-				if message.Identifier == "prey" {
-					err := n.HandleReceivedMoveL(message.Identifier,&coords)
-					if err != nil {
-						fmt.Println("The error in the prey moving")
-						fmt.Println(err)
-					}
 				} else {
 					n.HandleReceivedMoveNL(message.Identifier, &coords, message.Seq)
 				}
@@ -257,8 +250,9 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				if err != nil {
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
+				} else {
+					n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 				}
-				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
 			default:
