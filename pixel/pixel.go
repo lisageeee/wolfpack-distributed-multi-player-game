@@ -102,19 +102,30 @@ func run() {
 		}
 	}()
 
+	defaultTime := time.Date(
+		2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+	start := defaultTime
 	for !win.Closed() {
 		if win.Pressed(pixelgl.KeyLeft) {
 			keyStroke = "left"
-			fmt.Println("send ", time.Now())
+			if start == defaultTime {
+				start = time.Now()
+			}
 		} else if win.Pressed(pixelgl.KeyRight) {
 			keyStroke = "right"
-			fmt.Println("send ", time.Now())
+			if start == defaultTime {
+				start = time.Now()
+			}
 		} else if win.Pressed(pixelgl.KeyUp) {
 			keyStroke = "up"
-			fmt.Println("send ", time.Now())
+			if start == defaultTime {
+				start = time.Now()
+			}
 		} else if win.Pressed(pixelgl.KeyDown) {
 			keyStroke = "down"
-			fmt.Println("send ", time.Now())
+			if start == defaultTime {
+				start = time.Now()
+			}
 		}
 
 		// Update game state
@@ -122,7 +133,8 @@ func run() {
 			curState := <- node.NewGameStates
 			// Now, update the rendering
 			node.RenderNewState(win, curState)
-			fmt.Println("rendered ", time.Now())
+			fmt.Println(time.Since(start))
+			start = defaultTime
 		}
 		win.Update() // must be called frequently, or pixel will hang (can't update only when there is a new gamestate)
 	}
