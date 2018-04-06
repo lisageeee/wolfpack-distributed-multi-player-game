@@ -189,6 +189,41 @@ func TestPixelSortsScores(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestPixelSortsScoresSame(t *testing.T) {
+	fakeScoreMap := make(map[string]int)
+	fakeScoreMap["D"] = 100
+	fakeScoreMap["B"] = 100
+	fakeScoreMap["C"] = 100
+	fakeScoreMap["A"] = 100
+
+	scoreString := p.SortScores(fakeScoreMap)
+
+	winnerRegex, _ := regexp.Compile("A")
+	secondRegex, _ := regexp.Compile("B")
+	thirdRegex, _ := regexp.Compile("C")
+	lastRegex, _ := regexp.Compile("D")
+
+	winner := winnerRegex.FindIndex([]byte(scoreString))[0]
+	second := secondRegex.FindIndex([]byte(scoreString))[0]
+	third := thirdRegex.FindIndex([]byte(scoreString))[0]
+	last := lastRegex.FindIndex([]byte(scoreString))[0]
+
+	if winner > second || winner > third || winner > last {
+		fmt.Println("Score order incorrect, fail - winner is not first")
+		t.Fail()
+	}
+
+	if second > third || second > last {
+		fmt.Println("Score order incorrect, fail - second is not second")
+		t.Fail()
+	}
+
+	if third > last {
+		fmt.Println("Score order incorrect, fail - third is after last")
+		t.Fail()
+	}
+}
 func TestGetGameConfigCall(t *testing.T) {
 	// Start running server
 	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)

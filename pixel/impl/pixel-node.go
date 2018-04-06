@@ -166,11 +166,6 @@ func (pn * PixelNode) DrawScore (window *pixelgl.Window, curState shared.GameRen
 
 	scoreMap := curState.Scores
 
-	//scoreMap := make(map[string]int)
-	//scoreMap["1"] = 100
-	//scoreMap["2"] = 300
-	//scoreMap["3"] = 50
-
 	const textHeight = 10
 	const titleMultiplier = 3
 	const scoreMultiplier = 1.5
@@ -215,6 +210,7 @@ func SortScores (scoreMap map[string]int) (string) {
 	i := 1
 	scoreString := ""
 	for _, k := range a {
+		sort.Strings(n[k])
 		for _, s := range n[k] {
 			scoreString += fmt.Sprintf("%2d. %-4s %9d points\n\n", i, s, k)
 		}
