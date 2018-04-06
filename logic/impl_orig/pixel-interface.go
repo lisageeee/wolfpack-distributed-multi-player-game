@@ -11,30 +11,30 @@ import (
 // The interface with the player's Pixel GUI (pixel-node.go) from the logic node
 type PixelInterface struct {
 	// The TCP connection over which we wait for a pixel node to connect
-	pixelListener	*net.TCPListener
+	pixelListener     *net.TCPListener
 
 	// The connection over which messages are sent after a connection is established
-	pixelWriter	*net.TCPConn
+	pixelWriter 	  *net.TCPConn
 
 	// The channel used to send player moves to the main node
-	playerCommChannel	chan string
+	playerCommChannel chan string
 
 	// The channel used to write new game states that should be sent to the pixel node to
-	playerSendChannel	chan shared.GameState
+	playerSendChannel chan shared.GameState
 
 	// The gameconfig for this game
-	gameConfig	shared.InitialGameSettings
+	gameConfig		  shared.InitialGameSettings
 
 	// The ID of this logic node
-	Id	string
+	Id string
 }
 
 // Creates & returns a pixel interface with a channel to send string information to the main node over
 // Called by the main logic node package
 func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan shared.GameState,
 	settings shared.InitialGameSettings, id string) PixelInterface {
-	pi := PixelInterface{playerCommChannel: playerCommChannel, playerSendChannel: playerSendChannel, Id: id,
-		gameConfig:	settings}
+	pi := PixelInterface{playerCommChannel: playerCommChannel,playerSendChannel:playerSendChannel, Id: id,
+	gameConfig: settings}
 	return pi
 }
 
@@ -43,6 +43,7 @@ func CreatePixelInterface(playerCommChannel chan string, playerSendChannel chan 
 func (pi *PixelInterface) waitForGameStates() {
 	for {
 		state := <-pi.playerSendChannel
+
 
 		state.PlayerLocs.Lock()
 		state.PlayerScores.Lock()
@@ -65,10 +66,10 @@ func (pi *PixelInterface) waitForGameStates() {
 		}
 
 		renderState := shared.GameRenderState{
-			PlayerLoc:	state.PlayerLocs.Data[pi.Id],
-			Prey:		state.PlayerLocs.Data["prey"],
-			OtherPlayers:	otherPlayers,
-			Scores:		otherScores,
+			PlayerLoc:    state.PlayerLocs.Data[pi.Id],
+			Prey:         state.PlayerLocs.Data["prey"],
+			OtherPlayers: otherPlayers,
+			Scores: otherScores,
 		}
 
 		state.PlayerScores.Unlock()
@@ -83,7 +84,6 @@ func (pi *PixelInterface) waitForGameStates() {
 		}
 	}
 }
-
 // Sends a game state to the player's pixel interface for rendering
 func (pi *PixelInterface) SendPlayerGameState(state shared.GameState) {
 	pi.playerSendChannel <- state
@@ -91,9 +91,9 @@ func (pi *PixelInterface) SendPlayerGameState(state shared.GameState) {
 
 // Given two local UDP addresses, initializes the ports for sending and receiving messages from the
 // pixel-node, respectively. Must be run in a goroutine (infinite loop)
-func (pi *PixelInterface) RunPlayerListener(receivingAddr string) {
+func (pi * PixelInterface) RunPlayerListener(receivingAddr string) {
 
-	addr, _ := net.ResolveTCPAddr("tcp", receivingAddr)
+	addr, _ := net.ResolveTCPAddr("tcp",receivingAddr)
 	playerInput, _ := net.ListenTCP("tcp", addr)
 	pi.pixelListener = playerInput
 	fmt.Println("about to get to conn")
@@ -111,7 +111,7 @@ func (pi *PixelInterface) RunPlayerListener(receivingAddr string) {
 		rlen, err := player.Read(buf)
 		if err != nil {
 			log.Fatal("Pixel node disconnected")
-		} else if string(buf[0:rlen]) == "getgameconfig" {
+		} else if string(buf[0:rlen]) == "getgameconfig"{
 			SendGameConfig(pi, player)
 		} else {
 			// Write to comm channel for node to receive
@@ -121,7 +121,7 @@ func (pi *PixelInterface) RunPlayerListener(receivingAddr string) {
 }
 
 // Listener function that waits for a pixel node to connect, returns the resulting TCPConn after connection.
-func (pi *PixelInterface) GetTCPConn() *net.TCPConn {
+func (pi * PixelInterface) GetTCPConn() (*net.TCPConn) {
 	// gets the initial TCP conn
 	player := pi.pixelListener
 	conn, err := player.AcceptTCP()

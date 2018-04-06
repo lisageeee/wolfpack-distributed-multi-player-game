@@ -113,7 +113,13 @@ func (pn *PixelNode) RenderNewState(win *pixelgl.Window, curState shared.GameRen
 	pn.DrawWalls(win)
 
 	pn.DrawScore(win, curState)
-	dinvRT.Track("impl_pixel-node_115_","impl_pixel-node_115_NodeAddr,impl_pixel-node_115_MyAddr,impl_pixel-node_115_spriteStep,impl_pixel-node_115_win,impl_pixel-node_115_curState",NodeAddr,MyAddr,spriteStep,win,curState)
+	dinvRT.Track("impl_pixel-node_115_",
+		"impl_pixel-node_115_NodeAddr," +
+			"impl_pixel-node_115_MyAddr," +
+			"impl_pixel-node_115_spriteStep," +
+			"impl_pixel-node_115_win," +
+			"impl_pixel-node_115_curState",
+		NodeAddr,MyAddr,spriteStep,win,curState)
 	// Render prey
 	preyPos := pn.Geom.GetVectorFromCoords(curState.Prey)
 	pMat := pixel.IM
@@ -178,7 +184,7 @@ func (pn *PixelNode) DrawScore(window *pixelgl.Window, curState shared.GameRende
 	const titleMultiplier = 3
 	const scoreMultiplier = 1.5
 	const padding = 10
-	dinvRT.Dump("impl_pixel-node_180_","impl_pixel-node_180_NodeAddr,impl_pixel-node_180_MyAddr,impl_pixel-node_180_spriteStep,impl_pixel-node_180_window,impl_pixel-node_180_curState,impl_pixel-node_180_scoreMap,impl_pixel-node_180_textHeight,impl_pixel-node_180_titleMultiplier,impl_pixel-node_180_scoreMultiplier,impl_pixel-node_180_padding",NodeAddr,MyAddr,spriteStep,window,curState,scoreMap,textHeight,titleMultiplier,scoreMultiplier,padding)
+	dinvRT.Track("impl_pixel-node_180_","impl_pixel-node_180_NodeAddr,impl_pixel-node_180_MyAddr,impl_pixel-node_180_spriteStep,impl_pixel-node_180_window,impl_pixel-node_180_curState,impl_pixel-node_180_scoreMap,impl_pixel-node_180_textHeight,impl_pixel-node_180_titleMultiplier,impl_pixel-node_180_scoreMultiplier,impl_pixel-node_180_padding",NodeAddr,MyAddr,spriteStep,window,curState,scoreMap,textHeight,titleMultiplier,scoreMultiplier,padding)
 	// Render the title
 	titlePos := pixel.V(pn.Geom.GetX()+padding*4, pn.Geom.GetY()-titleMultiplier*textHeight)
 	title := text.New(titlePos, pn.TextAtlas)
