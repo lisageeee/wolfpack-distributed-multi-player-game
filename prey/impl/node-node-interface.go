@@ -203,7 +203,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			if message.Identifier == "prey" {
 				err := n.HandleReceivedMoveL(message.Identifier,&coords)
 				if err != nil {
-					fmt.Println("The error in the prey moving")
+					fmt.Println("The error in the prey moving1")
 					fmt.Println(err)
 				}
 			} else {
@@ -216,6 +216,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		case "captured":
 			var coords shared.Coord
 			authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
+			fmt.Println("captured me")
+			n.SendResetPreyMoveToNodes(&shared.Coord{1,1}) // hardcoded to debug
 			if !authentic{
 				fmt.Println("False coordinates")
 				continue
@@ -469,6 +471,26 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 	}
 
 	toSend := sendMessage(n.Log, message, "Sendin' move")
+	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
+}
+
+func(n* NodeCommInterface) SendResetPreyMoveToNodes(move *shared.Coord){
+	if move == nil {
+		return
+	}
+
+	sequenceNumber++
+	moveId := n.CreateMove(move)
+	message := NodeMessage{
+		MessageType: "resetPrey",
+		Identifier:  n.PreyNode.Identifier,
+		Move:        moveId,
+		Addr:        n.LocalAddr.String(),
+		Seq:         sequenceNumber,
+	}
+
+	toSend := sendMessage(n.Log, message, "Sendin' new move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 	n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 }

@@ -220,7 +220,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			case "move":
 				// Currently only planning to do the lockstep protocol with prey node
 				// In the future, may include players close to prey node
-				// I.e. check move commits
+				// I.e. check move commits]
 				authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
 				if !authentic{
 					fmt.Println("False coordinates")
@@ -235,7 +235,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				if message.Identifier == "prey" {
 					err := n.HandleReceivedMoveL(message.Identifier,&coords)
 					if err != nil {
-						fmt.Println("The error in the prey moving")
+						fmt.Println("The error in the prey moving2")
 						fmt.Println(err)
 					}
 				} else {
@@ -260,6 +260,14 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
+			case "resetPrey":
+				var coords shared.Coord
+				err := json.Unmarshal(message.Move.MoveByte, &coords)
+				if err != nil {
+					fmt.Println("Could not unmarshal")
+					fmt.Println(err)
+				}
+				n.HandleResetPreyMove(message.Identifier,&coords)
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -612,6 +620,8 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 // Handle moves that require a move commit check (lockstep)
 // Returns an InvalidMoveError if the move does not match a received commit
 func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
+	fmt.Println("IT WANTS TO MOVE TO:")
+	fmt.Println(move)
 	defer delete(n.MoveCommits, identifier)
 	// Need nil check for bad move
 	if move != nil {
@@ -672,6 +682,23 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 
 func (n* NodeCommInterface) HandleReceivedAck(identifier string, seq uint64){
 	n.ACKSReceived <- &ACKMessage{Seq: seq, Identifier: identifier}
+}
+
+func (n* NodeCommInterface) HandleResetPreyMove(identifier string, move *shared.Coord) (err error){
+	if move != nil {
+		err := n.CheckMoveIsValid(*move)
+		if err != nil {
+			return err
+		}
+		n.PlayerNode.GameState.PlayerLocs.Lock()
+		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
+		n.PlayerNode.GameState.PlayerLocs.Unlock()
+		// TODO: Note: I've commented this out to slow down the game
+		// n.GameStateToSend <- true
+
+		return nil
+	}
+	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
 // Handles "connect" messages received by other nodes by adding the incoming node to this node's OtherNodes
