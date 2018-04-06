@@ -214,9 +214,9 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		case "connected":
 			// Do nothing
 		case "captured":
+			fmt.Println("captured me")
 			var coords shared.Coord
 			authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
-			fmt.Println("captured me")
 			n.SendResetPreyMoveToNodes(&shared.Coord{1,1}) // hardcoded to debug
 			if !authentic{
 				fmt.Println("False coordinates")
@@ -650,6 +650,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 		return err
 	}
 	delete(n.PreyNode.GameState.PlayerLocs.Data, "prey")
+	n.GameStateToSend <- true
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
 		return err

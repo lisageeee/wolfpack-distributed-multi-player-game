@@ -544,7 +544,9 @@ func (n *NodeCommInterface)CreateMove(move *shared.Coord) shared.SignedMove {
 }
 
 func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int) {
+	fmt.Println("I am in the send prey capture to nodes function")
 	if move == nil {
+		fmt.Println("OH NO I JUST RETURNED")
 		return
 	}
 	moveId := n.CreateMove(move)
@@ -715,6 +717,7 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 		return err
 	}
 	delete(n.PlayerNode.GameState.PlayerLocs.Data, "prey")
+	n.GameStateToSend <- true
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
 		return err
