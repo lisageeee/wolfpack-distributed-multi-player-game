@@ -11,6 +11,7 @@ import (
 	l "../logic/impl"
 	"../shared"
 	"encoding/hex"
+	"crypto/ecdsa"
 )
 
 func TestHashAndSigning (t *testing.T) {
@@ -23,6 +24,9 @@ func TestHashAndSigning (t *testing.T) {
 		PrivKey: priv,
 	}
 
+	n.NodeKeys = make(map[string]*ecdsa.PublicKey)
+	n.NodeKeys[n.PlayerNode.Identifier] = pub
+
 	hashStr := n.CalculateHash(shared.Coord{8,9}, n.PlayerNode.Identifier)
 	r, s, err := n.SignMoveCommit(hashStr)
 	if err != nil {
@@ -30,15 +34,12 @@ func TestHashAndSigning (t *testing.T) {
 		t.Fail()
 	}
 
-	_, pubStr := key.Encode(priv, pub)
-
 	mc := shared.MoveCommit{
 		MoveHash: hashStr,
-		PubKey: pubStr,
 		R: r.String(),
 		S: s.String(),
 	}
-	if !n.CheckAuthenticityOfMoveCommit(&mc) {
+	if !n.CheckAuthenticityOfMoveCommit(n.PlayerNode.Identifier, &mc) {
 		fmt.Println("Verifying hash == false")
 		t.Fail()
 	}

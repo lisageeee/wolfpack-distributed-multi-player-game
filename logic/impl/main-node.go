@@ -5,6 +5,7 @@ import (
 	"../../geometry"
 	"fmt"
 	"crypto/ecdsa"
+	"time"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -55,6 +56,7 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
 	go nodeInterface.ManageOtherNodes()
 	go nodeInterface.ManageAcks()
+	go nodeInterface.CollectACKs()
 	go nodeInterface.PruneNodes()
 	go nodeInterface.SendGameStateToPixel()
 
@@ -107,28 +109,35 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 	go pn.pixelInterface.RunPlayerListener(playerListener)
 	fmt.Println("listener running")
 
+	var storedMove *shared.Coord
+
 	for {
-		message := <-pn.playerCommChannel
-		switch message {
-		case "quit":
-			break
-		default:
-			move, didMove := pn.movePlayer(message)
-			if didMove {
-				pn.nodeInterface.SendMoveToNodes(&move)
+		select {
+		case message := <-pn.playerCommChannel:
+			switch message {
+			case "quit":
+				break
+			default:
+				move, didMove := pn.movePlayer(message)
+				if didMove {
+					pn.nodeInterface.SendMoveToNodes(&move, true)
+					storedMove = &move
+				}
+				if pn.nodeInterface.CheckGotPrey(*storedMove) == nil {
+					fmt.Println("Got the prey")
+					pn.GameState.PlayerScores.Lock()
+					pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
+					pn.nodeInterface.SendPreyCaptureToNodes(storedMove, pn.GameState.PlayerScores.Data[pn.Identifier])
+					fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
+					pn.GameState.PlayerScores.Unlock()
+				}
 			}
-			if pn.nodeInterface.CheckGotPrey(move) == nil {
-				fmt.Println("Got the prey")
-				pn.GameState.PlayerScores.Lock()
-				pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
-				pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores.Data[pn.Identifier])
-				fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
-				pn.GameState.PlayerScores.Unlock()
+		case <-time.After(1000 * time.Millisecond):
+			if storedMove != nil {
+				pn.nodeInterface.SendMoveToNodes(storedMove, true)
 			}
-			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
 	}
-
 }
 
 // Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
@@ -154,9 +163,6 @@ func (pn * PlayerNode) movePlayer(move string) (newPos shared.Coord, changed boo
 	}
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition){
-		//pn.GameState.PlayerLocs.Lock()
-		//pn.GameState.PlayerLocs.Data[pn.Identifier] = newPosition
-		//pn.GameState.PlayerLocs.Unlock()
 		return newPosition, true
 	}
 	return playerLoc, false

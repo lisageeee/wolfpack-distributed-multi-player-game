@@ -39,7 +39,7 @@ type NodeCommInterface struct {
 	NodeKeys		    map[string]*ecdsa.PublicKey
 	Log 				*govec.GoLog
 	HeartAttack 		chan bool
-	MoveCommits			map[string]string
+	MoveCommits			map[string]MoveCommitInfo
 
 	PlayerScores		map[string]int
 
@@ -57,13 +57,21 @@ type NodeCommInterface struct {
 
 	// Whether this node has a gamestate yet or not
 	HasGameState		  bool
+
+	MoveToSend			chan *shared.Coord
+	MoveCommitTrigger   chan bool
+	ACKsToSend			chan *PendingMessage
+}
+
+type MoveCommitInfo struct {
+	Seq uint64
+	Hash string
 }
 
 type StrikeLockMap struct {
 	sync.RWMutex
 	StrikeCount map[string]int
 }
-
 
 // A message for another node with a recipient and a byte-encoded message. If the recipient is "all", the message is
 // sent to every node in OtherNodes.
@@ -141,13 +149,16 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		OtherNodes:            make(map[string]*net.UDPConn),
 		NodeKeys:              make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
-		MoveCommits:           make(map[string]string),
+		MoveCommits:           make(map[string]MoveCommitInfo),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
 		NodesWriteConnRefused: make(chan string, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		HasGameState:		   false,
+		MoveToSend:			   make(chan *shared.Coord),
+		MoveCommitTrigger:	   make(chan bool, 30),
+		ACKsToSend:			   make(chan *PendingMessage, 10),
 	}
 }
 
@@ -176,9 +187,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		case "moveCommit":
 			n.HandleReceivedMoveCommit(message.Identifier, message.MoveCommit)
 		case "move":
-			// Currently only planning to do the lockstep protocol with prey node
-			// In the future, may include players close to prey node
-			// I.e. check move commits
 			authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
 			if !authentic{
 				fmt.Println("False coordinates")
@@ -190,7 +198,11 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				fmt.Println("Could not unmarshal")
 				fmt.Println(err)
 			} else {
-				n.HandleReceivedMoveNL(message.Identifier, &coords, message.Seq)
+				err = n.HandleReceivedMoveL(message.Identifier, &coords, message.Seq)
+				if err != nil {
+					fmt.Println("The error in the player moving")
+					fmt.Println(err)
+				}
 			}
 		case "connect":
 			n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
@@ -211,7 +223,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
 			}
 		default:
-			fmt.Println("Message type is incorrect")
+			// Do nothing
 		}
 	}
 }
@@ -233,6 +245,16 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			} else {
 				// Send the message to all nodes
 				n.sendMessageToNodes(toSend.Message)
+			}
+		case ackToSend := <- n.ACKsToSend:
+			if len(n.OtherNodes) < 2 {
+				// Send to the single node
+				if _, ok := n.OtherNodes[ackToSend.Recipient]; ok {
+					_, err := n.OtherNodes[ackToSend.Recipient].Write(ackToSend.Message)
+					if err != nil {
+						n.NodesWriteConnRefused <- ackToSend.Recipient
+					}
+				}
 			}
 		case toAdd := <- n.NodesToAdd:
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
@@ -382,7 +404,7 @@ func (n *NodeCommInterface) SendHeartbeat() {
 	}
 }
 
-func (n* NodeCommInterface)Reregister()shared.GameConfig{
+func (n* NodeCommInterface) Reregister() shared.GameConfig {
 	response, register_failed_err := DialAndRegister(n)
 	for register_failed_err != nil {
 		response, register_failed_err = DialAndRegister(n)
@@ -392,23 +414,30 @@ func (n* NodeCommInterface)Reregister()shared.GameConfig{
 	return response
 }
 
-func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
-	if move == nil {
-		return
-	}
+func(n* NodeCommInterface) SendMoveToNodes() {
+	for {
+		select {
+		case <- time.After(500 * time.Millisecond):
+			if len(n.MoveCommits) > 0 {
+				move := <- n.MoveToSend
+				fmt.Println("Here is the move: ", move)
 
-	sequenceNumber++
-	moveId := n.CreateMove(move)
-	message := NodeMessage{
-		MessageType: "move",
-		Identifier:  n.PreyNode.Identifier,
-		Move:        moveId,
-		Addr:        n.LocalAddr.String(),
-		Seq:         sequenceNumber,
+				sequenceNumber++
+				moveId := n.CreateMove(move)
+				message := NodeMessage{
+					MessageType: "move",
+					Identifier:  n.PreyNode.Identifier,
+					Move:        moveId,
+					Addr:        n.LocalAddr.String(),
+					Seq:         sequenceNumber,
+				}
+				toSend := sendMessage(n.Log, message, "Sendin' move")
+				for id := range n.MoveCommits {
+					n.MessagesToSend <- &PendingMessage{Recipient: id, Message: toSend}
+				}
+			}
+		}
 	}
-
-	toSend := sendMessage(n.Log, message, "Sendin' move")
-	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
 
 func (n *NodeCommInterface) CreateMove(move *shared.Coord) shared.SignedMove {
@@ -469,41 +498,25 @@ func (n* NodeCommInterface) HandleReceivedGameState(identifier string, gameState
 	}
 }
 
-func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord) (err error) {
-	defer delete(n.MoveCommits, identifier)
+func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.Coord, seq uint64) (err error) {
 	// Need nil check for bad move
 	if move != nil {
-		// if the player has previously submitted a move commit that's the same as the move
-		if n.CheckMoveCommitAgainstMove(identifier, *move) {
+		if n.CheckMoveCommitAgainstMove(identifier, *move, seq) {
 			// check to see if it's a valid move
 			err := n.CheckMoveIsValid(*move)
 			if err != nil {
+				fmt.Println(err)
 				return err
 			}
+			delete(n.MoveCommits, identifier)
 			n.PreyNode.GameState.PlayerLocs.Lock()
 			n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PreyNode.GameState.PlayerLocs.Unlock()
+			n.SendACK(identifier, seq)
 			return nil
 		}
 	}
-	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
-}
-
-// Handle moves that does not require a move commit check
-func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared.Coord, seq uint64) (err error) {
-	// Need nil check for bad move
-	if move != nil {
-		err := n.CheckMoveIsValid(*move)
-		if err != nil {
-			return err
-		}
-		n.PreyNode.GameState.PlayerLocs.Lock()
-		n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
-		n.PreyNode.GameState.PlayerLocs.Unlock()
-
-		n.SendACK(identifier, seq)
-		return nil
-	}
+	delete(n.MoveCommits, identifier)
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
@@ -511,9 +524,7 @@ func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveComm
 	// if the move is authentic
 	if n.CheckAuthenticityOfMoveCommit(identifier, moveCommit) {
 		// if identifier doesn't exist in map, add move commit to map
-		if _, ok := n.MoveCommits[identifier]; !ok {
-			n.MoveCommits[identifier] = hex.EncodeToString(moveCommit.MoveHash)
-		}
+		n.MoveCommits[identifier] = MoveCommitInfo{moveCommit.Seq, hex.EncodeToString(moveCommit.MoveHash)}
 	} else {
 		return wolferrors.IncorrectPlayerError(identifier)
 	}
@@ -579,7 +590,7 @@ func (n *NodeCommInterface) SendACK(identifier string, seq uint64) {
 	}
 
 	toSend := sendMessage(n.Log, message,  "Sendin' Ack")
-	n.MessagesToSend <- &PendingMessage{Recipient: identifier, Message: toSend}
+	n.ACKsToSend <- &PendingMessage{Recipient: identifier, Message: toSend}
 }
 ////////////////////////////////////////////// MOVE COMMIT HASH FUNCTIONS //////////////////////////////////////////////
 
@@ -597,11 +608,6 @@ func (n *NodeCommInterface) CalculateHash(m shared.Coord, id string) ([]byte) {
 	// Write the hash
 	hash.Write(arr)
 	return hash.Sum(nil)
-}
-
-// Sign the move commit with private key
-func (n *NodeCommInterface) SignMoveCommit(hash []byte) (r *big.Int, s *big.Int, err error) {
-	return ecdsa.Sign(rand.Reader, n.PrivKey, hash)
 }
 
 // Checks to see if the hash is legit
@@ -636,10 +642,10 @@ func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, 
 ////////////////////////////////////////////// MOVE CHECK FUNCTIONS ////////////////////////////////////////////////////
 
 // Checks to see if there is an existing commit against the submitted move
-func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord) (bool) {
+func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord, seq uint64) (bool) {
 	hash := hex.EncodeToString(n.CalculateHash(move, identifier))
-	for i, mc := range n.MoveCommits {
-		if mc == hash && i == identifier {
+	for _, mc := range n.MoveCommits {
+		if mc.Hash == hash && mc.Seq == seq {
 			return true
 		}
 	}
