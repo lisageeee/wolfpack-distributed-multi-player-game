@@ -1,0 +1,172 @@
+decl-version 2.0
+var-comparability none
+
+ppt p-_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea:::_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea
+ppt-type point
+variable 707291903-impl_node-node-interface_1_oldPreySeq
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 707291903-impl_node-node-interface_1_preySeq
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 707291903-impl_node-node-interface_numAccess
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 159347469-impl_node-node-interface_acks
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 159347469-impl_node-node-interface_otherNodes
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_111_didMove
+var-kind variable
+dec-type boolean
+rep-type boolean
+comparability -1
+variable 927363249-impl_main-node_111_playerListener
+var-kind variable
+dec-type string
+rep-type string
+comparability -1
+variable 927363249-impl_main-node_138_newPositionX
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_newPositionY
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_originalPositionX
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_originalPositionY
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+
+p-_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea:::_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea
+this_invocation_nonce
+0
+707291903-impl_node-node-interface_1_oldPreySeq
+195
+1
+707291903-impl_node-node-interface_1_preySeq
+196
+1
+707291903-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+927363249-impl_main-node_111_didMove
+false
+1
+927363249-impl_main-node_111_playerListener
+":12345"
+1
+927363249-impl_main-node_138_newPositionX
+7
+1
+927363249-impl_main-node_138_newPositionY
+10
+1
+927363249-impl_main-node_138_originalPositionX
+7
+1
+927363249-impl_main-node_138_originalPositionY
+9
+1
+
+p-_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea:::_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea
+this_invocation_nonce
+1
+707291903-impl_node-node-interface_1_oldPreySeq
+195
+1
+707291903-impl_node-node-interface_1_preySeq
+196
+1
+707291903-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+927363249-impl_main-node_111_didMove
+false
+1
+927363249-impl_main-node_111_playerListener
+":12345"
+1
+927363249-impl_main-node_138_newPositionX
+7
+1
+927363249-impl_main-node_138_newPositionY
+10
+1
+927363249-impl_main-node_138_originalPositionX
+7
+1
+927363249-impl_main-node_138_originalPositionY
+9
+1
+
+p-_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea:::_055ae1a212836a37346802a54d09f3ba2979a7e6_5869e39fcece818e2880536089280bd8e88cc394_d09f4528c98927f19876c7d8e44be2f1da38dbea
+this_invocation_nonce
+2
+707291903-impl_node-node-interface_1_oldPreySeq
+195
+1
+707291903-impl_node-node-interface_1_preySeq
+196
+1
+707291903-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+927363249-impl_main-node_111_didMove
+false
+1
+927363249-impl_main-node_111_playerListener
+":12345"
+1
+927363249-impl_main-node_138_newPositionX
+7
+1
+927363249-impl_main-node_138_newPositionY
+10
+1
+927363249-impl_main-node_138_originalPositionX
+7
+1
+927363249-impl_main-node_138_originalPositionY
+9
+1
+
