@@ -1,0 +1,102 @@
+decl-version 2.0
+var-comparability none
+
+ppt p-_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+ppt-type point
+variable 927363249-impl_main-node_111_didMove
+var-kind variable
+dec-type boolean
+rep-type boolean
+comparability -1
+variable 927363249-impl_main-node_111_playerListener
+var-kind variable
+dec-type string
+rep-type string
+comparability -1
+variable 927363249-impl_main-node_138_newPositionX
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_newPositionY
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_originalPositionX
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 927363249-impl_main-node_138_originalPositionY
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+
+p-_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+0
+927363249-impl_main-node_111_didMove
+false
+1
+927363249-impl_main-node_111_playerListener
+":12345"
+1
+927363249-impl_main-node_138_newPositionX
+7
+1
+927363249-impl_main-node_138_newPositionY
+10
+1
+927363249-impl_main-node_138_originalPositionX
+7
+1
+927363249-impl_main-node_138_originalPositionY
+9
+1
+
+p-_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+1
+159347469-impl_main-node_111_didMove
+false
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_main-node_138_newPositionX
+8
+1
+159347469-impl_main-node_138_newPositionY
+10
+1
+159347469-impl_main-node_138_originalPositionX
+8
+1
+159347469-impl_main-node_138_originalPositionY
+9
+1
+
+p-_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_d09f4528c98927f19876c7d8e44be2f1da38dbea_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+2
+159347469-impl_main-node_111_didMove
+false
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_main-node_138_newPositionX
+8
+1
+159347469-impl_main-node_138_newPositionY
+10
+1
+159347469-impl_main-node_138_originalPositionX
+8
+1
+159347469-impl_main-node_138_originalPositionY
+9
+1
+

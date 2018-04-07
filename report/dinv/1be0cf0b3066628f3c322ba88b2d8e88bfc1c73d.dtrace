@@ -1,0 +1,58 @@
+decl-version 2.0
+var-comparability none
+
+ppt p-_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+ppt-type point
+variable 707291903-impl_main-node_52_playerCommChannelLength
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 707291903-impl_main-node_52_playerSendChannelLength
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 707291903-impl_main-node_52_sequenceNumber
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 707291903-impl_main-node_52_serverAddr
+var-kind variable
+dec-type string
+rep-type string
+comparability -1
+
+p-_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+0
+707291903-impl_main-node_52_playerCommChannelLength
+0
+1
+707291903-impl_main-node_52_playerSendChannelLength
+0
+1
+707291903-impl_main-node_52_sequenceNumber
+0
+1
+707291903-impl_main-node_52_serverAddr
+":8081"
+1
+
+p-_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_66879f47246aa2c0d752ca5c45b6d3d9cf56ef99_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+1
+707291903-impl_main-node_52_playerCommChannelLength
+0
+1
+707291903-impl_main-node_52_playerSendChannelLength
+0
+1
+707291903-impl_main-node_52_sequenceNumber
+0
+1
+707291903-impl_main-node_52_serverAddr
+":8081"
+1
+

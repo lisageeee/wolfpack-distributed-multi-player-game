@@ -1,0 +1,107 @@
+decl-version 2.0
+var-comparability none
+
+ppt p-_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+ppt-type point
+variable 159347469-impl_main-node_111_didMove
+var-kind variable
+dec-type boolean
+rep-type boolean
+comparability -1
+variable 159347469-impl_main-node_111_playerListener
+var-kind variable
+dec-type string
+rep-type string
+comparability -1
+variable 159347469-impl_node-node-interface_acks
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 159347469-impl_node-node-interface_numAccess
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+variable 159347469-impl_node-node-interface_otherNodes
+var-kind variable
+dec-type int
+rep-type int
+comparability -1
+
+p-_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+0
+159347469-impl_main-node_111_didMove
+true
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+
+p-_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+1
+159347469-impl_main-node_111_didMove
+true
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+
+p-_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+2
+159347469-impl_main-node_111_didMove
+true
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+
+p-_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709:::_9adb573587a569bd340f3b06ee87c19925bd3d2f_da39a3ee5e6b4b0d3255bfef95601890afd80709_da39a3ee5e6b4b0d3255bfef95601890afd80709
+this_invocation_nonce
+3
+159347469-impl_main-node_111_didMove
+true
+1
+159347469-impl_main-node_111_playerListener
+":2423"
+1
+159347469-impl_node-node-interface_acks
+1
+1
+159347469-impl_node-node-interface_numAccess
+0
+1
+159347469-impl_node-node-interface_otherNodes
+3
+1
+
