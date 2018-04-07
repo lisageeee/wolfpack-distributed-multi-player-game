@@ -93,7 +93,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{7,7}
-	n1.SendMoveToNodes(&testCoord)
+	n1.SendMoveToNodes(&testCoord, false)
 	time.Sleep(200*time.Millisecond)
 
 	if n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier] != testCoord {
@@ -102,7 +102,7 @@ func TestNodeToNodeSendMove(t *testing.T) {
 	}
 
 	testCoord = shared.Coord{6,3}
-	n2.SendMoveToNodes(&testCoord)
+	n2.SendMoveToNodes(&testCoord, false)
 	time.Sleep(100*time.Millisecond)
 
 	if n1.PlayerNode.GameState.PlayerLocs.Data[node2.Identifier] != testCoord {
@@ -144,7 +144,7 @@ func TestNodeToNodeSendingNilMove(t *testing.T) {
 	}
 
 	// Test sending a move from one node to another
-	n1.SendMoveToNodes(nil)
+	n1.SendMoveToNodes(nil, false)
 	time.Sleep(100*time.Millisecond)
 
 	if _, ok := n2.PlayerNode.GameState.PlayerLocs.Data[node1.Identifier]; ok {
@@ -194,7 +194,7 @@ func TestPruningNodes(t *testing.T) {
 
 	// Test sending a move from one node to another
 	testCoord := shared.Coord{3, 7}
-	n2.SendMoveToNodes(&testCoord)
+	n2.SendMoveToNodes(&testCoord, false)
 	time.Sleep(3*time.Second)
 
 	n1.PlayerNode.GameState.PlayerLocs.RLock()
@@ -206,9 +206,9 @@ func TestPruningNodes(t *testing.T) {
 
 	// Test sending a move from one node to another
 	testCoord = shared.Coord{7, 7}
-	n1.SendMoveToNodes(&testCoord)
-	n1.SendMoveToNodes(&testCoord)
-	n1.SendMoveToNodes(&testCoord)
+	n1.SendMoveToNodes(&testCoord, false)
+	n1.SendMoveToNodes(&testCoord, false)
+	n1.SendMoveToNodes(&testCoord, false)
 
 	n2.HeartAttack <- true
 

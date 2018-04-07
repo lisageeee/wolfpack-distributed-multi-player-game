@@ -51,6 +51,7 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 	// Register with server, update info
 	uniqueId := nodeInterface.ServerRegister()
 	go nodeInterface.SendHeartbeat()
+	go nodeInterface.SendMoveToNodes()
 
 	// Make a gameState
 	playerLocs := make(map[string]shared.Coord)
@@ -86,24 +87,24 @@ func CreatePreyNode(nodeListenerAddr, playerListenerAddr string,
 // end of main (or alternatively, in a goroutine)
 func (pn * PreyNode) RunGame(playerListener string) {
 	ticker := time.NewTicker(time.Millisecond * 250)
-	for _ = range ticker.C {
+	for range ticker.C {
 		var dir string
 
 		go func() {
-				random := rand.Float64()
-				switch {
-				case random < 0.25:
-					dir = "up"
-				case random < 0.5:
-					dir = "down"
-				case random < 0.75:
-					dir = "right"
-				default:
-					dir = "left"
-				}
+			random := rand.Float64()
+			switch {
+			case random < 0.25:
+				dir = "up"
+			case random < 0.5:
+				dir = "down"
+			case random < 0.75:
+				dir = "right"
+			default:
+				dir = "left"
+			}
 
-				move := pn.MovePrey(dir)
-				pn.nodeInterface.SendMoveToNodes(&move)
+			move := pn.MovePrey(dir)
+			pn.nodeInterface.MoveToSend <- &move
 		}()
 	}
 }
