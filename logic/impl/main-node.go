@@ -1,40 +1,40 @@
 package impl
 
 import (
-	"shared"
-	"geometry"
-	"fmt"
-	"crypto/ecdsa"
 	"bitbucket.org/bestchai/dinv/dinvRT"
+	"crypto/ecdsa"
+	"fmt"
+	"geometry"
+	"shared"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
 type PlayerNode struct {
 
 	// The interface that deals with incoming and outgoing messages from the associated Pixel node
-	pixelInterface	PixelInterface
+	pixelInterface PixelInterface
 
 	// The interface that deals with incoming and outgoing messages from other logic nodes
-	nodeInterface	*NodeCommInterface
+	nodeInterface *NodeCommInterface
 
 	// Channel on which incoming player moves will be passed from the pixelInterface to the logic node
-	playerCommChannel	chan string
+	playerCommChannel chan string
 
 	// Channel on which outgoing player states will be passed from this playerNode to the pixelInterface for sending
 	// to the player
-	playerSendChannel	chan shared.GameState
+	playerSendChannel chan shared.GameState
 
 	// The current gamestate, represented as a map of player identifiers to locations
-	GameState	shared.GameState
+	GameState shared.GameState
 
 	// The grid manager for the current game, which determines valid moves
-	geo	geometry.GridManager
+	geo geometry.GridManager
 
 	// This logic node's identifier, assigned upon registration with the server
-	Identifier	string
+	Identifier string
 
 	// The game configuration provided upon registration from the server. Includes wall locations and board size.
-	GameConfig	shared.InitialState
+	GameConfig shared.InitialState
 }
 
 // Creates the main logic node and required interfaces with the arguments passed in logic-node.go
@@ -50,7 +50,14 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 	// Start the node to node interface
 	nodeInterface := CreateNodeCommInterface(pubKey, privKey, serverAddr)
 	addr, listener := StartListenerUDP(nodeListenerAddr)
-	dinvRT.Track("impl_main-node_52_","impl_main-node_52_sequenceNumber,impl_main-node_52_STRIKE_OUT,impl_main-node_52_nodeListenerAddr,impl_main-node_52_playerListenerAddr,impl_main-node_52_pubKey,impl_main-node_52_privKey,impl_main-node_52_serverAddr,impl_main-node_52_playerCommChannel,impl_main-node_52_playerSendChannel,impl_main-node_52_nodeInterface,impl_main-node_52_addr,impl_main-node_52_listener",sequenceNumber,STRIKE_OUT,nodeListenerAddr,playerListenerAddr,pubKey,privKey,serverAddr,playerCommChannel,playerSendChannel,nodeInterface,addr,listener)
+
+	dinvRT.Track("impl_main-node_52_", "impl_main-node_52_sequenceNumber,impl_main-node_52_serverAddr," +
+		"impl_main-node_52_playerCommChannelLength,impl_main-node_52_playerSendChannelLength",
+		sequenceNumber,     // >0
+		serverAddr, // should all be the same
+		len(playerCommChannel), // length?
+		len(playerSendChannel), // length?
+		)
 	nodeInterface.LocalAddr = addr
 	nodeInterface.IncomingMessages = listener
 	go nodeInterface.RunListener(listener, nodeListenerAddr)
@@ -80,20 +87,20 @@ func CreatePlayerNode(nodeListenerAddr, playerListenerAddr string,
 
 	// Make a gameState
 	gameState := shared.GameState{
-		PlayerLocs:	playerMap,
-		PlayerScores:	scoreMap,
+		PlayerLocs:   playerMap,
+		PlayerScores: scoreMap,
 	}
 
 	// Create player node
 	pn := PlayerNode{
-		pixelInterface:		pixelInterface,
-		nodeInterface:		&nodeInterface,
-		playerCommChannel:	playerCommChannel,
-		playerSendChannel:	playerSendChannel,
-		geo:			geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
-		GameState:		gameState,
-		Identifier:		uniqueId,
-		GameConfig:		nodeInterface.Config.InitState,
+		pixelInterface:    pixelInterface,
+		nodeInterface:     &nodeInterface,
+		playerCommChannel: playerCommChannel,
+		playerSendChannel: playerSendChannel,
+		geo:               geometry.CreateNewGridManager(nodeInterface.Config.InitState.Settings),
+		GameState:         gameState,
+		Identifier:        uniqueId,
+		GameConfig:        nodeInterface.Config.InitState,
 	}
 
 	// Allow the node-node interface to refer back to this node
@@ -109,7 +116,7 @@ func (pn *PlayerNode) RunGame(playerListener string) {
 	fmt.Println("listener running")
 
 	for {
-		dinvRT.Track("impl_main-node_111_","impl_main-node_111_sequenceNumber,impl_main-node_111_STRIKE_OUT,impl_main-node_111_playerListener",sequenceNumber,STRIKE_OUT,playerListener)
+
 		message := <-pn.playerCommChannel
 		switch message {
 		case "quit":
@@ -120,6 +127,7 @@ func (pn *PlayerNode) RunGame(playerListener string) {
 				pn.nodeInterface.SendMoveToNodes(&move)
 			}
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
+
 				fmt.Println("Got the prey")
 				pn.GameState.PlayerScores.Lock()
 				pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
@@ -127,6 +135,8 @@ func (pn *PlayerNode) RunGame(playerListener string) {
 				fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
 				pn.GameState.PlayerScores.Unlock()
 			}
+			dinvRT.Track("impl_main-node_111_", "impl_main-node_111_move,impl_main-node_111_didMove,impl_main-node_111_playerListener",
+				move, didMove, playerListener)
 			// pn.pixelInterface.SendPlayerGameState(pn.GameState)
 		}
 	}
@@ -136,7 +146,6 @@ func (pn *PlayerNode) RunGame(playerListener string) {
 // Given a string "up"/"down"/"left"/"right", changes the player state to make that move iff that move is valid
 // (not into a wall, out of bounds)
 func (pn *PlayerNode) movePlayer(move string) (newPos shared.Coord, changed bool) {
-	dinvRT.Track("impl_main-node_138_","impl_main-node_138_sequenceNumber,impl_main-node_138_STRIKE_OUT,impl_main-node_138_move",sequenceNumber,STRIKE_OUT,move)
 	// Get current player state
 	pn.GameState.PlayerLocs.RLock()
 	playerLoc := pn.GameState.PlayerLocs.Data[pn.Identifier]
@@ -155,6 +164,10 @@ func (pn *PlayerNode) movePlayer(move string) (newPos shared.Coord, changed bool
 	case "right":
 		newPosition.X = newPosition.X + 1
 	}
+	dinvRT.Track("impl_main-node_138_", "impl_main-node_138_newPositionX,impl_main-node_138_newPositionY," +
+		"impl_main-node_138_originalPositionX,impl_main-node_138_originalPositionY",
+		newPosition.X, newPosition.Y, originalPosition.X, originalPosition.Y)
+
 	// Check new move is valid, if so update player position
 	if pn.geo.IsValidMove(newPosition) && pn.geo.IsNotTeleporting(originalPosition, newPosition) {
 		//pn.GameState.PlayerLocs.Lock()

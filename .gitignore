@@ -66,3 +66,8 @@ fabric.properties
 *.out
 
 *Log.txt
+
+dinv/*
+dinv2/*
+*.zip
+*Encoded.txt

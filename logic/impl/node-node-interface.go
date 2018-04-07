@@ -199,7 +199,8 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr string) {
 	// Start the listener
 	listener.SetReadBuffer(1048576)
-
+	preySeq := uint64(1)
+	oldPreySeq := uint64(0)
 	i := 0
 	for {
 		i++
@@ -210,7 +211,6 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 		}
 
 		message := receiveMessage(n.Log, buf)
-		dinvRT.Track("impl_node-node-interface_213_","impl_node-node-interface_213_sequenceNumber,impl_node-node-interface_213_STRIKE_OUT",sequenceNumber,STRIKE_OUT)
 		switch message.MessageType {
 		case "gameState":
 			n.HandleReceivedGameState(message.Identifier, message.GameState)
@@ -234,11 +234,20 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				fmt.Println(err)
 			} else {
 				n.HandleReceivedMoveNL(message.Identifier, &coords, message.Seq)
+				if message.Identifier == "prey"{
+					oldPreySeq = preySeq
+					preySeq = message.Seq
+					dinvRT.Track("impl_node-node-interface_1_", "impl_node-node-interface_1_oldPreySeq,impl_node-node-interface_1_preySeq",
+						oldPreySeq,
+						preySeq,
+					)
+
+				}
 			}
 		case "connect":
 			n.HandleIncomingConnectionRequest(message.Identifier, message.Addr, message.PubKey)
 		case "connected":
-		// Do nothing
+			// Do nothing
 		case "captured":
 			var coords shared.Coord
 			authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
@@ -264,9 +273,12 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 // Routine that handles all reads and writes of the OtherNodes map; single thread preventing concurrent iteration and write
 // exception. This routine therefore handles all sending of messages as well as that requires iteration over OtherNodes.
 func (n *NodeCommInterface) ManageOtherNodes() {
+	numAccess:= 0
 	for {
+
 		select {
 		case toSend := <-n.MessagesToSend:
+			numAccess++
 			if toSend.Recipient != "all" {
 				// Send to the single node
 				if _, ok := n.OtherNodes[toSend.Recipient]; ok {
@@ -276,10 +288,14 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 				// Send the message to all nodes
 				n.sendMessageToNodes(toSend.Message)
 			}
+			numAccess--
 		case toAdd := <-n.NodesToAdd:
+			numAccess++
 			n.OtherNodes[toAdd.Identifier] = toAdd.Conn
 			n.NodeKeys[toAdd.Identifier] = toAdd.PubKey
+			numAccess--
 		case toDelete := <-n.NodesToDelete:
+			numAccess++
 			fmt.Printf("To delete: %s\n", toDelete)
 			delete(n.OtherNodes, toDelete)
 			n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -288,7 +304,11 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 			fmt.Printf("PlayerLocs.Data %v\n", n.PlayerNode.GameState.PlayerLocs.Data)
 			n.PlayerNode.GameState.PlayerLocs.Unlock()
 			n.GameStateToSend <- true
+			numAccess--
 		}
+		dinvRT.Track("impl_node-node-interface_2_", "impl_node-node-interface_numAccess",
+			numAccess,
+		)
 	}
 }
 
@@ -299,9 +319,10 @@ func (n *NodeCommInterface) ManageAcks() {
 		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
-			if len(n.MovesToSend) != 0 {
+			//if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
 				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack.Identifier)
+
 				// if the # of acks > # of connected nodes (majority consensus)
 				if len(collectAcks[moveToSend.Seq]) > lenOfOtherNodes/2 {
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -312,10 +333,16 @@ func (n *NodeCommInterface) ManageAcks() {
 					moveToSend.Rejected++
 					n.MovesToSend <- moveToSend
 				}
-			}
+			//}
+			dinvRT.Track("impl_node-node-interface_2_", "impl_node-node-interface_acks," +
+				"impl_node-node-interface_otherNodes",
+				len(collectAcks[ack.Seq]),
+				len(n.OtherNodes),
+			)
 		default:
 			// TODO: adjust this when prey can handle acks
 			if lenOfOtherNodes <= 2 {
+
 				if len(n.MovesToSend) != 0 {
 					moveToSend := <-n.MovesToSend
 					n.PlayerNode.GameState.PlayerLocs.Lock()
@@ -366,7 +393,7 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// Just removes the golog headers from each message
 	// TODO: set up error handling
 	var message NodeMessage
-	goLog.UnpackReceive("LogicNodeReceiveMessage", payload, &message)
+	dinvRT.UnpackM(payload, &message, "LogicNodeReceiveMessage")
 	return message
 }
 
@@ -375,9 +402,9 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 func sendMessage(goLog *govec.GoLog, message NodeMessage, tag string) []byte {
 	var newMessage []byte
 	if tag == "" {
-		newMessage = goLog.PrepareSend("SendMessageToOtherNode", message)
+		newMessage = dinvRT.PackM(message, "SendMessageToOtherNode")
 	} else {
-		newMessage = goLog.PrepareSend(tag, message)
+		newMessage = dinvRT.PackM(message, tag)
 	}
 
 	return newMessage
@@ -396,9 +423,7 @@ func (n *NodeCommInterface) ServerRegister() (id string) {
 		if err != nil {
 			os.Exit(1)
 		}
-		n.Log = govec.InitGoVectorMultipleExecutions("LogicNodeId-"+response.Identifier,
-			"LogicNodeFile")
-
+		dinvRT.Initalize("LogicNodeId-"+response.Identifier)
 		n.Config = response
 	}
 	n.GetNodes()
