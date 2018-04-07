@@ -142,8 +142,8 @@ type NodeMessage struct {
 	// the id of the sending node
 	Identifier  string
 
-	// identifies the type of message
-	// can be: "move", "moveCommit", "gameState", "connect", "connected"
+	// identifies the type of message so we know how to handle it
+	// can be: "move", "moveCommit", "gameState", "connect", "connected", "gamestateReq", "captured", "ack", '
 	MessageType string
 
 	// a gamestate, included if MessageType is "gameState", else nil
@@ -296,9 +296,9 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 func (n *NodeCommInterface) ManageAcks() {
 	collectAcks := make(map[uint64][]string)
 	for {
-		lenOfOtherNodes := len(n.OtherNodes)
 		select {
 		case ack := <-n.ACKSReceived:
+			lenOfOtherNodes := len(n.OtherNodes)
 			if len(n.MovesToSend) != 0 {
 				moveToSend := <-n.MovesToSend
 				collectAcks[ack.Seq] = append(collectAcks[ack.Seq], ack.Identifier)
@@ -313,7 +313,8 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.MovesToSend <- moveToSend
 				}
 			}
-		default:
+		case <-time.After(200 * time.Millisecond):
+			lenOfOtherNodes := len(n.OtherNodes)
 			// TODO: adjust this when prey can handle acks
 			if lenOfOtherNodes <= 2 {
 				if len(n.MovesToSend) != 0 {
@@ -644,7 +645,11 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		// TODO: Note: I've commented this out to slow down the game
 		// n.GameStateToSend <- true
 
-		n.SendACK(identifier, seq)
+		// Don't send ACKs to prey
+		if identifier != "prey" {
+			n.SendACK(identifier, seq)
+		}
+
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
