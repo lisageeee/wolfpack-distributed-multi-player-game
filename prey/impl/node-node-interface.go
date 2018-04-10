@@ -39,7 +39,7 @@ type NodeCommInterface struct {
 	NodeKeys		    map[string]*ecdsa.PublicKey
 	Log 				*govec.GoLog
 	HeartAttack 		chan bool
-	MoveCommits			map[string]MoveCommitInfo
+	MoveCommits			map[string]map[uint64]string // map of a map[seq]hashstring
 
 	PlayerScores		map[string]int
 
@@ -149,7 +149,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		OtherNodes:            make(map[string]*net.UDPConn),
 		NodeKeys:              make(map[string]*ecdsa.PublicKey),
 		HeartAttack:           make(chan bool),
-		MoveCommits:           make(map[string]MoveCommitInfo),
+		MoveCommits:           make(map[string]map[uint64]string),
 		MessagesToSend:        make(chan *PendingMessage, 30),
 		NodesToDelete:         make(chan string, 5),
 		NodesToAdd:            make(chan *OtherNode, 10),
@@ -508,7 +508,7 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 				fmt.Println(err)
 				return err
 			}
-			delete(n.MoveCommits, identifier)
+			delete(n.MoveCommits[identifier], seq)
 			n.PreyNode.GameState.PlayerLocs.Lock()
 			n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PreyNode.GameState.PlayerLocs.Unlock()
@@ -516,15 +516,17 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			return nil
 		}
 	}
-	delete(n.MoveCommits, identifier)
+	delete(n.MoveCommits[identifier], seq)
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
 func (n* NodeCommInterface) HandleReceivedMoveCommit(identifier string, moveCommit *shared.MoveCommit) (err error) {
 	// if the move is authentic
 	if n.CheckAuthenticityOfMoveCommit(identifier, moveCommit) {
-		// if identifier doesn't exist in map, add move commit to map
-		n.MoveCommits[identifier] = MoveCommitInfo{moveCommit.Seq, hex.EncodeToString(moveCommit.MoveHash)}
+		if n.MoveCommits[identifier] == nil {
+			n.MoveCommits[identifier] = make(map[uint64]string)
+		}
+		n.MoveCommits[identifier][moveCommit.Seq] = hex.EncodeToString(moveCommit.MoveHash)
 	} else {
 		return wolferrors.IncorrectPlayerError(identifier)
 	}
@@ -644,10 +646,9 @@ func (n *NodeCommInterface) CheckAuthenticityOfMove(publicKey *ecdsa.PublicKey, 
 // Checks to see if there is an existing commit against the submitted move
 func (n *NodeCommInterface) CheckMoveCommitAgainstMove(identifier string, move shared.Coord, seq uint64) (bool) {
 	hash := hex.EncodeToString(n.CalculateHash(move, identifier))
-	for _, mc := range n.MoveCommits {
-		if mc.Hash == hash && mc.Seq == seq {
-			return true
-		}
+	mc := n.MoveCommits[identifier][seq]
+	if mc == hash {
+		return true
 	}
 	return false
 }
