@@ -63,11 +63,6 @@ type NodeCommInterface struct {
 	ACKsToSend			chan *PendingMessage
 }
 
-type MoveCommitInfo struct {
-	Seq uint64
-	Hash string
-}
-
 type StrikeLockMap struct {
 	sync.RWMutex
 	StrikeCount map[string]int
@@ -508,15 +503,18 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 				fmt.Println(err)
 				return err
 			}
-			delete(n.MoveCommits[identifier], seq)
 			n.PreyNode.GameState.PlayerLocs.Lock()
 			n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PreyNode.GameState.PlayerLocs.Unlock()
 			n.SendACK(identifier, seq)
+			// clean up move commits
+			delete(n.MoveCommits[identifier], seq)
+			if len(n.MoveCommits[identifier]) == 0 {
+				delete(n.MoveCommits, identifier)
+			}
 			return nil
 		}
 	}
-	delete(n.MoveCommits[identifier], seq)
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
