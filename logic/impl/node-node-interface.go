@@ -829,6 +829,8 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
 
+		n.GameStateToSend <- true
+		
 		n.SendACK(identifier, seq)
 		return nil
 	}
