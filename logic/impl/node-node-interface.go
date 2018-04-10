@@ -598,42 +598,41 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord, sendMoveCommitToP
 		return
 	}
 
+	sequenceNumber++
+	moveId := n.CreateMove(move)
+	message := NodeMessage{
+		MessageType: "move",
+		Identifier:  n.PlayerNode.Identifier,
+		Move:        moveId,
+		Addr:        n.LocalAddr.String(),
+		Seq:         sequenceNumber,
+	}
+
+	// calculate and sign a hash based on move that the player made
+	// this is sent to the prey node
+	moveHash := n.CalculateHash(*move, n.PlayerNode.Identifier)
+	r, s, _ := n.SignMoveCommit(moveHash)
+	moveCommit := shared.MoveCommit{
+		Seq:      sequenceNumber,
+		MoveHash: moveHash,
+		R:        r.String(),
+		S:        s.String(),
+	}
+
 	// if there are other nodes in play
 	if len(n.OtherNodes) > 0 {
-		sequenceNumber++
-		moveId := n.CreateMove(move)
-		message := NodeMessage{
-			MessageType: "move",
-			Identifier:  n.PlayerNode.Identifier,
-			Move:        moveId,
-			Addr:        n.LocalAddr.String(),
-			Seq:         sequenceNumber,
-		}
-
 		toSend := sendMessage(n.Log, message, "Sendin' move")
 		n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 		n.MovesToSend <- &PendingMoveUpdates{Seq: sequenceNumber, Coord: move, Rejected: 0}
 
 		if sendMoveCommitToPrey {
-			// calculate and sign a hash based on move that the player made
-			// this is sent to the prey node
-			moveHash := n.CalculateHash(*move, n.PlayerNode.Identifier)
-			r, s, err := n.SignMoveCommit(moveHash)
-			if err == nil {
-				moveCommit := shared.MoveCommit{
-					Seq:      sequenceNumber,
-					MoveHash: moveHash,
-					R:        r.String(),
-					S:        s.String(),
-				}
-				n.SendMoveCommitToPreyNode(&moveCommit)
-			}
+			n.SendMoveCommitToPreyNode(&moveCommit)
 			fmt.Println("DEBUG - Sending move commit")
-
-			// This is the move that will be sent to prey once we've received a response
-			// back for the move commit associated with this move
-			n.MoveToSendToPrey <- &MoveWithSeq{*move, sequenceNumber}
 		}
+
+		// This is the move that will be sent to prey once we've received a response
+		// back for the move commit associated with this move
+		n.MoveToSendToPrey <- &MoveWithSeq{*move, sequenceNumber}
 	} else { // by itself, so just whatever update
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *move
