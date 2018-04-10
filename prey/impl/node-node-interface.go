@@ -413,6 +413,7 @@ func(n* NodeCommInterface) SendMoveToNodes() {
 	for {
 		select {
 		case <- time.After(500 * time.Millisecond):
+			fmt.Println("MoveCommits", n.MoveCommits)
 			if len(n.MoveCommits) > 0 {
 				move := <- n.MoveToSend
 				fmt.Println("Here is the move: ", move)
@@ -506,7 +507,7 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 			n.PreyNode.GameState.PlayerLocs.Lock()
 			n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
 			n.PreyNode.GameState.PlayerLocs.Unlock()
-			n.SendACK(identifier, seq)
+			// n.SendACK(identifier, seq)
 			// clean up move commits
 			delete(n.MoveCommits[identifier], seq)
 			if len(n.MoveCommits[identifier]) == 0 {

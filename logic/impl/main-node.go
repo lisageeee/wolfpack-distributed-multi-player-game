@@ -5,6 +5,7 @@ import (
 	"../../geometry"
 	"fmt"
 	"crypto/ecdsa"
+	_"time"
 	"time"
 )
 
@@ -132,7 +133,7 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 					pn.GameState.PlayerScores.Unlock()
 				}
 			}
-		case <-time.After(1000 * time.Millisecond):
+		case <-time.After(1500 * time.Millisecond):
 			if storedMove != nil {
 				pn.nodeInterface.SendMoveToNodes(storedMove, true)
 			}
