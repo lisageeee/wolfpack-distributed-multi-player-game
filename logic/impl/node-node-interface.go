@@ -643,7 +643,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		// TODO: Note: I've commented this out to slow down the game
-		// n.GameStateToSend <- true
+		n.GameStateToSend <- true
 
 		// Don't send ACKs to prey
 		if identifier != "prey" {
