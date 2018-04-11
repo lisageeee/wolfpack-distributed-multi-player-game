@@ -864,7 +864,7 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 		return nil
 	}
 
-	if exists && (score >= playerScore + n.PlayerNode.GameConfig.CatchWorth +1) {
+	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
 		fmt.Println("exists: ", exists)
 		fmt.Println("score sent: ", score)
 		fmt.Println("score held: ", playerScore + n.PlayerNode.GameConfig.CatchWorth)
