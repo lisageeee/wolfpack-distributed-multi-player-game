@@ -217,12 +217,7 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 		if ok{
 			pn.nodeInterface.SendMoveToNodes(&move)
 			pn.nodeInterface.GameStateToSend = make(chan bool, 30)
-			fmt.Println(len(pn.nodeInterface.GameStateToSend), "/", cap(pn.nodeInterface.GameStateToSend))
-			fmt.Println(len(pn.nodeInterface.MovesToSend))
-			fmt.Println(len(pn.playerCommChannel))
-			fmt.Println(len(pn.playerSendChannel))
 			fmt.Println("movin' bot", command)
-			fmt.Println(move)
 		}
 		if pn.nodeInterface.CheckGotPrey(move) == nil {
 			fmt.Println("Got the prey")
