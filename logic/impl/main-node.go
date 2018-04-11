@@ -228,7 +228,7 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 			pn.GameState.PlayerScores.Unlock()
 		}
 		// Take move off the channel
-		time.Sleep(time.Millisecond*500)
+		time.Sleep(time.Millisecond*800)
 	}
 }
 func abs(num int)int {
