@@ -95,6 +95,9 @@ type NodeCommInterface struct {
 
 	// A boolean set to false before this node has reconciled the gamestate when joining
 	HasGameState		  bool
+
+	// Running Window
+	RW					  RunningWindow
 }
 
 type StrikeLockMap struct {
@@ -166,6 +169,9 @@ type NodeMessage struct {
 
 	// Keep track of sequence number for response ACKs
 	Seq			uint64
+
+	// Prey Sequence number
+	PreySeq		uint64
 }
 
 var sequenceNumber uint64 = 0
@@ -191,6 +197,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
 		HasGameState: 		   false,
+		RW:		   			   RunningWindow{Map:make(map[string][3]MoveSeq)},
 	}
 }
 
@@ -541,6 +548,8 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int)
 		Identifier: n.PlayerNode.Identifier,
 		Move:	moveId,
 		Score: score,
+		Seq: sequenceNumber,
+		PreySeq:
 		Addr: n.LocalAddr.String(),
 	}
 
@@ -628,7 +637,6 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
-
 // Handle moves that does not require a move commit check
 // Returns InvalidMoveError if the received move is not valid
 
@@ -649,7 +657,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if identifier != "prey" {
 			n.SendACK(identifier, seq)
 		}
-
+		n.RW.Add(identifier, seq, move)
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
