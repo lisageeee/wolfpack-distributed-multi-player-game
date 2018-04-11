@@ -259,7 +259,9 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println(err)
 				} else {
 					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
-					fmt.Println("rejecting capturing prey", err)
+					if err != nil {
+						fmt.Println("rejecting capturing prey", err)
+					}
 				}
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
@@ -652,7 +654,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		// TODO: Note: I've commented this out to slow down the game
-		// n.GameStateToSend <- true
+		n.GameStateToSend <- true
 
 		// Don't send ACKs to prey
 		if identifier != "prey" {
@@ -695,6 +697,8 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		if !n.RW.Match("prey", preySeq, move){
 			return err
+		}else{
+			fmt.Println("Successfully found old prey")
 		}
 	}
 	err = n.CheckMoveIsValid(*move)
