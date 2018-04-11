@@ -21,6 +21,7 @@ import (
 	"../../wolferrors"
 	"sync"
 	"encoding/json"
+	li "../../logic/impl"
 )
 
 // Node communication interface for communication with other player/logic nodes
@@ -57,6 +58,7 @@ type NodeCommInterface struct {
 
 	// Whether this node has a gamestate yet or not
 	HasGameState		  bool
+	RW 					  li.RunningWindow
 }
 
 type StrikeLockMap struct {
@@ -126,6 +128,9 @@ type NodeMessage struct {
 
 	// Keep track of sequence number for response ACKs
 	Seq			uint64
+
+	// Prey Sequence number
+	PreySeq		uint64
 }
 
 var sequenceNumber uint64 = 0
@@ -148,6 +153,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodesWriteConnRefused: make(chan string, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		HasGameState:		   false,
+		RW: 				   li.RunningWindow{Map:make(map[string][3]li.MoveSeq)},
 	}
 }
 
@@ -208,7 +214,10 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 				fmt.Println("Could not unmarshal")
 				fmt.Println(err)
 			} else {
-				n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
+				err := n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
+				if err != nil {
+					fmt.Println("Rejecting captured prey: ", err)
+				}
 			}
 		default:
 			fmt.Println("Message type is incorrect")
@@ -406,7 +415,7 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord){
 		Addr:        n.LocalAddr.String(),
 		Seq:         sequenceNumber,
 	}
-
+	n.RW.Add("prey", sequenceNumber, move)
 	toSend := sendMessage(n.Log, message, "Sendin' move")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
 }
@@ -502,6 +511,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PreyNode.GameState.PlayerLocs.Unlock()
 
 		n.SendACK(identifier, seq)
+		n.RW.Add(identifier, seq, move)
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
@@ -527,10 +537,13 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int) (err error) {
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (err error) {
 	err = n.CheckGotPrey(*move)
 	if err != nil {
-		return err
+		if !n.RW.Match("prey", preySeq, move){
+			return err
+		}
+
 	}
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
