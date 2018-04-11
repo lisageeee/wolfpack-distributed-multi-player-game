@@ -865,6 +865,9 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	}
 
 	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
+		fmt.Println("exists: ", exists)
+		fmt.Println("score sent: ", score)
+		fmt.Println("score held: ", playerScore + n.PlayerNode.GameConfig.CatchWorth)
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
 	n.PlayerNode.GameState.PlayerScores.Lock()

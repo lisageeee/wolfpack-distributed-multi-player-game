@@ -73,7 +73,7 @@ func CreatePixelNode(nodeAddr string) (PixelNode) {
 			fmt.Println(err)
 		} else {
 			err := json.Unmarshal(buf[0:rlen], &settings)
-			if err == nil{
+			if err == nil && settings.WindowsY != 0{
 				break
 			}
 		}
@@ -140,24 +140,19 @@ func (pn * PixelNode) RunRemoteNodeListener() {
 	// takes a Listener client
 	// runs the Listener in a infinite loop
 	node := pn.Sender
-
+	decode:= json.NewDecoder(node)
 	i := 0
 	for {
 		var playerPos shared.GameRenderState
 		i++
-		buf := make([]byte, 2048)
-		rlen, err := node.Read(buf)
-		if err != nil {
-			fmt.Println(err)
-		}
-		err = json.Unmarshal(buf[0:rlen], &playerPos)
+		err := decode.Decode(&playerPos)
 		if err != nil {
 			fmt.Println("Error receiving new GameRenderState on PixelNode:", err)
-			fmt.Println(string(buf[0:rlen]))
 		} else {
 			pn.NewGameStates <- playerPos
 		}
 	}
+
 }
 
 // Helper function to draw the scores on the board.
