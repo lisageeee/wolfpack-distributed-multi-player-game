@@ -412,7 +412,7 @@ func (n* NodeCommInterface) Reregister() shared.GameConfig {
 func(n* NodeCommInterface) SendMoveToNodes() {
 	for {
 		select {
-		case <- time.After(500 * time.Millisecond):
+		case <- time.After(250 * time.Millisecond):
 			fmt.Println("MoveCommits", n.MoveCommits)
 			if len(n.MoveCommits) > 0 {
 				move := <- n.MoveToSend

@@ -209,7 +209,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool),
 		HasGameState: 		   false,
-		MoveToSendToPrey:	   make(chan *MoveWithSeq),
+		MoveToSendToPrey:	   make(chan *MoveWithSeq, 30),
 		CollectAcks:		   CollectACKSMap{ACKS:make(map[uint64]map[string]string)},
 	}
 }
@@ -331,11 +331,11 @@ func (n *NodeCommInterface) CollectACKs() {
 			}
 			n.CollectAcks.ACKS[ack.Seq][ack.Identifier] = ""
 
-			for k := range n.CollectAcks.ACKS {
-				if k < ack.Seq {
-					delete(n.CollectAcks.ACKS, k)
-				}
-			}
+			//for k := range n.CollectAcks.ACKS {
+			//	if k < ack.Seq {
+			//		delete(n.CollectAcks.ACKS, k)
+			//	}
+			//}
 			n.CollectAcks.Unlock()
 		}
 	}
@@ -343,60 +343,37 @@ func (n *NodeCommInterface) CollectACKs() {
 
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
-	tempCh := make(chan *PendingMoveUpdates, 1)
+	var currMove *PendingMoveUpdates
 	for {
-		if len(tempCh) == 0 {
+		if currMove == nil {
 			move := <-n.MovesToSend
-			tempCh <- move
+			currMove = move
 			fmt.Println("woot got move")
 		}
 		select {
 		case <-time.After(500 * time.Millisecond):
 			if len(n.OtherNodes) != 0 {
-				currMove := <-tempCh
 				n.CollectAcks.Lock()
 				fmt.Println("DEBUG - CollectACks Map:", n.CollectAcks.ACKS, "And seq: ", currMove.Seq)
 				if _, ok := n.CollectAcks.ACKS[currMove.Seq]; ok {
-					if len(n.OtherNodes) == 2 { // prey(doesn't handle acks) + someone else
+					if len(n.OtherNodes) >= 2 {
 						if len(n.CollectAcks.ACKS[currMove.Seq]) >= len(n.OtherNodes)/2 {
-							fmt.Println("DEBUG - We should be in this state with one prey + one player")
 							fmt.Printf("DEBUG - Here is the current move %v and seq %d\n", currMove.Coord, currMove.Seq)
 							n.PlayerNode.GameState.PlayerLocs.Lock()
 							n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *currMove.Coord
 							n.PlayerNode.GameState.PlayerLocs.Unlock()
 							delete(n.CollectAcks.ACKS, currMove.Seq)
 							n.CollectAcks.Unlock()
+							currMove = nil
 						} else {
 							n.CollectAcks.Unlock()
 							currMove.Rejected++
-							if currMove.Rejected < 10 {
-								n.ReSendMoveToNodes(currMove.Coord, currMove.Seq)
-								tempCh <- currMove
-								fmt.Println(currMove.Rejected)
-								fmt.Println("DEBUG - Sending currMove back to tempCh with seq: ", currMove.Seq)
+							if currMove.Rejected < 3 {
+								// n.ReSendMoveToNodes(currMove.Coord, currMove.Seq)
+								fmt.Println("Rejected count:", currMove.Rejected)
 							} else {
 								fmt.Println("REJECTING MOVE FOREVER WITH SEQ:", currMove.Seq)
-							}
-						}
-					} else {
-						// if the # of acks > # of connected nodes (majority consensus)
-						if len(n.CollectAcks.ACKS[currMove.Seq]) > len(n.OtherNodes)/2 {
-							fmt.Println("DEBUG - We should NOT be in this state with one prey")
-							n.PlayerNode.GameState.PlayerLocs.Lock()
-							n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *currMove.Coord
-							n.PlayerNode.GameState.PlayerLocs.Unlock()
-							delete(n.CollectAcks.ACKS, currMove.Seq)
-							n.CollectAcks.Unlock()
-						} else {
-							n.CollectAcks.Unlock()
-							currMove.Rejected++
-							if currMove.Rejected < 10 {
-								n.ReSendMoveToNodes(currMove.Coord, currMove.Seq)
-								tempCh <- currMove
-								fmt.Println(currMove.Rejected)
-								fmt.Println("DEBUG - Sending currMove back to tempCh with seq: ", currMove.Seq)
-							} else {
-								fmt.Println("REJECTING MOVE FOREVER WITH SEQ:", currMove.Seq)
+								currMove = nil
 							}
 						}
 					}
@@ -593,6 +570,14 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord, sendMoveCommitToP
 		S:        s.String(),
 	}
 
+	if sendMoveCommitToPrey {
+		n.SendMoveCommitToPreyNode(&moveCommit)
+		fmt.Println("DEBUG - Sending move commit")
+		// This is the move that will be sent to prey once we've received a response
+		// back for the move commit associated with this move
+		n.MoveToSendToPrey <- &MoveWithSeq{*move, sequenceNumber}
+	}
+
 	// if there are other player nodes in play
 	if len(n.OtherNodes) > 1 {
 		toSend := sendMessage(n.Log, message, "Sendin' move")
@@ -604,14 +589,6 @@ func(n* NodeCommInterface) SendMoveToNodes(move *shared.Coord, sendMoveCommitToP
 		n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		n.GameStateToSend <- true
-	}
-
-	if sendMoveCommitToPrey {
-		n.SendMoveCommitToPreyNode(&moveCommit)
-		fmt.Println("DEBUG - Sending move commit")
-		// This is the move that will be sent to prey once we've received a response
-		// back for the move commit associated with this move
-		n.MoveToSendToPrey <- &MoveWithSeq{*move, sequenceNumber}
 	}
 }
 
@@ -749,10 +726,10 @@ func (n* NodeCommInterface) HandleReceivedPreyMove(identifier string, move *shar
 	// Need nil check for bad move
 	if move != nil {
 		// check to see if it's a valid move
-		err := n.CheckMoveIsValid(*move)
-		if err != nil {
-			return err
-		}
+		//err := n.CheckMoveIsValid(*move)
+		//if err != nil {
+		//	return err
+		//}
 		// update coord for prey in playerlocs
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
