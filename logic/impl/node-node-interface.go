@@ -95,6 +95,9 @@ type NodeCommInterface struct {
 
 	// A boolean set to false before this node has reconciled the gamestate when joining
 	HasGameState		  bool
+
+	// Running Window
+	RW					  RunningWindow
 }
 
 type StrikeLockMap struct {
@@ -166,6 +169,9 @@ type NodeMessage struct {
 
 	// Keep track of sequence number for response ACKs
 	Seq			uint64
+
+	// Prey Sequence number
+	PreySeq		uint64
 }
 
 var sequenceNumber uint64 = 0
@@ -191,6 +197,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
 		HasGameState: 		   false,
+		RW:		   			   RunningWindow{Map:make(map[string][3]MoveSeq)},
 	}
 }
 
@@ -251,7 +258,10 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
 				} else {
-					n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
+					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
+					if err != nil {
+						fmt.Println("rejecting capturing prey", err)
+					}
 				}
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
@@ -541,6 +551,8 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int)
 		Identifier: n.PlayerNode.Identifier,
 		Move:	moveId,
 		Score: score,
+		Seq: sequenceNumber,
+		PreySeq:n.RW.PreySeq,
 		Addr: n.LocalAddr.String(),
 	}
 
@@ -628,7 +640,6 @@ func (n* NodeCommInterface) HandleReceivedMoveL(identifier string, move *shared.
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
-
 // Handle moves that does not require a move commit check
 // Returns InvalidMoveError if the received move is not valid
 
@@ -643,13 +654,13 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
 		// TODO: Note: I've commented this out to slow down the game
-		// n.GameStateToSend <- true
+		n.GameStateToSend <- true
 
 		// Don't send ACKs to prey
 		if identifier != "prey" {
 			n.SendACK(identifier, seq)
 		}
-
+		n.RW.Add(identifier, seq, move)
 		return nil
 	}
 	return wolferrors.InvalidMoveError("[" + string(move.X) + ", " + string(move.Y) + "]")
@@ -681,10 +692,14 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int) (err error) {
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (err error) {
 	err = n.CheckGotPrey(*move)
 	if err != nil {
-		return err
+		if !n.RW.Match("prey", preySeq, move){
+			return err
+		}else{
+			fmt.Println("Successfully found old prey")
+		}
 	}
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
@@ -850,6 +865,9 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 	}
 
 	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
+		fmt.Println("exists: ", exists)
+		fmt.Println("score sent: ", score)
+		fmt.Println("score held: ", playerScore + n.PlayerNode.GameConfig.CatchWorth)
 		return wolferrors.InvalidScoreUpdateError(string(score))
 	}
 	n.PlayerNode.GameState.PlayerScores.Lock()
