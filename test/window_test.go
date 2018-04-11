@@ -39,6 +39,9 @@ func TestAddFive(t *testing.T) {
 			t.FailNow()
 		}
 	}
+	if rw.Match("id1", uint64(1), &shared.Coord{10, 6}) {
+		t.FailNow()
+	}
 	fmt.Println("Passed")
 }
 
