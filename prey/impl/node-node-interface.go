@@ -506,6 +506,16 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if err != nil {
 			return err
 		}
+
+		// Check for teleporting
+		_, ok := n.PreyNode.GameState.PlayerLocs.Data[identifier]
+		if ok {
+			notTele := n.PreyNode.geo.IsNotTeleporting(n.PreyNode.GameState.PlayerLocs.Data[identifier], *move)
+			if !notTele {
+				return wolferrors.InvalidMoveError("Cannot teleport")
+			}
+		}
+
 		n.PreyNode.GameState.PlayerLocs.Lock()
 		n.PreyNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PreyNode.GameState.PlayerLocs.Unlock()
@@ -549,6 +559,16 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
+
+	// Check for teleporting
+	_, ok := n.PreyNode.GameState.PlayerLocs.Data[identifier]
+	if ok {
+		notTele := n.PreyNode.geo.IsNotTeleporting(n.PreyNode.GameState.PlayerLocs.Data[identifier], *move)
+		if !notTele {
+			return wolferrors.InvalidMoveError("Cannot teleport")
+		}
+	}
+
 	err = n.CheckAndUpdateScore(identifier, score)
 	if err != nil {
 		return err

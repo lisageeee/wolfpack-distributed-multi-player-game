@@ -650,6 +650,8 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if err != nil {
 			return err
 		}
+
+		// Check for teleporting
 		_, ok := n.PlayerNode.GameState.PlayerLocs.Data[identifier]
 		if ok {
 			notTele := n.PlayerNode.geo.IsNotTeleporting(n.PlayerNode.GameState.PlayerLocs.Data[identifier], *move)
