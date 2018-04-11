@@ -206,7 +206,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 			var coords shared.Coord
 			authentic := n.CheckAuthenticityOfMove(n.NodeKeys[message.Identifier], &message.Move)
 			if !authentic{
-				fmt.Println("False coordinates")
+				fmt.Println("False coordinates for capture")
 				continue
 			}
 			err := json.Unmarshal(message.Move.MoveByte, &coords)

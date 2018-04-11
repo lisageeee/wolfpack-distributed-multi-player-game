@@ -34,6 +34,9 @@ type PlayerNode struct {
 
 	// The game configuration provided upon registration from the server. Includes wall locations and board size.
 	GameConfig shared.InitialState
+
+	// String denotes which type of sybil this is, none if normal
+	SybilType string
 }
 
 // Creates the main logic node and required interfaces with the arguments passed in logic-node.go
@@ -113,10 +116,20 @@ func (pn * PlayerNode) RunGame(playerListener string) {
 		case "quit":
 			break
 		default:
-			move, didMove := pn.movePlayer(message)
-			if didMove {
-				pn.nodeInterface.SendMoveToNodes(&move)
+			var move shared.Coord
+			var didMove bool
+			if pn.SybilType == "ghost" {
+				move, didMove = pn.SybilGhostMove(message)
+				if didMove {
+					pn.nodeInterface.SendGhostMoveToNodes(&move)
+				}
+			} else {
+				move, didMove = pn.movePlayer(message)
+				if didMove {
+					pn.nodeInterface.SendMoveToNodes(&move)
+				}
 			}
+
 			if pn.nodeInterface.CheckGotPrey(move) == nil {
 				fmt.Println("Got the prey")
 				pn.GameState.PlayerScores.Lock()
