@@ -258,7 +258,8 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
 				} else {
-					n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score)
+					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
+					fmt.Println("rejecting capturing prey", err)
 				}
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
@@ -549,7 +550,7 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int)
 		Move:	moveId,
 		Score: score,
 		Seq: sequenceNumber,
-		PreySeq:
+		PreySeq:n.RW.PreySeq,
 		Addr: n.LocalAddr.String(),
 	}
 
@@ -689,10 +690,12 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int) (err error) {
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (err error) {
 	err = n.CheckGotPrey(*move)
 	if err != nil {
-		return err
+		if !n.RW.Match("prey", preySeq, move){
+			return err
+		}
 	}
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {

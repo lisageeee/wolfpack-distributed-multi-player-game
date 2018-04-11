@@ -15,8 +15,9 @@ func before()l.RunningWindow {
 func TestAddOne(t *testing.T) {
 	rw := before()
 	fmt.Println("Add One Test")
-
+	t1 := time.Now()
 	rw.Add("id1", uint64(1), &shared.Coord{10, 6})
+	fmt.Println("Elapsed Time: ", time.Now().Sub(t1).Seconds())
 	if !rw.Match("id1", uint64(1), &shared.Coord{10, 6}){
 		t.FailNow()
 	}
@@ -67,16 +68,21 @@ func TestAddFiveMultipleIds(t *testing.T) {
 }
 func TestAddGoRoutines(t *testing.T) {
 	rw := before()
-	fmt.Println("Add Five Test Multiple Ids")
+	fmt.Println("Add Test Goroutines")
+	// This fails sometimes, does it really take >500 ms to add to this map? No?!
 
-	for i := 1; i < 6; i++ {
-		go rw.Add("id1", uint64(i), &shared.Coord{i+4,
-			i-2})
-	}
-	for i := 1; i < 6; i++ {
-		go rw.Add("id2", uint64(i), &shared.Coord{i+4,
-			i-2})
-	}
+	go func() {
+		for i := 1; i < 6; i++ {
+			rw.Add("id1", uint64(i), &shared.Coord{i + 4,
+				i - 2})
+		}
+	}()
+	go func(){
+		for i := 1; i < 6; i++ {
+			rw.Add("id2", uint64(i), &shared.Coord{i+4,
+				i-2})
+		}
+	}()
 	time.Sleep(time.Millisecond*200)
 	for i := 3; i < 6; i++ {
 		if !rw.Match("id1", uint64(i), &shared.Coord{i+4, i-2}) {
@@ -89,6 +95,25 @@ func TestAddGoRoutines(t *testing.T) {
 			fmt.Println("id2 ", i)
 			t.FailNow()
 		}
+	}
+	fmt.Println("Passed")
+}
+func TestPrey(t *testing.T) {
+	rw := before()
+	fmt.Println("Test Prey")
+
+	for i := 1; i < 6; i++ {
+		rw.Add("prey", uint64(i), &shared.Coord{i+4,
+			i-2})
+	}
+	for i := 3; i < 6; i++ {
+		if !rw.Match("prey", uint64(i), &shared.Coord{i+4, i-2}) {
+			fmt.Println("prey ", i)
+			t.FailNow()
+		}
+	}
+	if rw.PreySeq != 5{
+		t.FailNow()
 	}
 	fmt.Println("Passed")
 }
