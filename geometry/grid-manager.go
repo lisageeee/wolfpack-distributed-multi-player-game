@@ -3,6 +3,8 @@ package geometry
 import (
 	"../shared"
 	"strconv"
+	"math/rand"
+	"math"
 )
 
 type GridManager struct {
@@ -71,8 +73,49 @@ func (gm * GridManager) IsNotTeleporting(origCoord shared.Coord, newCoord shared
 	}
 }
 
+func (gm * GridManager) GetRandomValidPos() (shared.Coord) {
+	var posX int
+	var posY int
+	for {
+		posX = rand.Intn(gm.x)
+		posY = rand.Intn(gm.y)
+		if gm.IsValidMove(shared.Coord{posX, posY}) {
+			break
+		}
+	}
+	return shared.Coord{X:posX, Y:posY}
+}
+
+
+func (gm * GridManager) GetNewPos(oldMove shared.Coord) (shared.Coord) {
+	posX := gm.x - oldMove.X
+	posY := gm.y - oldMove.Y
+
+	if gm.IsValidMove(shared.Coord{posX, posY}) && gm.isFarAway(oldMove.X, oldMove.Y, posX, posY) {
+		return shared.Coord{X:posX, Y:posY}
+	}
+
+	var pos shared.Coord
+	for {
+		pos = gm.GetRandomValidPos()
+
+		if gm.isFarAway(oldMove.X, oldMove.Y, pos.X, pos.Y) {
+			break
+		}
+	}
+	return pos
+}
+
 // Checks that a given move is valid by checking if it is in bounds and also not a wall
 // Returns true of the move is valid, false otherwise.
 func (gm * GridManager) IsValidMove(coord shared.Coord) (bool) {
 	return gm.IsInBounds(coord) && gm.IsNotWall(coord)
+}
+
+// Returns true if the new point is at least a quarter of the playscreen away
+func (gm* GridManager) isFarAway(oldX, oldY, newX, newY int) (bool) {
+	if math.Abs(float64(newX-oldX)) > float64(gm.x/4) ||  math.Abs(float64(newY-oldY)) > float64(gm.y/4) {
+		return true
+	}
+	return false
 }
