@@ -5,6 +5,7 @@ import (
 	"../../geometry"
 	"fmt"
 	"crypto/ecdsa"
+	"time"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -180,4 +181,65 @@ func (pn *PlayerNode) GetGridManager() (*geometry.GridManager) {
 // Return the comm channel used to communicate with the pixel interface, mostly for testing
 func (pn *PlayerNode) GetPlayerCommChannel() (chan string) {
 	return pn.playerCommChannel
+}
+
+// Runs a bot game
+func (pn * PlayerNode) RunBotGame(playerListener string) {
+	for {
+		myState := pn.GameState.PlayerLocs.Data[pn.Identifier]
+		prey := pn.GameState.PlayerLocs.Data["prey"]
+		command := "still"
+		fmt.Println(prey)
+		minVal := abs(myState.X-prey.X)+ abs(myState.Y-prey.Y)
+		for _,i:= range []int{-1,1}{
+			val := abs(myState.X+i-prey.X)+ abs(myState.Y-prey.Y)
+			if val < minVal && pn.geo.IsValidMove(shared.Coord{myState.X+i, myState.Y}) {
+				minVal = val
+				if i == -1{
+					command = "left"
+				}else{
+					command = "right"
+				}
+			}
+		}
+		for _,j:= range []int{-1,1}{
+			val := abs(myState.X-prey.X)+ abs(myState.Y+j-prey.Y)
+			if val < minVal &&  pn.geo.IsValidMove(shared.Coord{myState.X, myState.Y+j}) {
+				minVal = val
+				if j == -1{
+					command = "down"
+				}else{
+					command = "up"
+				}
+			}
+		}
+		move, ok := pn.movePlayer(command)
+		if ok{
+			pn.nodeInterface.SendMoveToNodes(&move)
+			pn.nodeInterface.GameStateToSend = make(chan bool, 30)
+			fmt.Println(len(pn.nodeInterface.GameStateToSend), "/", cap(pn.nodeInterface.GameStateToSend))
+			fmt.Println(len(pn.nodeInterface.MovesToSend))
+			fmt.Println(len(pn.playerCommChannel))
+			fmt.Println(len(pn.playerSendChannel))
+			fmt.Println("movin' bot", command)
+			fmt.Println(move)
+		}
+		if pn.nodeInterface.CheckGotPrey(move) == nil {
+			fmt.Println("Got the prey")
+			pn.GameState.PlayerScores.Lock()
+			pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
+			pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores.Data[pn.Identifier])
+			fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
+			pn.GameState.PlayerScores.Unlock()
+		}
+		// Take move off the channel
+		time.Sleep(time.Millisecond*500)
+	}
+}
+func abs(num int)int {
+	if num <0{
+		return -num
+	}else{
+		return num
+	}
 }
