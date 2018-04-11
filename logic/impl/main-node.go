@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"crypto/ecdsa"
 	"time"
+	"math"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -189,8 +190,10 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 		myState := pn.GameState.PlayerLocs.Data[pn.Identifier]
 		prey := pn.GameState.PlayerLocs.Data["prey"]
 		command := "still"
-		fmt.Println(prey)
 		minVal := abs(myState.X-prey.X)+ abs(myState.Y-prey.Y)
+		if minVal <= 3{
+			minVal = math.MaxInt8
+		}
 		for _,i:= range []int{-1,1}{
 			val := abs(myState.X+i-prey.X)+ abs(myState.Y-prey.Y)
 			if val < minVal && pn.geo.IsValidMove(shared.Coord{myState.X+i, myState.Y}) {
@@ -228,7 +231,7 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 			pn.GameState.PlayerScores.Unlock()
 		}
 		// Take move off the channel
-		time.Sleep(time.Millisecond*800)
+		time.Sleep(time.Millisecond*400)
 	}
 }
 func abs(num int)int {
