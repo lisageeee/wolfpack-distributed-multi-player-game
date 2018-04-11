@@ -653,7 +653,7 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 
 		// Check for teleporting
 		_, ok := n.PlayerNode.GameState.PlayerLocs.Data[identifier]
-		if ok {
+		if ok && identifier != "prey" {
 			notTele := n.PlayerNode.geo.IsNotTeleporting(n.PlayerNode.GameState.PlayerLocs.Data[identifier], *move)
 			if !notTele {
 				return wolferrors.InvalidMoveError("Cannot teleport")
