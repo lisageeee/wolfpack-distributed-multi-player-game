@@ -553,6 +553,15 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
+
+	// Prey needs to reset if valid capture
+	n.PreyNode.GameState.PlayerLocs.Lock()
+	newPos := n.PreyNode.geo.GetNewPos(n.PreyNode.GameState.PlayerLocs.Data["prey"])
+	n.PreyNode.GameState.PlayerLocs.Data["prey"] = newPos
+	n.PreyNode.GameState.PlayerLocs.Unlock()
+
+	n.SendMoveToNodes(&newPos)
+
 	return nil
 }
 

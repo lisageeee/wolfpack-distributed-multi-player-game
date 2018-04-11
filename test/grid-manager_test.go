@@ -201,3 +201,24 @@ func TestIsNotTeleporting(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestGetNewPosition(t *testing.T) {
+	gm := setup()
+	steps := 3000 / 30 // number of steps on the game board
+	i:=0
+	// Try 10 new coordinates, make sure they are all valid
+	for i < 10 {
+		pos := gm.GetNewPos(shared.Coord{99,99})
+		if !gm.IsValidMove(pos) {
+			fmt.Println("Invalid position returned")
+
+		}
+
+		if pos.X < 1 + (steps/4) && pos.Y < 1 + (steps/4) {
+			fmt.Println("New position not far enough away, fail")
+			t.Fail()
+		}
+
+		i++
+	}
+}
