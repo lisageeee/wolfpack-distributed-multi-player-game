@@ -258,11 +258,10 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
 				} else {
-					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
+					scoreCalc, err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
 					if err != nil {
 						fmt.Println("rejecting capturing prey", err)
-						// Hacky way of calculating probable score
-						n.SendPreyCaptureReject(message.Identifier, message.Move, message.Seq, message.Score-1)
+						n.SendPreyCaptureReject(message.Identifier, message.Move, message.Seq, scoreCalc)
 					}
 				}
 			case "ack":
@@ -738,28 +737,28 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (err error) {
-	err = n.CheckGotPrey(*move)
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (int, error) {
+	err := n.CheckGotPrey(*move)
 	if err != nil {
 		if !n.RW.Match("prey", preySeq, move){
-			return err
+			return score, err
 		}else{
 			fmt.Println("Successfully found old prey")
 		}
 	}
 	err = n.CheckMoveIsValid(*move)
 	if err != nil {
-		return err
+		return score, err
 	}
-	err = n.CheckAndUpdateScore(identifier, score)
+	scoreCalc, err := n.CheckAndUpdateScore(identifier, score)
 	if err != nil {
-		return err
+		return scoreCalc, err
 	}
 	n.PlayerNode.GameState.PlayerLocs.Lock()
 	delete(n.PlayerNode.GameState.PlayerLocs.Data, "prey")
 	n.PlayerNode.GameState.PlayerLocs.Unlock()
 
-	return nil
+	return score, nil
 }
 
 // If we are requested to send a gamestate, send it
@@ -903,7 +902,7 @@ func (n *NodeCommInterface) CheckGotPrey(move shared.Coord) (err error) {
 	return wolferrors.InvalidPreyCaptureError("[" + string(move.X) + ", " + string(move.Y) + "]")
 }
 
-func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (err error) {
+func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (scoreCalc int, err error) {
 	_, exists := n.PlayerNode.GameState.PlayerScores.Data[identifier]
 	playerScore := n.PlayerNode.GameState.PlayerScores.Data[identifier]
 
@@ -911,17 +910,17 @@ func (n *NodeCommInterface) CheckAndUpdateScore(identifier string, score int) (e
 		n.PlayerNode.GameState.PlayerScores.Lock()
 		defer n.PlayerNode.GameState.PlayerScores.Unlock()
 		n.PlayerNode.GameState.PlayerScores.Data[identifier] = score
-		return nil
+		return score,nil
 	}
 
 	if exists && score != playerScore + n.PlayerNode.GameConfig.CatchWorth {
 		fmt.Println("exists: ", exists)
 		fmt.Println("score sent: ", score)
 		fmt.Println("score held: ", playerScore + n.PlayerNode.GameConfig.CatchWorth)
-		return wolferrors.InvalidScoreUpdateError(string(score))
+		return playerScore, wolferrors.InvalidScoreUpdateError(string(score))
 	}
 	n.PlayerNode.GameState.PlayerScores.Lock()
 	defer n.PlayerNode.GameState.PlayerScores.Unlock()
 	n.PlayerNode.GameState.PlayerScores.Data[identifier] += n.PlayerNode.GameConfig.CatchWorth
-	return nil
+	return score, nil
 }

@@ -228,6 +228,7 @@ func (pn * PlayerNode) RunBotGame(playerListener string) {
 			pn.GameState.PlayerScores.Lock()
 			pn.GameState.PlayerScores.Data[pn.Identifier] += pn.GameConfig.CatchWorth
 			pn.nodeInterface.SendPreyCaptureToNodes(&move, pn.GameState.PlayerScores.Data[pn.Identifier])
+			pn.nodeInterface.RW.Add("captured_prey", sequenceNumber, &move)
 			fmt.Println(pn.GameState.PlayerScores.Data[pn.Identifier])
 			pn.GameState.PlayerScores.Unlock()
 		}
