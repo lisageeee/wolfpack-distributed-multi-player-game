@@ -258,7 +258,7 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					fmt.Println("Could not unmarshal")
 					fmt.Println(err)
 				} else {
-					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
+					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq, message.Seq)
 					if err != nil {
 						fmt.Println("rejecting capturing prey", err)
 						// Hacky way of calculating probable score
@@ -691,6 +691,15 @@ func (n* NodeCommInterface) HandleReceivedMoveNL(identifier string, move *shared
 		if err != nil {
 			return err
 		}
+
+		// Check for player teleport
+		if &n.PlayerNode.geo != nil {
+			notTeleport := n.RW.IsNotTeleport(identifier, seq, move, &n.PlayerNode.geo)
+			if !notTeleport && identifier != "prey" {
+				return wolferrors.InvalidMoveError("YOU CAN'T TELEPORT")
+			}
+		}
+
 		n.PlayerNode.GameState.PlayerLocs.Lock()
 		n.PlayerNode.GameState.PlayerLocs.Data[identifier] = *move
 		n.PlayerNode.GameState.PlayerLocs.Unlock()
@@ -733,7 +742,8 @@ func (n* NodeCommInterface) HandleIncomingConnectionRequest(identifier string, a
 	n.NodesToAdd <- &OtherNode{Identifier: identifier, Conn: node, PubKey: &pubKey}
 }
 
-func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64) (err error) {
+func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *shared.Coord, score int, preySeq uint64,
+	seq uint64) (err error) {
 	err = n.CheckGotPrey(*move)
 	if err != nil {
 		if !n.RW.Match("prey", preySeq, move){
@@ -746,6 +756,15 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
+
+	// Check for player teleport
+	if &n.PlayerNode.geo != nil {
+		notTeleport := n.RW.IsNotTeleport(identifier, seq, move, &n.PlayerNode.geo)
+		if !notTeleport && identifier != "prey" {
+			return wolferrors.InvalidMoveError("YOU CAN'T TELEPORT")
+		}
+	}
+
 	err = n.CheckAndUpdateScore(identifier, score)
 	if err != nil {
 		return err

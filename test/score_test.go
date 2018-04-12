@@ -10,6 +10,7 @@ import (
 	l "../logic/impl"
 	"../shared"
 	"context"
+	"math"
 )
 
 func TestValidPreyCapture (t *testing.T) {
@@ -93,7 +94,7 @@ func TestNodeToNodeSendScore(t *testing.T) {
 	testCoord := shared.Coord{5,5}
 	node2.GameState.PlayerLocs.Data["prey"] = shared.Coord{5, 5}
 
-	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 1, uint64(9))
+	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 1, uint64(9), math.MaxUint64)
 	if err != nil {
 		fmt.Println("Error in sending a valid prey & score")
 		fmt.Println(err)
@@ -137,7 +138,7 @@ func TestNodeToNodeSendingInvalidScore(t *testing.T) {
 	n1.SendPreyCaptureToNodes(&testCoord, 1)
 	time.Sleep(200*time.Millisecond)
 
-	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 4, uint64(6))
+	err := n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 4, uint64(6), math.MaxUint64)
 	if err == nil {
 		fmt.Println("Error in sending an invalid prey & score 1")
 		fmt.Println(err)
@@ -148,7 +149,7 @@ func TestNodeToNodeSendingInvalidScore(t *testing.T) {
 	n1.SendPreyCaptureToNodes(&testCoord, 3)
 	time.Sleep(300*time.Millisecond)
 
-	err = n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 3, uint64(2))
+	err = n2.HandleCapturedPreyRequest(node1.Identifier, &testCoord, 3, uint64(2), math.MaxUint64)
 	if err == nil {
 		fmt.Println("Error in sending an invalid prey & score 2")
 		fmt.Println(err)

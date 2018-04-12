@@ -5,6 +5,7 @@ import (
 	"../shared"
 	"fmt"
 	"time"
+	"../geometry"
 )
 
 func before()l.RunningWindow {
@@ -118,5 +119,125 @@ func TestPrey(t *testing.T) {
 	if rw.PreySeq != 5{
 		t.FailNow()
 	}
+	fmt.Println("Passed")
+}
+
+func TestNoTeleportInSeq(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 1; i < 3; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{2,
+			2+i}) // should be coords 2,3; 2,4   seq 1,2
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 3, &shared.Coord{3,4}, gm)
+	if !isNotTP {
+		fmt.Println("Should not be a teleport")
+		t.Fail()
+	}
+
+	fmt.Println("Passed")
+}
+
+func TestNoTeleportOutOfSeq(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 1; i < 3; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{2+i,
+			2}) // should be coords 3,2; 4,2   seq 1,2
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 6, &shared.Coord{4, 3}, gm)
+	if !isNotTP {
+		fmt.Println("Should not be a teleport")
+		t.Fail()
+	}
+
+	fmt.Println("Passed")
+}
+
+func TestNoTeleportBehind(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 1; i < 3; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{2+i,
+			2}) // should be coords 3,2; 4,2   seq 1,2
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 2, &shared.Coord{3, 3}, gm)
+	if !isNotTP {
+		fmt.Println("Should not be a teleport")
+		t.Fail()
+	}
+
+	fmt.Println("Passed")
+}
+
+func TestTeleportInSeq(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 5; i < 8; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{10+i,
+			2}) // should be coords 15, 2; 16,2 ; 17,2   seq 5,6,7
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 8, &shared.Coord{18,3}, gm)
+	if isNotTP {
+		fmt.Println("Should be a teleport")
+		t.Fail()
+	}
+
+	fmt.Println("Passed")
+}
+
+func TestTeleportGap(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 5; i < 8; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{10+i,
+			2}) // should be coords 15, 2; 16,2 ; 17,2   seq 5,6,7
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 30, &shared.Coord{15,3}, gm)
+	if isNotTP {
+		fmt.Println("Should be a teleport")
+		t.Fail()
+	}
+
+	fmt.Println("Passed")
+}
+
+func TestTeleportBehind(t *testing.T) {
+	rw := before()
+	gs := shared.InitialGameSettings{3000, 3000,
+		[]shared.Coord{{1,1}, {10, 90}, {23, 99} }, 200}
+	gm := geometry.CreateNewGridManager(gs)
+
+	for i := 5; i < 8; i++ {
+		rw.Add("1", uint64(i), &shared.Coord{10+i,
+			2}) // should be coords 15, 2; 16,2 ; 17,2   seq 5,6,7
+	}
+
+	isNotTP := rw.IsNotTeleport("1", 6, &shared.Coord{17,3}, gm)
+	if isNotTP {
+		fmt.Println("Should be a teleport")
+		t.Fail()
+	}
+
 	fmt.Println("Passed")
 }
