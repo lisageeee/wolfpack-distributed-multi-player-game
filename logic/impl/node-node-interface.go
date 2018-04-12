@@ -317,6 +317,7 @@ func (n *NodeCommInterface) ManageOtherNodes() {
 // Routine that handles the ACKs being received in response to a move message from this node
 func (n *NodeCommInterface) ManageAcks() {
 	collectAcks := make(map[uint64][]string)
+	var curAck uint64 = 0
 	for {
 		select {
 		case ack := <-n.ACKSReceived:
@@ -330,6 +331,13 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
 					n.GameStateToSend <- true
+					if moveToSend.Seq >= curAck {
+						curAck = moveToSend.Seq
+						n.PlayerNode.GameState.PlayerLocs.Lock()
+						n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
+						n.PlayerNode.GameState.PlayerLocs.Unlock()
+						n.GameStateToSend <- true
+					}
 				} else {
 					moveToSend.Rejected++
 					n.MovesToSend <- moveToSend
@@ -345,6 +353,13 @@ func (n *NodeCommInterface) ManageAcks() {
 					n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
 					n.PlayerNode.GameState.PlayerLocs.Unlock()
 					n.GameStateToSend <- true
+					if moveToSend.Seq >= curAck {
+						curAck = moveToSend.Seq
+						n.PlayerNode.GameState.PlayerLocs.Lock()
+						n.PlayerNode.GameState.PlayerLocs.Data[n.PlayerNode.Identifier] = *moveToSend.Coord
+						n.PlayerNode.GameState.PlayerLocs.Unlock()
+						n.GameStateToSend <- true
+					}
 				}
 			} else {
 				for k := range collectAcks {
