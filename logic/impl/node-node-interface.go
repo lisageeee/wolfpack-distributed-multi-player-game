@@ -725,9 +725,6 @@ func (n* NodeCommInterface) HandleCapturedPreyRequest(identifier string, move *s
 	if err != nil {
 		return err
 	}
-	n.PlayerNode.GameState.PlayerLocs.Lock()
-	delete(n.PlayerNode.GameState.PlayerLocs.Data, "prey")
-	n.PlayerNode.GameState.PlayerLocs.Unlock()
 
 	return nil
 }
