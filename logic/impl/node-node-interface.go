@@ -387,7 +387,9 @@ func (n *NodeCommInterface) SendGameStateToPixel() {
 // Returns the unmarshalled NodeMessage, ready for reading
 func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 	// Just removes the golog headers from each message
-	// TODO: set up error handling
+	if goLog == nil{
+		return NodeMessage{Identifier: "Error"}
+	}
 	var message NodeMessage
 	goLog.UnpackReceive("LogicNodeReceiveMessage", payload, &message)
 	return message
@@ -396,6 +398,9 @@ func receiveMessage(goLog *govec.GoLog, payload []byte) NodeMessage {
 // Helper function that packs the GoVector message tooling
 // Returns the byte-encoded message, ready to send
 func sendMessage(goLog *govec.GoLog, message NodeMessage, tag string) []byte{
+	if goLog == nil{
+		return nil
+	}
 	var newMessage []byte
 	if tag == ""{
 		newMessage = goLog.PrepareSend("SendMessageToOtherNode", message)
