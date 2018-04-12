@@ -154,7 +154,10 @@ func (pn *PreyNode)MaxDistance(playerLocs shared.PlayerLockMap, moveX, moveY int
 	dist := 0
 	for val, nodeLoc := range playerLocs.Data {
 		if val != "prey"{
-			dist += abs(newLoc.X-nodeLoc.X)+ abs(newLoc.Y-nodeLoc.Y)
+			nodeDist := abs(newLoc.X-nodeLoc.X)+ abs(newLoc.Y-nodeLoc.Y)
+			if nodeDist<8{
+				dist += nodeDist
+			}
 		}
 	}
 	playerLocs.RUnlock()
