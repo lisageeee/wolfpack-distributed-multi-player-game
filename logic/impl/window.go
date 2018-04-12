@@ -10,9 +10,10 @@ type MoveSeq struct{
 	seq 	uint64
 	coords	*shared.Coord
 }
+const NUMMOVESTOKEEP = 10
 type RunningWindow struct{
 	sync.Mutex
-	Map map[string][3]MoveSeq
+	Map map[string][NUMMOVESTOKEEP]MoveSeq
 	PreySeq uint64
 }
 
@@ -20,15 +21,16 @@ func(rw *RunningWindow)Add(id string, seq uint64, coords *shared.Coord){
 	rw.Lock()
 	defer rw.Unlock()
 	if _, ok := rw.Map[id]; !ok{
-		rw.Map[id] = [3]MoveSeq{}
+		rw.Map[id] = [NUMMOVESTOKEEP]MoveSeq{}
 	}
 	if id == "prey"{
 		rw.PreySeq = seq
 	}
-
 	movSeq := rw.Map[id]
-	movSeq[2] = movSeq[1]
-	movSeq[1] = movSeq[0]
+	for i := NUMMOVESTOKEEP-1; i>0; i--{
+		movSeq[i] = movSeq[i-1]
+	}
+
 	movSeq[0] = MoveSeq{seq, coords}
 	rw.Map[id] = movSeq
 

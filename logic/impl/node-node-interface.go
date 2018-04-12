@@ -197,7 +197,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		GameStateToSend:       make(chan bool, 30),
 		HasGameState: 		   false,
-		RW:		   			   RunningWindow{Map:make(map[string][3]MoveSeq)},
+		RW:		   			   RunningWindow{Map:make(map[string][NUMMOVESTOKEEP]MoveSeq)},
 	}
 }
 
@@ -261,10 +261,22 @@ func (n *NodeCommInterface) RunListener(listener *net.UDPConn, nodeListenerAddr 
 					err:= n.HandleCapturedPreyRequest(message.Identifier, &coords, message.Score, message.PreySeq)
 					if err != nil {
 						fmt.Println("rejecting capturing prey", err)
+						// Hacky way of calculating probable score
+						n.SendPreyCaptureReject(message.Identifier, message.Move, message.Seq, message.Score-1)
 					}
 				}
 			case "ack":
 				n.HandleReceivedAck(message.Identifier, message.Seq)
+			case "rejected":
+				var coords shared.Coord
+				err := json.Unmarshal(message.Move.MoveByte, &coords)
+				if err != nil {
+					fmt.Println("Could not unmarshal")
+					fmt.Println(err)
+
+				} else {
+					n.HandleRejectedCapture(coords, message.PreySeq, message.Score)
+				}
 			default:
 				fmt.Println("Message type is incorrect")
 		}
@@ -558,6 +570,35 @@ func(n* NodeCommInterface) SendPreyCaptureToNodes(move *shared.Coord, score int)
 
 	toSend := sendMessage(n.Log, message, "Sendin' capturedPreyUpdate")
 	n.MessagesToSend <- &PendingMessage{Recipient: "all", Message: toSend}
+}
+
+func(n* NodeCommInterface) SendPreyCaptureReject(toSendID string, move shared.SignedMove, seq uint64, score int) {
+	if move.MoveByte == nil{
+		return
+	}
+	message := NodeMessage{
+		MessageType: "rejected",
+		Identifier: n.PlayerNode.Identifier,
+		Move:	move,
+		Score: score,
+		Seq: sequenceNumber,
+		PreySeq:seq,
+		Addr: n.LocalAddr.String(),
+	}
+
+	toSend := sendMessage(n.Log, message, "Sendin' rejectin' capture")
+	n.MessagesToSend <- &PendingMessage{Recipient: toSendID, Message: toSend}
+}
+
+func(n* NodeCommInterface) HandleRejectedCapture(move shared.Coord, seq uint64, score int){
+	if n.RW.Match("captured_prey", seq, &move){
+		n.PlayerNode.GameState.PlayerScores.Lock()
+		n.PlayerNode.GameState.PlayerScores.Data[n.PlayerNode.Identifier] = score
+		n.PlayerNode.GameState.PlayerScores.Unlock()
+	}else {
+		fmt.Println("I DID NOT DO IT")
+	}
+
 }
 
 // Takes in a node ID and sends this node's gamestate to that node
