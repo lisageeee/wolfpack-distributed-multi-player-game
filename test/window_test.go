@@ -8,7 +8,7 @@ import (
 )
 
 func before()l.RunningWindow {
-	return l.RunningWindow{Map:make(map[string][3]l.MoveSeq)}
+	return l.RunningWindow{Map:make(map[string][l.NUMMOVESTOKEEP]l.MoveSeq)}
 }
 
 

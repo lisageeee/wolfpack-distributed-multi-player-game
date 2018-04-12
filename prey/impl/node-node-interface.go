@@ -153,7 +153,7 @@ func CreateNodeCommInterface(pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey,
 		NodesWriteConnRefused: make(chan string, 30),
 		Strikes:               StrikeLockMap{StrikeCount:make(map[string]int)},
 		HasGameState:		   false,
-		RW: 				   li.RunningWindow{Map:make(map[string][3]li.MoveSeq)},
+		RW: 				   li.RunningWindow{Map:make(map[string][li.NUMMOVESTOKEEP]li.MoveSeq)},
 	}
 }
 
