@@ -40,7 +40,7 @@ func(rw *RunningWindow)Match(id string, seq uint64, coords * shared.Coord)bool{
 	rw.Lock()
 	defer rw.Unlock()
 	pastMoves := rw.Map[id]
-	for i := 0; i<3; i++{
+	for i := 0; i<10; i++{
 		if pastMoves[i].seq == seq{
 			return reflect.DeepEqual(pastMoves[i].coords, coords)
 		}
