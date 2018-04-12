@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"time"
 	"math/rand"
+	"fmt"
 )
 
 // The "main" node part of the logic node. Deals with computation and checks; not communications
@@ -88,8 +89,9 @@ func (pn * PreyNode) RunGame(playerListener string) {
 	ticker := time.NewTicker(time.Millisecond * 250)
 	for _ = range ticker.C {
 		var dir string
-
-		go func() {
+		randMove := rand.Float64()
+		if randMove < 0.25 || len(pn.GameState.PlayerLocs.Data) <2{
+			go func() {
 				random := rand.Float64()
 				switch {
 				case random < 0.25:
@@ -104,10 +106,67 @@ func (pn * PreyNode) RunGame(playerListener string) {
 
 				move := pn.MovePrey(dir)
 				pn.nodeInterface.SendMoveToNodes(&move)
-		}()
+			}()
+		}else {
+			go func() {
+				dir := "still"
+				maxVal := -1
+				for _,i:= range []int{-1,1}{
+					val := pn.MaxDistance(pn.GameState.PlayerLocs, i, 0)
+						if val > maxVal {
+							maxVal = val
+							if i == -1{
+								dir = "left"
+							}else{
+								dir = "right"
+							}
+
+					}
+
+				}
+				for _,j:= range []int{-1,1}{
+					val := pn.MaxDistance(pn.GameState.PlayerLocs, 0, j)
+					if val > maxVal{
+						maxVal = val
+						if j == -1{
+							dir = "down"
+						}else{
+							dir = "up"
+						}
+					}
+				}
+
+				fmt.Println("move prey: ", dir)
+				move := pn.MovePrey(dir)
+				pn.nodeInterface.SendMoveToNodes(&move)
+			}()
+		}
 	}
 }
 
+func (pn *PreyNode)MaxDistance(playerLocs shared.PlayerLockMap, moveX, moveY int)int {
+	playerLocs.RLock()
+	myLoc := playerLocs.Data["prey"]
+	newLoc := shared.Coord{myLoc.X+moveX, myLoc.Y+moveY}
+	if !pn.geo.IsValidMove(newLoc)	{
+		return -1
+	}
+	dist := 0
+	for val, nodeLoc := range playerLocs.Data {
+		if val != "prey"{
+			dist += abs(newLoc.X-nodeLoc.X)+ abs(newLoc.Y-nodeLoc.Y)
+		}
+	}
+	playerLocs.RUnlock()
+	return dist
+}
+func abs(num int)int {
+	if num <0{
+		return -num
+	}else{
+		return num
+	}
+}
 
 func (pn * PreyNode) MovePrey(move string) (shared.Coord) {
 	pn.GameState.PlayerLocs.RLock()
